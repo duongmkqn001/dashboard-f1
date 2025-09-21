@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Dashboard - Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .gradient-bg {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .login-card {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.95);
+        }
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="antialiased h-full gradient-bg">
+    <div class="min-h-screen flex items-center justify-center px-4 sm:px-6 lg:px-8">
+        <!-- Login Form -->
+        <div class="login-card max-w-md w-full space-y-8 p-8 rounded-xl shadow-2xl">
+            <div class="text-center">
+                <h1 class="text-3xl font-bold text-gray-900 mb-2">
+                    F1 Dashboard
+                </h1>
+                <p class="text-gray-600">
+                    Đăng nhập để truy cập hệ thống
+                </p>
+            </div>
+
+            <!-- Login Form -->
+            <form id="login-form" class="space-y-6">
+                <div>
+                    <label for="account-name" class="block text-sm font-medium text-gray-700 mb-2">
+                        Tên tài khoản
+                    </label>
+                    <input
+                        type="text"
+                        id="account-name"
+                        name="account-name"
+                        required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        placeholder="Nhập tên tài khoản"
+                    >
+                </div>
+
+                <div>
+                    <label for="account-password" class="block text-sm font-medium text-gray-700 mb-2">
+                        Mật khẩu
+                    </label>
+                    <input
+                        type="password"
+                        id="account-password"
+                        name="account-password"
+                        required
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        placeholder="Nhập mật khẩu"
+                    >
+                </div>
+
+                <button
+                    type="submit"
+                    id="login-btn"
+                    class="w-full flex justify-center items-center py-2 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                >
+                    <span id="login-text">Đăng nhập</span>
+                    <div id="login-spinner" class="loading-spinner ml-2 hidden"></div>
+                </button>
+            </form>
+
+            <!-- Error Message -->
+            <div id="error-message" class="hidden p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
+            </div>
+
+            <!-- Success Message -->
+            <div id="success-message" class="hidden p-3 bg-green-100 border border-green-400 text-green-700 rounded-lg text-sm">
+            </div>
+        </div>
+    </div>
+
+
+    <!-- JavaScript -->
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://pfbxtbydrjcmqlrklsdr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmYnh0YnlkcmpjbXFscmtsc2RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY5ODM2NDksImV4cCI6MjA3MjU1OTY0OX0.bOgnown0UZzstbnYfUSEImwaSGP6lg2FccRg-yDFTPU';
+
+        let supabaseClient;
+
+        try {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        } catch (error) {
+            console.error('Error initializing Supabase:', error);
+            showError('Không thể kết nối đến cơ sở dữ liệu');
+        }
+
+        // DOM elements
+        const loginForm = document.getElementById('login-form');
+        const accountNameInput = document.getElementById('account-name');
+        const accountPasswordInput = document.getElementById('account-password');
+        const loginBtn = document.getElementById('login-btn');
+        const loginText = document.getElementById('login-text');
+        const loginSpinner = document.getElementById('login-spinner');
+        const errorMessage = document.getElementById('error-message');
+        const successMessage = document.getElementById('success-message');
+
+        // Event listeners
+        loginForm.addEventListener('submit', handleLogin);
+
+        // Enter key support
+        accountPasswordInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleLogin(e);
+            }
+        });
+
+        async function handleLogin(event) {
+            event.preventDefault();
+
+            const accountName = accountNameInput.value.trim();
+            const accountPassword = accountPasswordInput.value.trim();
+
+            if (!accountName || !accountPassword) {
+                showError('Vui lòng nhập đầy đủ tên tài khoản và mật khẩu');
+                return;
+            }
+
+            setLoading(true);
+            hideMessages();
+
+            try {
+                // Query vcn_agent table
+                const { data, error } = await supabaseClient
+                    .from('vcn_agent')
+                    .select('*')
+                    .eq('account_name', accountName)
+                    .eq('account_password', accountPassword)
+                    .single();
+
+                if (error) {
+                    if (error.code === 'PGRST116') {
+                        showError('Tên tài khoản hoặc mật khẩu không đúng');
+                    } else {
+                        console.error('Database error:', error);
+                        showError('Lỗi kết nối cơ sở dữ liệu');
+                    }
+                    return;
+                }
+
+                // Check if account is active
+                if (data.status !== 'active') {
+                    showError('Tài khoản của bạn chưa được kích hoạt. Vui lòng liên hệ quản trị viên.');
+                    return;
+                }
+
+                // Store user info in localStorage
+                localStorage.setItem('currentUser', JSON.stringify({
+                    stt: data.stt,
+                    name: data.name,
+                    account_name: data.account_name,
+                    level: data.level,
+                    status: data.status
+                }));
+
+                showSuccess('Đăng nhập thành công! Đang chuyển hướng...');
+
+                // Redirect based on user level
+                setTimeout(() => {
+                    // Always redirect to dashboard after successful login
+                    window.location.href = 'dashboard-v2.html';
+                }, 1500);
+
+            } catch (error) {
+                console.error('Login error:', error);
+                showError('Đã xảy ra lỗi trong quá trình đăng nhập');
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function showDashboardSelection() {
+            document.body.innerHTML = `
+                <div class="min-h-screen gradient-bg flex items-center justify-center px-4 sm:px-6 lg:px-8">
+                    <div class="login-card max-w-2xl w-full space-y-8 p-8 rounded-xl shadow-2xl">
+                        <div class="text-center">
+                            <h1 class="text-3xl font-bold text-gray-900 mb-2">
+                                Chào mừng!
+                            </h1>
+                            <p class="text-gray-600">
+                                Chọn hệ thống bạn muốn truy cập
+                            </p>
+                        </div>
+
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <!-- Dashboard Card -->
+                            <div class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer" onclick="window.location.href='dashboard-v2.html'">
+                                <div class="flex items-center mb-4">
+                                    <div class="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mr-4">
+                                        <svg class="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                                        </svg>
+                                    </div>
+                                    <h3 class="text-xl font-semibold text-gray-900">Ticket Dashboard</h3>
+                                </div>
+                                <p class="text-gray-600 mb-4">
+                                    Quản lý tickets, templates và workflow
+                                </p>
+                                <div class="text-blue-600 font-medium">Truy cập Dashboard →</div>
+                            </div>
+
+                            <!-- Admin Panel Card -->
+                            <div class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition-shadow cursor-pointer" onclick="window.location.href='adminview.html'">
+                                <div class="flex items-center mb-4">
+                                    <div class="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center mr-4">
+                                        <svg class="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                                        </svg>
+                                    </div>
+                                    <h3 class="text-xl font-semibold text-gray-900">Admin Panel</h3>
+                                </div>
+                                <p class="text-gray-600 mb-4">
+                                    Quản lý hệ thống, templates, và dữ liệu
+                                </p>
+                                <div class="text-purple-600 font-medium">Truy cập Admin →</div>
+                            </div>
+                        </div>
+
+                        <div class="text-center">
+                            <button onclick="logout()" class="text-gray-500 hover:text-gray-700 text-sm">
+                                Đăng xuất
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function logout() {
+            localStorage.removeItem('currentUser');
+            window.location.reload();
+        }
+
+        function setLoading(loading) {
+            if (loading) {
+                loginBtn.disabled = true;
+                loginText.textContent = 'Đang đăng nhập...';
+                loginSpinner.classList.remove('hidden');
+            } else {
+                loginBtn.disabled = false;
+                loginText.textContent = 'Đăng nhập';
+                loginSpinner.classList.add('hidden');
+            }
+        }
+
+        function showError(message) {
+            errorMessage.textContent = message;
+            errorMessage.classList.remove('hidden');
+            successMessage.classList.add('hidden');
+        }
+
+        function showSuccess(message) {
+            successMessage.textContent = message;
+            successMessage.classList.remove('hidden');
+            errorMessage.classList.add('hidden');
+        }
+
+        function hideMessages() {
+            errorMessage.classList.add('hidden');
+            successMessage.classList.add('hidden');
+        }
+
+        // Check if user is already logged in
+        window.addEventListener('load', () => {
+            const currentUser = localStorage.getItem('currentUser');
+            if (currentUser) {
+                // Always redirect to dashboard if already logged in
+                window.location.href = 'dashboard-v2.html';
+            }
+        });
+    </script>
+</body>
+</html>

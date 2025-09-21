@@ -1,0 +1,249 @@
+ /* General Styles */
+        body { font-family: 'Inter', sans-serif; transition: background-color 0.3s, color 0.3s; }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #3b82f6; border-radius: 50%; width: 24px; height: 24px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .notification { transition: opacity 0.5s ease, transform 0.5s ease; }
+        #main-content thead th { position: sticky; top: 0; z-index: 10; }
+
+        /* --- THEME STYLES --- */
+        /* Daylight Theme */
+        html.daylight body { background-color: #f9fafb; color: #374151; }
+        html.daylight h1, html.daylight h2, html.daylight h3 { color: #111827; }
+        html.daylight .bg-section, html.daylight .bg-popup-col { background-color: #ffffff; border-color: #e5e7eb; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05); }
+        html.daylight .bg-popup-main { background-color: #f3f4f6; }
+        html.daylight .bg-header-footer, html.daylight #main-content thead th { background-color: #e5e7eb; }
+        html.daylight .text-main { color: #374151; }
+        html.daylight .text-secondary { color: #6b7280; }
+        html.daylight .text-headings { color: #111827; }
+        html.daylight .border-main { border-color: #e5e7eb; }
+        html.daylight .border-secondary { border-color: #d1d5db; }
+        html.daylight .group-hover > td { background-color: rgba(243, 244, 246, 0.7) !important; }
+        html.daylight .bg-button { background-color: #e5e7eb; }
+        html.daylight .bg-button:hover { background-color: #d1d5db; }
+        html.daylight select, html.daylight input, html.daylight textarea { background-color: #f3f4f6; color: #1f2937; border-color: #d1d5db; }
+        html.daylight .theme-btn { color: #4b5563; }
+        html.daylight .theme-btn:hover { background-color: #e5e7eb; }
+        html.daylight .theme-btn.active { background-color: #2563eb; color: white; }
+        html.daylight .toolbar-btn { background-color: #8E44AD; color: white; }
+        html.daylight .btn-wizard { background-color: #46A1DD; color: white; }
+        html.daylight .btn-shipping { background-color: #28AF60; color: white; }
+        html.daylight .btn-history { background-color: #E5933A; color: white; }
+        html.daylight .btn-email { background-color: #FBBC04; color: #333; }
+        html.daylight .js-copy-btn { background-color: #d1d5db; }
+        html.daylight .js-copy-btn:hover { background-color: #9ca3af; }
+        
+        /* Dark Theme */
+        html.dark body { background-color: #111827; color: #d1d5db; }
+        html.dark h1, html.dark h2, html.dark h3 { color: #ffffff; }
+        html.dark .bg-section, html.dark .bg-popup-col { background-color: #1f2937; border-color: #374151; }
+        html.dark .bg-popup-main { background-color: #111827; }
+        html.dark .bg-header-footer, html.dark #main-content thead th { background-color: #374151; }
+        html.dark .text-main { color: #d1d5db; }
+        html.dark .text-secondary { color: #9ca3af; }
+        html.dark .text-headings { color: #f9fafb; }
+        html.dark .border-main { border-color: #374151; }
+        html.dark .border-secondary { border-color: #4b5563; }
+        html.dark .group-hover > td { background-color: rgba(55, 65, 81, 0.7) !important; }
+        html.dark .bg-button { background-color: #374151; }
+        html.dark .bg-button:hover { background-color: #4b5563; }
+        html.dark select, html.dark input, html.dark textarea { background-color: #374151; color: #d1d5db; border-color: #4b5563;}
+        html.dark .theme-btn.active { background-color: #2563eb; color: white; }
+        html.dark .toolbar-btn { background-color: #581c87; color: #e9d5ff; }
+        html.dark .btn-wizard { background-color: #2563eb; color: white; }
+        html.dark .btn-shipping { background-color: #059669; color: white; }
+        html.dark .btn-history { background-color: #d97706; color: white; }
+        html.dark .btn-email { background-color: #facc15; color: #422006; }
+        html.dark .js-copy-btn { background-color: #4b5563; }
+        html.dark .js-copy-btn:hover { background-color: #6b7280; }
+
+        /* Sunset Theme */
+        html.sunset body { background-color: #422006; color: #fed7aa; background-image: linear-gradient(to top, #b45309, #422006); }
+        html.sunset h1, html.sunset h2, html.sunset h3 { color: #fde68a; }
+        html.sunset .bg-section, html.sunset .bg-popup-col { background-color: #422006; border-color: #92400e; }
+        html.sunset .bg-popup-main { background-color: #422006; }
+        html.sunset .bg-header-footer, html.sunset #main-content thead th { background-color: #9a3412; }
+        html.sunset .text-main { color: #fed7aa; }
+        html.sunset .text-secondary { color: #fcd34d; }
+        html.sunset .text-headings { color: #fef3c7; }
+        html.sunset .border-main { border-color: #92400e; }
+        html.sunset .border-secondary { border-color: #b45309; }
+        html.sunset .group-hover > td { background-color: rgba(180, 83, 9, 0.3) !important; }
+        html.sunset .bg-button { background-color: #9a3412; color: #fed7aa; }
+        html.sunset .bg-button:hover { background-color: #b45309; }
+        html.sunset select, html.sunset input, html.sunset textarea { background-color: #78350f; color: #fed7aa; border-color: #9a3412; }
+        html.sunset .theme-btn { color: #fcd34d; }
+        html.sunset .theme-btn:hover { background-color: #9a3412; }
+        html.sunset .theme-btn.active { background-color: #f97316; color: white; }
+        html.sunset .toolbar-btn { background-color: #d97706; color: white; }
+        html.sunset .btn-wizard { background-color: #f59e0b; color: #422006; }
+        html.sunset .btn-shipping { background-color: #fb923c; color: #422006; }
+        html.sunset .btn-history { background-color: #fcd34d; color: #422006; }
+        html.sunset .btn-email { background-color: #fef3c7; color: #422006; }
+        html.sunset .js-copy-btn { background-color: #9a3412; }
+        html.sunset .js-copy-btn:hover { background-color: #b45309; }
+
+
+        /* Twilight Theme */
+        html.twilight body { background-image: linear-gradient(to bottom right, #1e1b4b, #0f172a); color: #cbd5e1; }
+        html.twilight h1, html.twilight h2, html.twilight h3 { color: #e2e8f0; }
+        html.twilight .bg-section, html.twilight .bg-popup-col { background-color: #1e293b; border-color: #334155; }
+        html.twilight .bg-popup-main { background-color: #0f172a; }
+        html.twilight .bg-header-footer, html.twilight #main-content thead th { background-color: #334155; }
+        html.twilight .text-main { color: #cbd5e1; }
+        html.twilight .text-secondary { color: #94a3b8; }
+        html.twilight .text-headings { color: #e2e8f0; }
+        html.twilight .border-main { border-color: #334155; }
+        html.twilight .border-secondary { border-color: #475569; }
+        html.twilight .group-hover > td { background-color: rgba(51, 65, 85, 0.7) !important; }
+        html.twilight .bg-button { background-color: #334155; }
+        html.twilight .bg-button:hover { background-color: #475569; }
+        html.twilight select, html.twilight input, html.twilight textarea { background-color: #334155; color: #cbd5e1; border-color: #475569;}
+        html.twilight .theme-btn { color: #94a3b8; }
+        html.twilight .theme-btn:hover { background-color: #475569; }
+        html.twilight .theme-btn.active { background-color: #4f46e5; color: white; }
+        html.twilight .project-tab[data-project-id] { background-color: #312e81 !important; color: #c7d2fe !important;}
+        html.twilight .project-tab.active { background-color: #4338ca !important; color: white !important; }
+        html.twilight #popup-issues-list button.bg-blue-600 { background-color: #4f46e5; }
+        html.twilight #copy-btn { background-color: #4f46e5; }
+        html.twilight #copy-btn:hover { background-color: #4338ca; }
+        html.twilight .js-template-btn { background-color: #4f46e5; }
+        html.twilight .js-template-btn:hover { background-color: #4338ca; }
+        html.twilight .toolbar-btn { background-color: #7c3aed; color: #ddd6fe; }
+        html.twilight .btn-wizard { background-color: #2563eb; color: white; }
+        html.twilight .btn-shipping { background-color: #16a34a; color: white; }
+        html.twilight .btn-history { background-color: #f59e0b; color: #1e293b; }
+        html.twilight .btn-email { background-color: #eab308; color: #1e293b; }
+        html.twilight .js-copy-btn { background-color: #475569; }
+        html.twilight .js-copy-btn:hover { background-color: #6b7280; }
+
+        /* Blossom Dawn Theme */
+        html.blossom-dawn body { background-color: #fff5f7; color: #5c2c3b; }
+        html.blossom-dawn h1, html.blossom-dawn h2, html.blossom-dawn h3 { color: #8c435a; }
+        html.blossom-dawn .bg-section, html.blossom-dawn .bg-popup-col { background-color: #ffe4e9; border-color: #fecdd3; }
+        html.blossom-dawn .bg-popup-main { background-color: #fff5f7; }
+        html.blossom-dawn .bg-header-footer, html.blossom-dawn #main-content thead th { background-color: #fed7dd; }
+        html.blossom-dawn .text-main { color: #5c2c3b; }
+        html.blossom-dawn .text-secondary { color: #8c435a; }
+        html.blossom-dawn .text-headings { color: #5c2c3b; }
+        html.blossom-dawn .border-main { border-color: #fecdd3; }
+        html.blossom-dawn .border-secondary { border-color: #fda4af; }
+        html.blossom-dawn .group-hover > td { background-color: rgba(254, 205, 211, 0.7) !important; }
+        html.blossom-dawn .bg-button { background-color: #ffe4e9; color: #8c435a; }
+        html.blossom-dawn .bg-button:hover { background-color: #fecdd3; }
+        html.blossom-dawn select, html.blossom-dawn input, html.blossom-dawn textarea { background-color: #fff5f7; color: #5c2c3b; border-color: #fecdd3; }
+        html.blossom-dawn .theme-btn { color: #8c435a; }
+        html.blossom-dawn .theme-btn:hover { background-color: #fecdd3; }
+        html.blossom-dawn .theme-btn.active { background-color: #f43f5e; color: white; }
+        html.blossom-dawn .toolbar-btn { background-color: #e11d48; color: white; }
+        html.blossom-dawn .btn-wizard { background-color: #ec4899; color: white; }
+        html.blossom-dawn .btn-shipping { background-color: #22c55e; color: white; }
+        html.blossom-dawn .btn-history { background-color: #f97316; color: white; }
+        html.blossom-dawn .btn-email { background-color: #facc15; color: #5c2c3b; }
+        html.blossom-dawn .js-copy-btn { background-color: #fecdd3; }
+        html.blossom-dawn .js-copy-btn:hover { background-color: #fda4af; }
+
+        /* Blue Sky Theme */
+        html.blue-sky body { background-color: #f0f9ff; color: #075985; }
+        html.blue-sky h1, html.blue-sky h2, html.blue-sky h3 { color: #0c4a6e; }
+        html.blue-sky .bg-section, html.blue-sky .bg-popup-col { background-color: #e0f2fe; border-color: #bae6fd; }
+        html.blue-sky .bg-popup-main { background-color: #f0f9ff; }
+        html.blue-sky .bg-header-footer, html.blue-sky #main-content thead th { background-color: #ccecfd; }
+        html.blue-sky .text-main { color: #075985; }
+        html.blue-sky .text-secondary { color: #0369a1; }
+        html.blue-sky .text-headings { color: #0c4a6e; }
+        html.blue-sky .border-main { border-color: #bae6fd; }
+        html.blue-sky .border-secondary { border-color: #7dd3fc; }
+        html.blue-sky .group-hover > td { background-color: rgba(186, 230, 253, 0.7) !important; }
+        html.blue-sky .bg-button { background-color: #e0f2fe; color: #0369a1; }
+        html.blue-sky .bg-button:hover { background-color: #bae6fd; }
+        html.blue-sky select, html.blue-sky input, html.blue-sky textarea { background-color: #f0f9ff; color: #075985; border-color: #bae6fd; }
+        html.blue-sky .theme-btn { color: #0369a1; }
+        html.blue-sky .theme-btn:hover { background-color: #bae6fd; }
+        html.blue-sky .theme-btn.active { background-color: #0ea5e9; color: white; }
+        html.blue-sky .toolbar-btn { background-color: #0284c7; color: white; }
+        html.blue-sky .btn-wizard { background-color: #0ea5e9; color: white; }
+        html.blue-sky .btn-shipping { background-color: #10b981; color: white; }
+        html.blue-sky .btn-history { background-color: #f59e0b; color: #0c4a6e; }
+        html.blue-sky .btn-email { background-color: #eab308; color: #0c4a6e; }
+        html.blue-sky .js-copy-btn { background-color: #bae6fd; }
+        html.blue-sky .js-copy-btn:hover { background-color: #7dd3fc; }
+
+        /* Fire Effect Animation - Subtle */
+        .fire-effect {
+            display: inline-block;
+            animation: fire-flicker 1s ease-in-out infinite alternate;
+        }
+
+        .fire-box {
+            position: relative;
+            animation: fire-box-glow 2s ease-in-out infinite alternate;
+            box-shadow: 0 0 8px rgba(255, 69, 0, 0.3), 0 0 16px rgba(255, 140, 0, 0.2);
+        }
+
+        .fire-box::before {
+            content: '';
+            position: absolute;
+            top: -1px;
+            left: -1px;
+            right: -1px;
+            bottom: -1px;
+            background: linear-gradient(45deg, #ff4500, #ff8c00, #ffd700, #ff4500);
+            background-size: 400% 400%;
+            border-radius: inherit;
+            z-index: -1;
+            animation: fire-border 3s ease-in-out infinite;
+            opacity: 0.6;
+        }
+
+        @keyframes fire-flicker {
+            0% {
+                transform: scale(1);
+                filter: hue-rotate(0deg) brightness(1.05);
+                text-shadow: 0 0 3px rgba(255, 69, 0, 0.4);
+            }
+            50% {
+                transform: scale(1.02);
+                filter: hue-rotate(10deg) brightness(1.1);
+                text-shadow: 0 0 5px rgba(255, 140, 0, 0.5);
+            }
+            100% {
+                transform: scale(1);
+                filter: hue-rotate(-5deg) brightness(1.05);
+                text-shadow: 0 0 3px rgba(255, 215, 0, 0.4);
+            }
+        }
+
+        @keyframes fire-box-glow {
+            0% {
+                box-shadow: 0 0 6px rgba(255, 69, 0, 0.2), 0 0 12px rgba(255, 140, 0, 0.15);
+            }
+            50% {
+                box-shadow: 0 0 10px rgba(255, 69, 0, 0.4), 0 0 20px rgba(255, 140, 0, 0.3);
+            }
+            100% {
+                box-shadow: 0 0 8px rgba(255, 69, 0, 0.3), 0 0 16px rgba(255, 140, 0, 0.2);
+            }
+        }
+
+        @keyframes fire-border {
+            0% {
+                background-position: 0% 50%;
+                opacity: 0.4;
+            }
+            50% {
+                background-position: 100% 50%;
+                opacity: 0.6;
+            }
+            100% {
+                background-position: 0% 50%;
+                opacity: 0.4;
+            }
+        }
+
+        /* MODAL & TEMPLATE VIEWER STYLES */
+        .modal-backdrop { background-color: rgba(0, 0, 0, 0.6); transition: opacity 0.3s ease; }
+        .modal-content { transition: transform 0.3s ease, opacity 0.3s ease; }
+        .placeholder-tag { display: inline-block; padding: 2px 6px; border-radius: 4px; font-family: monospace; font-weight: 600; background-color: rgba(59, 130, 246, 0.2); color: #3B82F6; border: 1px solid transparent; }
+        html.dark .placeholder-tag { background-color: rgba(96, 165, 250, 0.2); color: #60A5FA; }
+        html.twilight .placeholder-tag { background-color: rgba(124, 58, 237, 0.2); color: #a78bfa; }
+        .project-tab.active { color: white; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }

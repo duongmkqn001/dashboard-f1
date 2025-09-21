@@ -1,0 +1,6 @@
+suid,suname,suchildid,parentSuid
+SUP001,Công ty TNHH ABC,,
+SUP002,Công ty Cổ phần XYZ,,
+,,CHILD001,SUP001
+,,CHILD002,SUP001
+,,CHILD003,SUP002

@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Template Response Manager (Custom Version)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./css/adminview.css">
+
+    <!-- Authentication Check -->
+    <script>
+        // Check authentication before loading the admin panel
+        window.addEventListener('load', () => {
+            const currentUser = localStorage.getItem('currentUser');
+            if (!currentUser) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const user = JSON.parse(currentUser);
+            if (user.status !== 'active') {
+                localStorage.removeItem('currentUser');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // Check if user has admin privileges
+            if (user.level !== 'leader' && user.level !== 'key') {
+                alert('Bạn không có quyền truy cập trang quản trị');
+                window.location.href = 'dashboard-v2.html';
+                return;
+            }
+        });
+    </script>
+</head>
+<body class="transition-colors duration-300">
+
+    <div id="app-container" class="max-w-screen-2xl mx-auto px-4 md:px-6 py-4 md:py-6 opacity-0 transition-opacity duration-500">
+        <header class="relative flex justify-between items-center mb-6 pb-4 border-b border-[rgb(var(--color-border))]">
+            <div class="text-left">
+                <h1 class="text-3xl md:text-4xl font-bold text-[rgb(var(--color-text-secondary))]">Template Response Manager</h1>
+                <p class="text-[rgb(var(--color-text-muted))] mt-2">Create, manage, and use response templates to improve workflow.</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <div id="sync-status" class="flex items-center gap-2 mr-4 text-sm text-[rgb(var(--color-text-muted))]">
+                    <svg id="sync-icon-syncing" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 animate-spin" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h5M20 20v-5h-5M20 4v5h-5M4 20v-5h5"/></svg>
+                    <svg id="sync-icon-success" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-green-500 hidden" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                     <svg id="sync-icon-error" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-500 hidden" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" /></svg>
+                    <span id="sync-text">Syncing...</span>
+                </div>
+                <div id="theme-switcher" class="flex items-center gap-1 bg-[rgb(var(--color-bg-secondary))] p-1 rounded-full">
+                    <button data-theme="light" class="theme-btn p-2 rounded-full" title="Light Theme"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path></svg></button>
+                    <button data-theme="yellow" class="theme-btn p-2 rounded-full" title="Yellow Theme"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" /></svg></button>
+                    <button data-theme="dark" class="theme-btn p-2 rounded-full" title="Dark Theme"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path></svg></button>
+                </div>
+                <button id="open-help-btn" class="p-3 bg-[rgb(var(--color-bg-secondary))] hover:bg-[rgb(var(--color-bg-tertiary))] rounded-full transition-colors" title="Trợ giúp & Hướng dẫn"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-[rgb(var(--color-text-secondary))]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.546-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></button>
+                <button id="open-data-manager-btn" class="p-3 bg-[rgb(var(--color-bg-secondary))] hover:bg-[rgb(var(--color-bg-tertiary))] rounded-full transition-colors" title="Cài đặt & Quản lý Dữ liệu"><svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-[rgb(var(--color-text-secondary))]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 0118 0z" /></svg></button>
+            </div>
+        </header>
+
+        <main class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+            <!-- Left Column: Projects & Categories (Vietnamese UI) -->
+            <div class="lg:col-span-1 bg-[rgb(var(--color-bg-primary))] p-4 rounded-lg shadow-md flex flex-col">
+                <div class="mb-4">
+                    <h2 class="text-xl font-bold mb-2">Dự án</h2>
+                    <div id="project-tabs-container" class="flex flex-wrap gap-2"></div>
+                </div>
+                 <div class="mt-4 pt-4 border-t border-[rgb(var(--color-border))]">
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-sm font-semibold text-[rgb(var(--color-text-muted))]">Current Signer:</h3>
+                        <button id="change-signer-btn" class="text-xs text-[rgb(var(--color-accent-primary))] hover:underline">Change</button>
+                    </div>
+                    <p id="current-signer-display" class="font-bold text-lg text-[rgb(var(--color-accent-primary))]">Loading...</p>
+                </div>
+                <h2 class="text-xl font-bold mb-2 mt-4">Danh mục chính</h2>
+                <div id="issues-list" class="space-y-1 flex-grow h-[60vh] overflow-y-auto pr-2"></div>
+            </div>
+
+            <!-- Middle Column: Template List (Vietnamese UI) -->
+            <div class="lg:col-span-1 bg-[rgb(var(--color-bg-primary))] p-4 rounded-lg shadow-md flex flex-col">
+                 <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
+                    <h2 class="text-xl font-bold">Danh sách Mẫu</h2>
+                    <button id="new-template-btn" class="w-full sm:w-auto bg-[rgb(var(--color-accent-primary))] hover:bg-[rgb(var(--color-accent-primary-hover))] text-white font-bold py-2 px-4 rounded-lg transition-colors">Tạo Mẫu Mới</button>
+                </div>
+                <input type="text" id="search-input" placeholder="Tìm kiếm tất cả các mẫu..." class="w-full p-2 border border-[rgb(var(--color-border))] rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-[rgb(var(--color-accent-primary))] bg-[rgb(var(--color-bg-primary))]">
+                <div id="template-list" class="space-y-2 flex-grow h-[70vh] overflow-y-auto pr-2"></div>
+            </div>
+
+            <!-- Right Column: Workspace -->
+            <div class="lg:col-span-2 bg-[rgb(var(--color-bg-primary))] p-6 rounded-lg shadow-md min-h-[80vh]">
+                <div id="workspace">
+                    <div id="welcome-screen" class="flex flex-col items-center justify-center h-full text-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-[rgb(var(--color-text-muted))] mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                        <h3 class="text-2xl font-semibold text-[rgb(var(--color-text-secondary))]">Welcome!</h3>
+                        <p class="text-[rgb(var(--color-text-muted))] mt-2">Select a template from the list to start editing or using it.</p>
+                    </div>
+
+                    <!-- Template Editor Form (English UI) -->
+                    <div id="template-form" class="hidden">
+                        <h3 id="form-title" class="text-2xl font-bold mb-4">Create New Template</h3>
+                        <form id="editor-form" class="space-y-4">
+                            <input type="hidden" id="template-id">
+                            <div>
+                                <label for="main-issue" class="block text-sm font-medium text-[rgb(var(--color-text-secondary))] mb-1">Main Issue (Category)</label>
+                                <input type="text" id="main-issue" list="existing-issues" required class="w-full p-2 border border-[rgb(var(--color-border))] rounded-lg focus:outline-none focus:ring-2 focus:ring-[rgb(var(--color-accent-primary))] bg-[rgb(var(--color-bg-primary))]" placeholder="Select or type a new category...">
+                                <datalist id="existing-issues"></datalist>
+                            </div>
+                            <div>
+                                <label for="template-name" class="block text-sm font-medium text-[rgb(var(--color-text-secondary))] mb-1">Template Name</label>
+                                <input type="text" id="template-name" required class="w-full p-2 border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-bg-primary))]" placeholder="e.g., Reply to quote for product A">
+                            </div>
+                            <div>
+                                <label for="template-description" class="block text-sm font-medium text-[rgb(var(--color-text-secondary))] mb-1">Description</label>
+                                <textarea id="template-description" class="w-full p-2 border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-bg-primary))]" rows="3" placeholder="Explain when and how to use this template..."></textarea>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-[rgb(var(--color-text-secondary))] mb-1">Main Content (for Supplier)</label>
+                                <div class="flex gap-4">
+                                    <textarea id="template-content-textarea" rows="12" class="w-full p-2 border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-bg-primary))] focus:outline-none focus:ring-2 focus:ring-[rgb(var(--color-accent-primary))]"></textarea>
+                                    <div id="component-panel" class="w-48 flex-shrink-0">
+                                        <h4 class="font-semibold mb-2 text-sm text-center text-[rgb(var(--color-text-secondary))]">Components</h4>
+                                        <div id="component-source" class="space-y-2"></div>
+                                    </div>
+                                </div>
+                            </div>
+                             <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+                                <label class="flex items-center"><input type="checkbox" id="send-to-customer" class="h-4 w-4 text-[rgb(var(--color-accent-primary))] border-[rgb(var(--color-border))] rounded"><span class="ml-2 text-sm">Send email to Customer</span></label>
+                                <label class="flex items-center"><input type="checkbox" id="include-footer" class="h-4 w-4 text-[rgb(var(--color-accent-primary))] border-[rgb(var(--color-border))] rounded"><span class="ml-2 text-sm">Include Footer</span></label>
+                            </div>
+                            <div>
+                                <label class="flex items-center"><input type="checkbox" id="add-label-reminder" class="h-4 w-4 text-[rgb(var(--color-accent-primary))] border-[rgb(var(--color-border))] rounded"><span class="ml-2 text-sm">Add Label Reminder</span></label>
+                                <input type="text" id="label-name" class="hidden mt-2 w-full p-2 border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-bg-primary))]" placeholder="Enter the label name for the reminder...">
+                            </div>
+                            <div>
+                                <label class="flex items-center"><input type="checkbox" id="add-optional-field" class="h-4 w-4 text-[rgb(var(--color-accent-primary))] border-[rgb(var(--color-border))] rounded"><span class="ml-2 text-sm">Add optional fields (visible on use)</span></label>
+                                <input type="text" id="optional-field-name" class="hidden mt-2 w-full p-2 border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-bg-primary))]" placeholder="Enter field names, separated by a comma. e.g., Tracking_Number, Invoice_ID">
+                            </div>
+                             <div>
+                                <label class="flex items-center"><input type="checkbox" id="add-follow-up" class="h-4 w-4 text-[rgb(var(--color-accent-primary))] border-[rgb(var(--color-border))] rounded"><span class="ml-2 text-sm">Add Required Follow-up Steps</span></label>
+                            </div>
+                            <div id="customer-template-fields" class="hidden p-4 border-l-4 border-rose-400 bg-rose-50 space-y-4">
+                                <h4 class="font-semibold text-rose-800">Customer Email Content</h4>
+                                <p class="text-xs text-gray-600">Use: <code class="placeholder-tag">{{Customer_Name}}</code>, <code class="placeholder-tag">{{Order_Number}}</code>, <code class="placeholder-tag">{{Brand}}</code></p>
+                                <div>
+                                    <label for="customer-subject" class="block text-sm font-medium text-gray-700 mb-1">Customer Email Subject</label>
+                                    <input type="text" id="customer-subject" class="w-full p-2 border border-gray-300 rounded-lg" placeholder="Information On Your {{Brand}} Order #{{Order_Number}}">
+                                </div>
+                                <div>
+                                    <label for="customer-body" class="block text-sm font-medium text-gray-700 mb-1">Customer Email Body</label>
+                                    <textarea id="customer-body" rows="6" class="w-full p-2 border border-gray-300 rounded-lg" placeholder="Hello {{Customer_Name}},..."></textarea>
+                                </div>
+                            </div>
+                            <div id="internal-comment-fields" class="hidden p-4 border-l-4 border-gray-400 bg-gray-50 space-y-4">
+                                <label class="flex items-center"><input type="checkbox" id="add-internal-comment" class="h-4 w-4 text-gray-600 border-gray-300 rounded"><span class="ml-2 text-sm">Add internal comment (for 'Movement' only)</span></label>
+                                <div id="internal-comment-input-container" class="hidden">
+                                    <h4 class="font-semibold text-gray-800">Internal Comment Content</h4>
+                                    <textarea id="internal-comment-body" rows="6" class="w-full p-2 border border-gray-300 rounded-lg mt-2" placeholder="e.g., Transfer this ticket to the FMOP team for handling..."></textarea>
+                                </div>
+                            </div>
+                            
+                            <div id="movement-guide-editor" class="hidden p-4 border-l-4 border-purple-400 bg-purple-50 space-y-4">
+                                <h4 class="font-semibold text-purple-800 text-lg">Setup Ticket Movement Guide</h4>
+                                <p class="text-xs text-gray-600">Only applies when the Main Issue is 'Movement'.</p>
+                                <div id="movement-guide-steps-container" class="space-y-3"></div>
+                                <button type="button" id="add-movement-step-btn" class="mt-3 text-sm bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold py-1 px-3 rounded-md">+ Add Step</button>
+                            </div>
+
+                            <div id="follow-up-guide-editor" class="hidden p-4 border-l-4 border-cyan-400 bg-cyan-50 space-y-4">
+                                <h4 class="font-semibold text-cyan-800 text-lg">Setup Required Follow-up Steps</h4>
+                                <div id="follow-up-guide-steps-container" class="space-y-3"></div>
+                                <button type="button" id="add-follow-up-step-btn" class="mt-3 text-sm bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold py-1 px-3 rounded-md">+ Add Step</button>
+                            </div>
+
+                            <div class="flex justify-end gap-3 pt-4">
+                                <button type="button" id="cancel-btn" class="bg-[rgb(var(--color-bg-tertiary))] hover:bg-[rgb(var(--color-border))] text-[rgb(var(--color-text-secondary))] font-bold py-2 px-4 rounded-lg">Cancel</button>
+                                <button type="submit" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Save Template</button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Template Viewer (Vietnamese UI) -->
+                    <div id="template-viewer" class="hidden">
+                        <h3 id="viewer-title" class="text-2xl font-bold mb-2"></h3>
+                        <div class="flex justify-between items-center text-sm text-[rgb(var(--color-text-muted))] mb-2">
+                            <p id="viewer-category"></p>
+                            <p id="viewer-updated-date" class="font-medium"></p>
+                        </div>
+                        <p id="viewer-description" class="mb-4 p-3 bg-[rgba(var(--color-accent-primary),0.05)] border-l-4 border-[rgba(var(--color-accent-primary),0.3)] text-sm hidden"></p>
+                        
+                        <div class="mb-4 p-4 bg-[rgb(var(--color-bg-accent))] border border-[rgba(var(--color-accent-primary),0.3)] rounded-lg space-y-4">
+                            <div>
+                                <h4 class="font-semibold text-lg mb-2 text-[rgb(var(--color-accent-primary))]">1. Thông tin Người nhận & Người gửi</h4>
+                                <div class="space-y-3 pl-2">
+                                    <h5 class="font-medium">Lời chào</h5>
+                                    <div>
+                                        <label for="viewer-agent-name" class="block text-sm font-medium text-[rgb(var(--color-text-secondary))]">Tên Nhân viên (Ưu tiên cao nhất)</label>
+                                        <input type="text" id="viewer-agent-name" class="mt-1 w-full p-2 border border-[rgb(var(--color-border))] rounded-md bg-[rgb(var(--color-bg-primary))]">
+                                    </div>
+                                    <div>
+                                        <label for="viewer-su-id" class="block text-sm font-medium text-[rgb(var(--color-text-secondary))]">Mã Nhà Cung Cấp (SuID / Child SuID)</label>
+                                        <input type="text" id="viewer-su-id" class="mt-1 w-full p-2 border border-[rgb(var(--color-border))] rounded-md bg-[rgb(var(--color-bg-primary))]" placeholder="Nhập SuID để tra cứu tên...">
+                                    </div>
+                                    <div id="viewer-manual-supplier-container" class="hidden">
+                                        <label for="viewer-manual-supplier-name" class="block text-sm font-medium text-red-700">Không tìm thấy ID, vui lòng nhập tên NCC</label>
+                                        <input type="text" id="viewer-manual-supplier-name" class="mt-1 w-full p-2 border border-red-400 rounded-md bg-[rgb(var(--color-bg-primary))]" placeholder="Bắt buộc nhập tên nhà cung cấp">
+                                    </div>
+                                </div>
+                            </div>
+                            <div>
+                                <h4 class="font-semibold text-lg mb-2 text-[rgb(var(--color-accent-primary))]">2. Tùy chỉnh Nội dung chính</h4>
+                                <div id="placeholders-container" class="space-y-4 pl-2"></div>
+                                <div id="optionals-container" class="mt-4 space-y-2 pl-2"></div>
+                                <div id="dynamic-optional-field-container" class="mt-4 space-y-3 pl-2"></div>
+                            </div>
+                        </div>
+
+                        <div class="mt-6">
+                            <div class="flex justify-between items-center mb-2">
+                                <h4 class="font-semibold text-lg">Nội dung cuối cùng</h4>
+                                <div class="flex items-center gap-2">
+                                     <button id="show-follow-up-guide-btn" class="hidden bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" /></svg>
+                                        Xem Follow-up
+                                    </button>
+                                     <button id="show-movement-guide-btn" class="hidden bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                        Xem Quy trình Move
+                                    </button>
+                                    <button id="copy-btn" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
+                                        Sao chép & Tiếp tục
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="final-output" class="w-full p-4 border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-bg-secondary))] min-h-[250px] whitespace-pre-wrap"></div>
+                        </div>
+                         <div id="copy-feedback" class="mt-2 text-green-600 font-medium opacity-0 transition-opacity duration-300">Đã sao chép vào clipboard!</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- MODALS SECTION -->
+    <div id="notification-toast" class="fixed bottom-5 right-5 bg-gray-800 text-white py-2 px-4 rounded-lg shadow-lg opacity-0 translate-y-4 transition-all duration-300 z-50"></div>
+
+    <div id="data-manager-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-30">
+        <div class="modal-content bg-[rgb(var(--color-bg-primary))] rounded-lg shadow-xl w-full max-w-5xl h-[90vh] p-6 transform scale-95 flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold">Cài đặt & Quản lý Dữ liệu</h2>
+                <button id="close-data-manager-btn" class="p-2 rounded-full hover:bg-[rgb(var(--color-bg-secondary))]">&times;</button>
+            </div>
+            <div class="border-b border-[rgb(var(--color-border))]">
+                <nav class="-mb-px flex space-x-6" id="data-manager-tabs">
+                    <button data-tab="snippets" class="tab-button py-3 px-1 border-b-2 font-medium text-sm text-[rgb(var(--color-text-muted))] hover:text-[rgb(var(--color-text-secondary))] hover:border-[rgb(var(--color-border))]">Nội dung & Snippets</button>
+                    <button data-tab="projects" class="tab-button py-3 px-1 border-b-2 font-medium text-sm text-[rgb(var(--color-text-muted))] hover:text-[rgb(var(--color-text-secondary))] hover:border-[rgb(var(--color-border))]">Dự án</button>
+                    <button data-tab="templates" class="tab-button py-3 px-1 border-b-2 font-medium text-sm text-[rgb(var(--color-text-muted))] hover:text-[rgb(var(--color-text-secondary))] hover:border-[rgb(var(--color-border))]">Mẫu trả lời</button>
+                    <button data-tab="signatures" class="tab-button py-3 px-1 border-b-2 font-medium text-sm text-[rgb(var(--color-text-muted))] hover:text-[rgb(var(--color-text-secondary))] hover:border-[rgb(var(--color-border))]">Chữ ký</button>
+                    <button data-tab="placeholders" class="tab-button py-3 px-1 border-b-2 font-medium text-sm text-[rgb(var(--color-text-muted))] hover:text-[rgb(var(--color-text-secondary))] hover:border-[rgb(var(--color-border))]">Placeholders</button>
+                    <button data-tab="suppliers" class="tab-button py-3 px-1 border-b-2 font-medium text-sm text-[rgb(var(--color-text-muted))] hover:text-[rgb(var(--color-text-secondary))] hover:border-[rgb(var(--color-border))]">Dữ liệu NCC</button>
+                    <button data-tab="users" class="tab-button py-3 px-1 border-b-2 font-medium text-sm text-[rgb(var(--color-text-muted))] hover:text-[rgb(var(--color-text-secondary))] hover:border-[rgb(var(--color-border))]">Quản lý User</button>
+                    <button data-tab="kpi" class="tab-button py-3 px-1 border-b-2 font-medium text-sm text-[rgb(var(--color-text-muted))] hover:text-[rgb(var(--color-text-secondary))] hover:border-[rgb(var(--color-border))]">Quản lý KPI</button>
+                    <button data-tab="account" class="tab-button py-3 px-1 border-b-2 font-medium text-sm text-[rgb(var(--color-text-muted))] hover:text-[rgb(var(--color-text-secondary))] hover:border-[rgb(var(--color-border))]">Dữ liệu</button>
+                </nav>
+            </div>
+            <div class="flex-grow overflow-y-auto pt-4">
+                <div id="tab-content-snippets" class="tab-content hidden">
+                    <p class="text-sm text-[rgb(var(--color-text-muted))] mb-4">Chỉnh sửa các đoạn văn bản dùng chung trong ứng dụng.</p>
+                    <div class="space-y-4">
+                        <div>
+                            <label for="footer-text-input" class="font-semibold block mb-1">Nội dung Chân trang</label>
+                            <textarea id="footer-text-input" rows="4" class="w-full p-2 border border-[rgb(var(--color-border))] rounded-md bg-[rgb(var(--color-bg-primary))]"></textarea>
+                        </div>
+                        <div>
+                            <label for="greeting-person-input" class="font-semibold block mb-1">Mẫu lời chào (Cá nhân)</label>
+                            <p class="text-xs text-[rgb(var(--color-text-muted))] mb-1">Dùng <code>{{name}}</code> để chèn tên.</p>
+                            <input type="text" id="greeting-person-input" class="w-full p-2 border border-[rgb(var(--color-border))] rounded-md bg-[rgb(var(--color-bg-primary))]">
+                        </div>
+                        <div>
+                            <label for="greeting-team-input" class="font-semibold block mb-1">Mẫu lời chào (Nhóm)</label>
+                            <p class="text-xs text-[rgb(var(--color-text-muted))] mb-1">Dùng <code>{{name}}</code> để chèn tên.</p>
+                            <input type="text" id="greeting-team-input" class="w-full p-2 border border-[rgb(var(--color-border))] rounded-md bg-[rgb(var(--color-bg-primary))]">
+                        </div>
+                        <button id="save-snippets-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Lưu Snippets</button>
+                    </div>
+                </div>
+                <div id="tab-content-projects" class="tab-content hidden">
+                    <p class="text-sm text-[rgb(var(--color-text-muted))] mb-4">Quản lý các dự án chính.</p>
+                    <div class="flex gap-2 mb-4">
+                        <button data-store="projects" class="export-btn bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Xuất (JSON)</button>
+                        <label class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg cursor-pointer">Nhập (JSON)<input type="file" data-store="projects" class="import-file-input hidden" accept=".json"></label>
+                    </div>
+                    <div class="mb-4 p-3 border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-bg-secondary))]">
+                        <h4 class="font-semibold mb-2">Thêm dự án mới</h4>
+                        <div class="flex gap-2">
+                            <input type="text" id="new-project-name" placeholder="Tên dự án (ví dụ: RPOPS)" class="w-full p-2 border border-[rgb(var(--color-border))] rounded-md bg-[rgb(var(--color-bg-primary))]">
+                            <button id="add-project-btn" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg">Thêm</button>
+                        </div>
+                    </div>
+                    <div id="projects-table" class="text-sm"></div>
+                </div>
+                <div id="tab-content-templates" class="tab-content hidden">
+                    <p class="text-sm text-[rgb(var(--color-text-muted))] mb-4">Quản lý tất cả các mẫu trả lời.</p>
+                    <div class="flex gap-2 mb-4">
+                        <button data-store="templates" class="export-btn bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Xuất (JSON)</button>
+                        <label class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg cursor-pointer">Nhập (JSON)<input type="file" data-store="templates" class="import-file-input hidden" accept=".json"></label>
+                    </div>
+                    <div id="templates-table" class="text-sm"></div>
+                </div>
+                <div id="tab-content-signatures" class="tab-content hidden">
+                    <p class="text-sm text-[rgb(var(--color-text-muted))] mb-4">Quản lý chữ ký cá nhân. Chữ ký được đánh dấu 'Mặc định' sẽ được chọn tự động.</p>
+                     <div class="flex gap-2 mb-4">
+                        <button data-store="signatures" class="export-btn bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Xuất (JSON)</button>
+                        <label class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg cursor-pointer">Nhập (JSON)<input type="file" data-store="signatures" class="import-file-input hidden" accept=".json"></label>
+                    </div>
+                    <div class="mb-4 p-3 border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-bg-secondary))]">
+                        <h4 class="font-semibold mb-2">Thêm chữ ký mới</h4>
+                        <div class="flex gap-2">
+                            <input type="text" id="new-signature-name" placeholder="Tên của bạn" class="w-full p-2 border border-[rgb(var(--color-border))] rounded-md bg-[rgb(var(--color-bg-primary))]">
+                            <button id="add-signature-btn" class="bg-indigo-500 hover:bg-indigo-600 text-white font-bold py-2 px-4 rounded-lg">Thêm</button>
+                        </div>
+                    </div>
+                    <div id="signatures-table" class="text-sm"></div>
+                </div>
+                <div id="tab-content-placeholders" class="tab-content hidden">
+                    <p class="text-sm text-[rgb(var(--color-text-muted))] mb-4">Quản lý các biến giữ chỗ (placeholder) sử dụng trong mẫu.</p>
+                    <div class="flex gap-2 mb-4">
+                        <button data-store="placeholders" class="export-btn bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Xuất (JSON)</button>
+                        <label class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg cursor-pointer">Nhập (JSON)<input type="file" data-store="placeholders" class="import-file-input hidden" accept=".json"></label>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="md:col-span-1 h-[60vh] flex flex-col">
+                            <h3 class="text-lg font-semibold mb-2">Danh sách Placeholders</h3>
+                            <div class="flex-grow overflow-y-auto border border-[rgb(var(--color-border))] rounded-lg p-2 bg-[rgb(var(--color-bg-secondary))]">
+                                <button id="add-new-placeholder-btn" class="w-full text-left p-2 rounded-md mb-2 bg-indigo-100 text-indigo-800 font-semibold hover:bg-indigo-200">
+                                    + Tạo Placeholder Mới
+                                </button>
+                                <div id="placeholders-list-manager" class="space-y-1"></div>
+                            </div>
+                        </div>
+                        <div class="md:col-span-2">
+                            <div id="placeholder-editor-container" class="h-full">
+                                 <div class="flex items-center justify-center h-full text-center text-[rgb(var(--color-text-muted))]">
+                                     <p>Chọn một placeholder để sửa, hoặc tạo mới.</p>
+                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="tab-content-suppliers" class="tab-content hidden">
+                    <p class="text-sm text-[rgb(var(--color-text-muted))] mb-4">Quản lý dữ liệu nhà cung cấp. Nhập file CSV sẽ <strong class="text-red-600">thay thế toàn bộ</strong> dữ liệu hiện có.</p>
+
+                    <!-- CSV Import Section -->
+                    <div class="bg-[rgb(var(--color-bg-secondary))] border border-[rgb(var(--color-border))] rounded-lg p-4 mb-6">
+                        <h4 class="font-semibold mb-3 text-[rgb(var(--color-text-secondary))]">Nhập dữ liệu CSV</h4>
+                        <div class="flex gap-2 mb-4">
+                            <label class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg cursor-pointer transition-colors">
+                                📁 Chọn file CSV (Basic)
+                                <input type="file" id="import-csv-input" class="hidden" accept=".csv">
+                            </label>
+                            <a href="csv-import-enhanced.html" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg transition-colors inline-flex items-center">
+                                🤖 Enhanced CSV Import (AI)
+                            </a>
+                        </div>
+
+                        <!-- CSV Format Guide -->
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+                            <h5 class="font-medium text-blue-800 mb-2">📋 Định dạng CSV được hỗ trợ:</h5>
+                            <div class="text-sm text-blue-700 space-y-1">
+                                <p><strong>Nhà cung cấp chính:</strong> <code>suid,suname</code> (có thể có thêm cột khác)</p>
+                                <p><strong>Nhà cung cấp con:</strong> <code>suchildid,parentSuid</code> (có thể có thêm cột khác)</p>
+                                <p class="text-blue-600 mt-2">💡 File CSV có thể chứa một hoặc cả hai loại dữ liệu</p>
+                            </div>
+                        </div>
+
+                        <!-- Status Display -->
+                        <div id="csv-status-container" class="space-y-2">
+                            <div id="csv-feedback" class="text-sm text-[rgb(var(--color-text-secondary))] p-3 bg-gray-50 rounded-lg border"></div>
+                            <div id="csv-progress" class="hidden">
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div id="csv-progress-bar" class="bg-blue-600 h-2 rounded-full transition-all duration-300" style="width: 0%"></div>
+                                </div>
+                                <p id="csv-progress-text" class="text-xs text-gray-600 mt-1"></p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sample CSV Templates -->
+                    <div class="bg-[rgb(var(--color-bg-secondary))] border border-[rgb(var(--color-border))] rounded-lg p-4">
+                        <h4 class="font-semibold mb-3 text-[rgb(var(--color-text-secondary))]">📄 Mẫu CSV</h4>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div>
+                                <h5 class="font-medium text-sm mb-2">Nhà cung cấp chính:</h5>
+                                <pre class="bg-gray-100 p-2 rounded text-xs overflow-x-auto">suid,suname
+SUP001,Công ty ABC
+SUP002,Công ty XYZ</pre>
+                            </div>
+                            <div>
+                                <h5 class="font-medium text-sm mb-2">Nhà cung cấp con:</h5>
+                                <pre class="bg-gray-100 p-2 rounded text-xs overflow-x-auto">suchildid,parentSuid
+CHILD001,SUP001
+CHILD002,SUP001</pre>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="tab-content-users" class="tab-content hidden">
+                    <h3 class="text-lg font-semibold mb-4">Quản lý Tài khoản User</h3>
+                    <p class="text-sm text-[rgb(var(--color-text-muted))] mb-4">Tạo, chỉnh sửa và quản lý tài khoản người dùng.</p>
+
+
+                    <!-- User Creation Form -->
+                    <div class="bg-[rgb(var(--color-bg-secondary))] p-4 rounded-lg mb-6">
+                        <h4 class="font-semibold mb-3">Tạo tài khoản mới</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Tên tài khoản</label>
+                                <input type="text" id="new-user-account" class="w-full p-2 border border-[rgb(var(--color-border))] rounded-md bg-[rgb(var(--color-bg-primary))]" placeholder="Nhập tên tài khoản">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Tên hiển thị</label>
+                                <input type="text" id="new-user-name" class="w-full p-2 border border-[rgb(var(--color-border))] rounded-md bg-[rgb(var(--color-bg-primary))]" placeholder="Nhập tên hiển thị">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Mật khẩu</label>
+                                <input type="password" id="new-user-password" class="w-full p-2 border border-[rgb(var(--color-border))] rounded-md bg-[rgb(var(--color-bg-primary))]" placeholder="Nhập mật khẩu">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Cấp độ</label>
+                                <select id="new-user-level" class="w-full p-2 border border-[rgb(var(--color-border))] rounded-md bg-[rgb(var(--color-bg-primary))]">
+                                    <option value="member">Member</option>
+                                    <option value="key">Key</option>
+                                    <option value="leader">Leader</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Trạng thái</label>
+                                <select id="new-user-status" class="w-full p-2 border border-[rgb(var(--color-border))] rounded-md bg-[rgb(var(--color-bg-primary))]">
+                                    <option value="active">Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button id="create-user-btn" class="mt-4 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Tạo tài khoản</button>
+                    </div>
+
+                    <!-- User List -->
+                    <div class="bg-[rgb(var(--color-bg-secondary))] p-4 rounded-lg">
+                        <h4 class="font-semibold mb-3">Danh sách tài khoản</h4>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="border-b border-[rgb(var(--color-border))]">
+                                        <th class="text-left p-2">Tài khoản</th>
+                                        <th class="text-left p-2">Tên</th>
+                                        <th class="text-left p-2">Cấp độ</th>
+                                        <th class="text-left p-2">Trạng thái</th>
+                                        <th class="text-left p-2">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="users-table-body">
+                                    <!-- User rows will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="tab-content-kpi" class="tab-content hidden">
+                    <h3 class="text-lg font-semibold mb-4">Quản lý KPI</h3>
+                    <p class="text-sm text-[rgb(var(--color-text-muted))] mb-4">Quản lý chỉ số KPI theo team, task và status.</p>
+
+                    <!-- KPI Filter Section -->
+                    <div class="bg-[rgb(var(--color-bg-secondary))] p-4 rounded-lg mb-6">
+                        <h4 class="font-semibold mb-3">Bộ lọc KPI</h4>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Team</label>
+                                <div id="kpi-team-checkboxes" class="max-h-32 overflow-y-auto border border-[rgb(var(--color-border))] rounded-md p-2 bg-[rgb(var(--color-bg-primary))]">
+                                    <!-- Team checkboxes will be populated here -->
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Task</label>
+                                <div id="kpi-task-checkboxes" class="max-h-32 overflow-y-auto border border-[rgb(var(--color-border))] rounded-md p-2 bg-[rgb(var(--color-bg-primary))]">
+                                    <!-- Task checkboxes will be populated here -->
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Status</label>
+                                <div id="kpi-status-checkboxes" class="max-h-32 overflow-y-auto border border-[rgb(var(--color-border))] rounded-md p-2 bg-[rgb(var(--color-bg-primary))]">
+                                    <!-- Status checkboxes will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+                        <button id="load-kpi-data-btn" class="mt-4 bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Tải dữ liệu KPI</button>
+                    </div>
+
+                    <!-- KPI Results -->
+                    <div class="bg-[rgb(var(--color-bg-secondary))] p-4 rounded-lg">
+                        <h4 class="font-semibold mb-3">Kết quả KPI</h4>
+                        <div class="overflow-x-auto">
+                            <table class="w-full text-sm">
+                                <thead>
+                                    <tr class="border-b border-[rgb(var(--color-border))]">
+                                        <th class="text-left p-2">Team</th>
+                                        <th class="text-left p-2">Task</th>
+                                        <th class="text-left p-2">Status</th>
+                                        <th class="text-left p-2">KPI (ticket/mins)</th>
+                                        <th class="text-left p-2">Thời gian tạo</th>
+                                        <th class="text-left p-2">Thời gian cập nhật</th>
+                                        <th class="text-left p-2">Thao tác</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="kpi-table-body">
+                                    <!-- KPI rows will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                 <div id="tab-content-account" class="tab-content hidden">
+                    <h3 class="text-lg font-semibold mb-4">Quản lý Dữ liệu</h3>
+                    <p class="text-sm text-[rgb(var(--color-text-muted))] mb-4">Tải dữ liệu mặc định hoặc xóa tất cả dữ liệu ứng dụng.</p>
+                    <div class="space-y-4">
+                        <button id="load-default-data-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg">Tải Dữ liệu Mặc định</button>
+                        <button id="delete-all-my-data-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">Xóa Toàn bộ Dữ liệu</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Other Modals -->
+    <div id="signature-selection-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
+        <div class="modal-content bg-[rgb(var(--color-bg-primary))] rounded-lg shadow-xl w-full max-w-sm p-6 transform scale-95">
+            <h2 class="text-xl font-bold mb-4">Select Your Signature</h2>
+            <p class="text-sm text-[rgb(var(--color-text-muted))] mb-4">Please choose a signature to use for this session.</p>
+            <select id="signature-select-dropdown" class="w-full p-2 border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-bg-primary))]"></select>
+            <div class="mt-6 flex justify-end">
+                <button id="signature-confirm-btn" class="bg-[rgb(var(--color-accent-primary))] hover:bg-[rgb(var(--color-accent-primary-hover))] text-white font-bold py-2 px-4 rounded-lg">Confirm</button>
+            </div>
+        </div>
+    </div>
+    <div id="import-options-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
+        <div class="modal-content bg-[rgb(var(--color-bg-primary))] rounded-lg shadow-xl w-full max-w-md p-6 transform scale-95">
+            <h2 class="text-2xl font-bold mb-4 text-blue-600">Tùy chọn Nhập Dữ liệu</h2>
+            <p class="mb-6 text-[rgb(var(--color-text-secondary))]">Bạn muốn làm gì với dữ liệu từ file đã chọn?</p>
+            <div class="flex justify-end gap-3">
+                <button id="import-cancel-btn" class="bg-[rgb(var(--color-bg-tertiary))] hover:bg-[rgb(var(--color-border))] text-[rgb(var(--color-text-secondary))] font-bold py-2 px-4 rounded-lg">Hủy</button>
+                <button id="import-merge-btn" class="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">Gộp (Merge)</button>
+                <button id="import-replace-btn" class="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">Thay thế (Replace)</button>
+            </div>
+        </div>
+    </div>
+    <div id="customer-email-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-40">
+        <div class="modal-content bg-[rgb(var(--color-bg-primary))] rounded-lg shadow-xl w-full max-w-3xl p-6 transform scale-95">
+            <h2 class="text-2xl font-bold mb-4 text-rose-600">Nhắc nhở: Gửi Email cho Customer</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-4">
+                    <div><label for="customer-email" class="block text-sm font-medium">Email Khách hàng</label><input type="email" id="customer-email" class="mt-1 w-full p-2 border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-bg-primary))]"></div>
+                    <div><label for="customer-name" class="block text-sm font-medium">Tên Khách hàng</label><input type="text" id="customer-name" class="mt-1 w-full p-2 border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-bg-primary))]"></div>
+                    <div><label for="customer-order" class="block text-sm font-medium">Số Đơn hàng</label><input type="text" id="customer-order" class="mt-1 w-full p-2 border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-bg-primary))]"></div>
+                    <div><label for="customer-brand" class="block text-sm font-medium">Brand</label><select id="customer-brand" class="mt-1 w-full p-2 border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-bg-primary))]"></select></div>
+                </div>
+                <div class="space-y-4">
+                     <h3 class="font-semibold">Thông tin Email:</h3>
+                    <div class="border border-[rgb(var(--color-border))] p-2 rounded-lg bg-[rgb(var(--color-bg-secondary))]"><label class="block text-xs font-medium text-[rgb(var(--color-text-muted))] mb-1">Email người nhận</label><div class="flex items-center gap-2"><p id="customer-email-address-output" class="flex-grow p-2 bg-[rgb(var(--color-bg-primary))] rounded-md text-sm truncate"></p><button id="copy-cust-email-addr-btn" title="Sao chép Email" class="p-2 bg-[rgb(var(--color-bg-tertiary))] hover:bg-[rgb(var(--color-border))] rounded-md flex-shrink-0"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg></button></div></div>
+                    <div class="border border-[rgb(var(--color-border))] p-2 rounded-lg bg-[rgb(var(--color-bg-secondary))]"><label class="block text-xs font-medium text-[rgb(var(--color-text-muted))] mb-1">Tiêu đề</label><div class="flex items-center gap-2"><p id="customer-email-subject-output" class="flex-grow p-2 bg-[rgb(var(--color-bg-primary))] rounded-md text-sm"></p><button id="copy-cust-subject-btn" title="Sao chép Tiêu đề" class="p-2 bg-[rgb(var(--color-bg-tertiary))] hover:bg-[rgb(var(--color-border))] rounded-md flex-shrink-0"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg></button></div></div>
+                    <div class="border border-[rgb(var(--color-border))] p-2 rounded-lg bg-[rgb(var(--color-bg-secondary))]"><label class="block text-xs font-medium text-[rgb(var(--color-text-muted))] mb-1">Nội dung</label><div class="relative"><div id="customer-email-body-output" class="w-full p-2 bg-[rgb(var(--color-bg-primary))] rounded-lg min-h-[150px] text-sm max-h-40 overflow-y-auto"></div><button id="copy-cust-body-btn" title="Sao chép Nội dung" class="absolute top-2 right-2 p-1 bg-[rgb(var(--color-bg-tertiary))] hover:bg-[rgb(var(--color-border))] rounded-md"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg></button></div></div>
+                     <div id="customer-copy-feedback" class="h-5 mt-2 text-sm text-green-600 font-medium opacity-0 transition-opacity duration-300">Đã sao chép!</div>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-3"><button id="close-customer-modal-btn" class="bg-[rgb(var(--color-bg-tertiary))] hover:bg-[rgb(var(--color-border))] text-[rgb(var(--color-text-secondary))] font-bold py-2 px-4 rounded-lg">Đóng</button></div>
+        </div>
+    </div>
+    <div id="validation-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
+        <div class="modal-content bg-[rgb(var(--color-bg-primary))] rounded-lg shadow-xl w-full max-w-md p-6 transform scale-95"><h2 class="text-2xl font-bold mb-4 text-yellow-600">Cảnh báo</h2><p class="mb-4">Vui lòng điền đầy đủ các trường thông tin bắt buộc sau:</p><ul id="missing-fields-list" class="list-disc list-inside text-[rgb(var(--color-text-muted))] mb-6"></ul><div class="flex justify-end"><button id="close-validation-modal-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg">Đã hiểu</button></div></div>
+    </div>
+    <div id="label-reminder-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
+        <div class="modal-content bg-[rgb(var(--color-bg-primary))] rounded-lg shadow-xl w-full max-w-md p-6 transform scale-95"><h2 class="text-2xl font-bold mb-4 text-[rgb(var(--color-accent-primary))]">Nhắc nhở</h2><p id="label-reminder-text" class="mb-6"></p><div class="flex justify-end"><button id="close-label-reminder-modal-btn" class="bg-[rgb(var(--color-accent-primary))] hover:bg-[rgb(var(--color-accent-primary-hover))] text-white font-bold py-2 px-4 rounded-lg">OK</button></div></div>
+    </div>
+    <div id="internal-comment-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
+        <div class="modal-content bg-[rgb(var(--color-bg-primary))] rounded-lg shadow-xl w-full max-w-xl p-6 transform scale-95"><h2 class="text-2xl font-bold mb-4">Nhắc nhở: Sao chép Comment nội bộ</h2><div class="relative"><div id="internal-comment-output" class="w-full p-3 border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-bg-secondary))] min-h-[150px] text-sm max-h-60 overflow-y-auto"></div><button id="copy-internal-comment-btn" title="Sao chép Nội dung" class="absolute top-2 right-2 p-2 bg-[rgb(var(--color-bg-tertiary))] hover:bg-[rgb(var(--color-border))] rounded-md"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg></button></div><div id="internal-comment-copy-feedback" class="h-5 mt-2 text-sm text-green-600 font-medium opacity-0">Đã sao chép!</div><div class="mt-6 flex justify-end"><button id="close-internal-comment-modal-btn" class="bg-[rgb(var(--color-bg-tertiary))] hover:bg-[rgb(var(--color-border))] text-[rgb(var(--color-text-secondary))] font-bold py-2 px-4 rounded-lg">Đóng</button></div></div>
+    </div>
+    <div id="movement-guide-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
+        <div class="modal-content bg-[rgb(var(--color-bg-primary))] rounded-lg shadow-xl w-full max-w-2xl p-6 transform scale-95"><h2 class="text-2xl font-bold mb-4 text-purple-700">Hướng dẫn Quy trình Move Ticket</h2><div id="movement-guide-output" class="space-y-4 max-h-[60vh] overflow-y-auto pr-2"></div><div class="mt-6 flex justify-end"><button id="close-movement-guide-modal-btn" class="bg-purple-500 hover:bg-purple-600 text-white font-bold py-2 px-4 rounded-lg">Đã hiểu</button></div></div>
+    </div>
+     <div id="follow-up-guide-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
+        <div class="modal-content bg-[rgb(var(--color-bg-primary))] rounded-lg shadow-xl w-full max-w-2xl p-6 transform scale-95"><h2 class="text-2xl font-bold mb-4 text-cyan-700">Các bước Follow-up Bắt buộc</h2><div id="follow-up-guide-output" class="space-y-4 max-h-[60vh] overflow-y-auto pr-2"></div><div class="mt-6 flex justify-end"><button id="close-follow-up-guide-modal-btn" class="bg-cyan-500 hover:bg-cyan-600 text-white font-bold py-2 px-4 rounded-lg">Đã hiểu</button></div></div>
+    </div>
+    <div id="help-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
+        <div class="modal-content bg-[rgb(var(--color-bg-primary))] rounded-lg shadow-xl w-full max-w-4xl h-[90vh] p-6 transform scale-95 flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold">Trợ giúp & Hướng dẫn sử dụng</h2>
+                <button id="close-help-modal-btn" class="p-2 rounded-full hover:bg-[rgb(var(--color-bg-secondary))]">&times;</button>
+            </div>
+            <div id="help-content" class="prose dark:prose-invert max-w-none flex-grow overflow-y-auto pr-4">
+            </div>
+        </div>
+    </div>
+    <div id="component-select-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
+        <div class="modal-content bg-[rgb(var(--color-bg-primary))] rounded-lg shadow-xl w-full max-w-sm p-6 transform scale-95">
+            <h2 id="component-modal-title" class="text-xl font-bold mb-4">Select Placeholder</h2>
+            <select id="component-modal-select" class="w-full p-2 border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-bg-primary))]"></select>
+            <div class="mt-6 flex justify-end gap-3">
+                <button id="component-modal-cancel" class="bg-[rgb(var(--color-bg-tertiary))] hover:bg-[rgb(var(--color-border))] text-[rgb(var(--color-text-secondary))] font-bold py-2 px-4 rounded-lg">Cancel</button>
+                <button id="component-modal-confirm" class="bg-[rgb(var(--color-accent-primary))] hover:bg-[rgb(var(--color-accent-primary-hover))] text-white font-bold py-2 px-4 rounded-lg">Confirm</button>
+            </div>
+        </div>
+    </div>
+    <script src="./js/adminview.js"></script>
+</body>
+</html>
+

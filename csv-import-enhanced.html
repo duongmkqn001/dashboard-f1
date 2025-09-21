@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Enhanced CSV Import with AI Processing</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./css/dashboard-v2.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        #theme-switcher .theme-btn.active {
+            background-color: var(--bg-button-active);
+            color: var(--text-button-active);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-main">
+    <!-- Authentication Check -->
+    <script>
+        window.addEventListener('load', () => {
+            const currentUser = localStorage.getItem('currentUser');
+            if (!currentUser) {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            const user = JSON.parse(currentUser);
+            if (user.status !== 'active' || (user.level !== 'leader' && user.level !== 'key')) {
+                alert('Bạn không có quyền truy cập trang này');
+                window.location.href = 'dashboard-v2.html';
+                return;
+            }
+        });
+    </script>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-headings">Enhanced CSV Import</h1>
+                    <p class="text-secondary mt-2">Import and process ticket data with AI-powered analysis</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div id="theme-switcher" class="flex items-center gap-1 bg-section p-1 rounded-lg border border-secondary">
+                        <button data-theme="dark" class="theme-btn text-xs font-semibold py-1.5 px-3 rounded-md">Dark</button>
+                        <button data-theme="daylight" class="theme-btn text-xs font-semibold py-1.5 px-3 rounded-md">Daylight</button>
+                        <button data-theme="sunset" class="theme-btn text-xs font-semibold py-1.5 px-3 rounded-md">Sunset</button>
+                        <button data-theme="twilight" class="theme-btn text-xs font-semibold py-1.5 px-3 rounded-md">Twilight</button>
+                        <button data-theme="blossom-dawn" class="theme-btn text-xs font-semibold py-1.5 px-3 rounded-md">Blossom Dawn</button>
+                        <button data-theme="blue-sky" class="theme-btn text-xs font-semibold py-1.5 px-3 rounded-md">Blue Sky</button>
+                    </div>
+                    <button onclick="window.location.href='adminview.html'" class="px-4 py-2 bg-button hover:brightness-110 text-main font-semibold rounded-lg">
+                        ← Back to Admin
+                    </button>
+                    <button onclick="logout()" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg">
+                        Logout
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Left Panel: Upload & Configuration -->
+            <div class="lg:col-span-1">
+                <div class="bg-section rounded-lg shadow p-6 border border-main">
+                    <h2 class="text-xl font-semibold mb-4 text-headings">1. Upload CSV File</h2>
+                    
+                    <!-- File Upload -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-secondary mb-2">
+                            Select CSV File
+                        </label>
+                        <input type="file" id="csv-file-input" accept=".csv" 
+                               class="block w-full text-sm text-main file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-button file:text-main hover:file:brightness-110">
+                    </div>
+
+                    <!-- Process Button -->
+                    <button id="process-btn" disabled
+                            class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:text-gray-200 disabled:hover:bg-gray-400 text-white font-semibold rounded-lg transition-colors">
+                        <span id="process-text">Process CSV</span>
+                        <div id="process-spinner" class="loading-spinner ml-2 hidden inline-block"></div>
+                    </button>
+                </div>
+
+                <!-- Progress Panel -->
+                <div id="progress-panel" class="bg-section rounded-lg shadow p-6 mt-6 hidden border border-main">
+                    <h3 class="text-lg font-semibold mb-4 text-headings">Processing Progress</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center">
+                            <div id="step1-icon" class="w-6 h-6 rounded-full bg-gray-500 flex items-center justify-center mr-3">
+                                <span class="text-xs text-white">1</span>
+                            </div>
+                            <span id="step1-text" class="text-secondary">Parse CSV file</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div id="step2-icon" class="w-6 h-6 rounded-full bg-gray-500 flex items-center justify-center mr-3">
+                                <span class="text-xs text-white">2</span>
+                            </div>
+                            <span id="step2-text" class="text-secondary">Process with AI</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div id="step3-icon" class="w-6 h-6 rounded-full bg-gray-500 flex items-center justify-center mr-3">
+                                <span class="text-xs text-white">3</span>
+                            </div>
+                            <span id="step3-text" class="text-secondary">Prepare for import</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Results & Preview -->
+            <div class="lg:col-span-2">
+                <div class="bg-section rounded-lg shadow p-6 border border-main">
+                    <h2 class="text-xl font-semibold mb-4 text-headings">Processing Results</h2>
+                    
+                    <!-- Status Messages -->
+                    <div id="status-messages" class="mb-6 space-y-2"></div>
+                    
+                    <!-- Data Preview -->
+                    <div id="data-preview" class="hidden">
+                        <h3 class="text-lg font-medium mb-3 text-headings">Processed Data Preview</h3>
+                        <div class="overflow-x-auto border border-main rounded-lg">
+                            <table id="preview-table" class="min-w-full divide-y divide-main">
+                                <thead class="bg-header-footer">
+                                    <tr id="preview-header"></tr>
+                                </thead>
+                                <tbody id="preview-body" class="bg-section divide-y divide-main"></tbody>
+                            </table>
+                        </div>
+                        
+                        <!-- Duplicate Detection -->
+                        <div id="duplicate-section" class="mt-6 hidden">
+                            <h4 class="text-lg font-medium mb-3 text-yellow-400">⚠️ Duplicate Detection</h4>
+                            <div id="duplicate-list" class="space-y-2 mb-4"></div>
+                            <div class="flex gap-2 mb-4">
+                                <button id="check-duplicates-btn" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-semibold rounded-lg">
+                                    Check for Duplicates
+                                </button>
+                                <button id="remove-selected-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg" disabled>
+                                    Remove Selected Duplicates
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Import Actions -->
+                        <div class="mt-6 flex gap-4">
+                            <button id="import-btn" class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg" disabled>
+                                Import to Database
+                            </button>
+                            <button id="download-btn" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg">
+                                Download Processed CSV
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Initial State -->
+                    <div id="initial-state" class="text-center py-12">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        <h3 class="mt-2 text-sm font-medium text-headings">No file selected</h3>
+                        <p class="mt-1 text-sm text-secondary">Upload a CSV file to begin processing</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://pfbxtbydrjcmqlrklsdr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmYnh0YnlkcmpjbXFscmtsc2RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY5ODM2NDksImV4cCI6MjA3MjU1OTY0OX0.bOgnown0UZzstbnYfUSEImwaSGP6lg2FccRg-yDFTPU';
+        
+        const GEMINI_API_KEY = "AIzaSyBbDfe6uVjYbXrrM3AQAgBC0JsRoArfTA0";
+        
+        let supabaseClient;
+        let processedData = [];
+        
+        try {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('Supabase client initialized successfully');
+        } catch (error) {
+            console.error('Error initializing Supabase:', error);
+            alert('Could not initialize Supabase client. Check console for details.');
+        }
+
+        // Test Supabase connection
+        async function testSupabaseConnection() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('agent')
+                    .select('count')
+                    .limit(1);
+
+                if (error) {
+                    console.error('Supabase connection test failed:', error);
+                    showStatus('⚠️ Database connection issue. Please check authentication.', 'error');
+                    return false;
+                }
+                console.log('Supabase connection test successful');
+                return true;
+            } catch (error) {
+                console.error('Supabase connection test error:', error);
+                showStatus('⚠️ Database connection error.', 'error');
+                return false;
+            }
+        }
+
+        // DOM elements
+        const csvFileInput = document.getElementById('csv-file-input');
+        const processBtn = document.getElementById('process-btn');
+        const processText = document.getElementById('process-text');
+        const processSpinner = document.getElementById('process-spinner');
+        const progressPanel = document.getElementById('progress-panel');
+        const statusMessages = document.getElementById('status-messages');
+        const dataPreview = document.getElementById('data-preview');
+        const initialState = document.getElementById('initial-state');
+        const previewTable = document.getElementById('preview-table');
+        const previewHeader = document.getElementById('preview-header');
+        const previewBody = document.getElementById('preview-body');
+        const importBtn = document.getElementById('import-btn');
+        const downloadBtn = document.getElementById('download-btn');
+        const duplicateSection = document.getElementById('duplicate-section');
+        const duplicateList = document.getElementById('duplicate-list');
+        const checkDuplicatesBtn = document.getElementById('check-duplicates-btn');
+        const removeSelectedBtn = document.getElementById('remove-selected-btn');
+
+        // Event listeners
+        if (csvFileInput) csvFileInput.addEventListener('change', handleFileSelect);
+        if (processBtn) processBtn.addEventListener('click', processCSV);
+        if (importBtn) importBtn.addEventListener('click', importToDatabase);
+        if (downloadBtn) downloadBtn.addEventListener('click', downloadProcessedCSV);
+        if (checkDuplicatesBtn) checkDuplicatesBtn.addEventListener('click', checkForDuplicates);
+        if (removeSelectedBtn) removeSelectedBtn.addEventListener('click', removeSelectedDuplicates);
+
+        // Test database connection on page load
+        window.addEventListener('load', async () => {
+            await testSupabaseConnection();
+        });
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            updateProcessButton();
+            
+            if (file) {
+                showStatus(`Selected file: ${file.name}`, 'info');
+            }
+        }
+
+        function updateProcessButton() {
+            if (!csvFileInput || !processBtn) return;
+            const hasFile = csvFileInput.files.length > 0;
+            processBtn.disabled = !hasFile;
+        }
+
+        function logout() {
+            localStorage.removeItem('currentUser');
+            window.location.href = 'index.html';
+        }
+
+        // Status message functions
+        function showStatus(message, type = 'info') {
+            if (!statusMessages) return;
+            const statusDiv = document.createElement('div');
+            statusDiv.className = `p-3 rounded-lg text-sm ${getStatusClasses(type)}`;
+            statusDiv.textContent = message;
+            statusMessages.appendChild(statusDiv);
+            statusMessages.scrollTop = statusMessages.scrollHeight;
+        }
+
+        function getStatusClasses(type) {
+            switch (type) {
+                case 'success': return 'bg-green-100 text-green-800 border border-green-200';
+                case 'error': return 'bg-red-100 text-red-800 border border-red-200';
+                case 'warning': return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
+                default: return 'bg-blue-100 text-blue-800 border border-blue-200';
+            }
+        }
+
+        function clearStatus() {
+            if (statusMessages) statusMessages.innerHTML = '';
+        }
+
+        // Main processing function
+        async function processCSV() {
+            if (!csvFileInput.files[0]) {
+                showStatus('Please select a file', 'error');
+                return;
+            }
+
+            setProcessing(true);
+            clearStatus();
+            showProgressPanel();
+            
+            try {
+                // Step 1: Parse CSV
+                updateStep(1, 'processing', 'Parsing CSV file...');
+                const csvData = await parseCSVFile(csvFileInput.files[0]);
+                if (csvData.length === 0) {
+                    throw new Error("CSV file is empty or could not be parsed. Please check the file format.");
+                }
+                updateStep(1, 'complete', 'CSV parsed successfully');
+                showStatus(`Parsed ${csvData.length} rows from CSV`, 'success');
+                
+                // Step 2: Process with AI
+                updateStep(2, 'processing', 'Processing with AI...');
+                const processedRows = await processWithAI(csvData, GEMINI_API_KEY);
+                updateStep(2, 'complete', 'AI processing complete');
+                showStatus(`Processed ${processedRows.length} rows with AI`, 'success');
+                
+                // Step 3: Prepare for import
+                updateStep(3, 'processing', 'Preparing data...');
+                processedData = await prepareForImport(processedRows);
+                updateStep(3, 'complete', 'Data preparation complete');
+                showStatus(`Prepared ${processedData.length} rows for import`, 'success');
+                
+                // Show preview and enable duplicate checking
+                showDataPreview(processedData);
+                if (duplicateSection) duplicateSection.classList.remove('hidden');
+                if (importBtn) importBtn.disabled = false; // Enable import button, duplicate check will handle disabling if needed.
+                if (checkDuplicatesBtn) checkDuplicatesBtn.disabled = false;
+
+
+            } catch (error) {
+                console.error('Processing error:', error);
+                showStatus(`Error: ${error.message}`, 'error');
+                updateStep(getCurrentStep(), 'error', 'Processing failed');
+            } finally {
+                setProcessing(false);
+            }
+        }
+
+        // CSV parsing function
+        function parseCSVFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const text = event.target.result;
+                        const rows = parseRobustCSV(text);
+                        
+                        if (rows.length < 2) {
+                            return reject(new Error('CSV must have a header and at least one data row.'));
+                        }
+
+                        const headers = rows[0];
+                        const data = rows.slice(1).map(values => {
+                            if (values.length === headers.length) {
+                                const row = {};
+                                headers.forEach((header, index) => {
+                                    row[header] = values[index];
+                                });
+                                return row;
+                            } else {
+                                console.warn(`Skipping malformed row. Expected ${headers.length} columns, but got ${values.length}.`, values);
+                                showStatus(`Warning: Skipping malformed row. Check console for details.`, 'warning');
+                                return null;
+                            }
+                        }).filter(Boolean); // Filter out null rows
+
+                        resolve(data);
+                    } catch (e) {
+                        reject(e);
+                    }
+                };
+                reader.onerror = (error) => reject(error);
+                reader.readAsText(file);
+            });
+        }
+
+        /**
+         * A robust CSV parser that handles quoted fields, newlines within fields, and escaped quotes.
+         * @param {string} text The full CSV text.
+         * @returns {string[][]} An array of arrays, where each inner array represents a row.
+         */
+        function parseRobustCSV(text) {
+            const rows = [];
+            let currentRow = [];
+            let currentField = '';
+            let inQuotedField = false;
+
+            text = text.replace(/\r\n/g, '\n'); // Normalize line endings
+
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+
+                if (inQuotedField) {
+                    if (char === '"') {
+                        // Check for escaped quote
+                        if (i < text.length - 1 && text[i + 1] === '"') {
+                            currentField += '"';
+                            i++; // Skip next quote
+                        } else {
+                            inQuotedField = false;
+                        }
+                    } else {
+                        currentField += char;
+                    }
+                } else {
+                    switch (char) {
+                        case ',':
+                            currentRow.push(currentField);
+                            currentField = '';
+                            break;
+                        case '\n':
+                            currentRow.push(currentField);
+                            rows.push(currentRow);
+                            currentRow = [];
+                            currentField = '';
+                            break;
+                        case '"':
+                            if (currentField.length === 0) {
+                                inQuotedField = true;
+                            } else {
+                                currentField += char; // Treat as part of an unquoted field
+                            }
+                            break;
+                        default:
+                            currentField += char;
+                    }
+                }
+            }
+
+            // Add the last field and row if the file doesn't end with a newline
+            if (currentField.length > 0 || currentRow.length > 0) {
+                currentRow.push(currentField);
+                rows.push(currentRow);
+            }
+
+            return rows;
+        }
+
+        // This function is no longer needed for the robust parser.
+        function parseCSVLine(line) {
+            return;
+        }
+
+        // AI processing function
+        async function processWithAI(csvData, apiKey) {
+            const processedRows = [];
+            const batchSize = 3; // Reduced batch size to avoid quota issues
+            let quotaExceeded = false;
+
+            for (let i = 0; i < csvData.length; i += batchSize) {
+                const batch = csvData.slice(i, i + batchSize);
+                showStatus(`Processing batch ${Math.floor(i/batchSize) + 1} of ${Math.ceil(csvData.length/batchSize)}`, 'info');
+
+                try {
+                    const batchPromises = batch.map(row => processRowWithAI(row, apiKey));
+                    const batchResults = await Promise.all(batchPromises);
+                    processedRows.push(...batchResults.filter(r => r)); // Filter out null results from errors
+
+                    // Check if any result indicates quota exceeded
+                    const hasQuotaError = batchResults.some(result =>
+                        result && result.error && result.error.includes('QUOTA_EXCEEDED')
+                    );
+
+                    if (hasQuotaError) {
+                        quotaExceeded = true;
+                        showStatus('⚠️ Gemini API quota exceeded. Continuing with fallback processing for remaining rows.', 'warning');
+                        break;
+                    }
+                } catch (error) {
+                    if (error.message.includes('QUOTA_EXCEEDED')) {
+                        quotaExceeded = true;
+                        showStatus('⚠️ Gemini API quota exceeded. Continuing with fallback processing for remaining rows.', 'warning');
+                        break;
+                    }
+                    console.error('Batch processing error:', error);
+                }
+
+                // Small delay between batches
+                if (i + batchSize < csvData.length) {
+                    await new Promise(resolve => setTimeout(resolve, 2000)); // Increased delay
+                }
+            }
+
+            // If quota exceeded, process remaining rows without AI
+            if (quotaExceeded && processedRows.length < csvData.length) {
+                const remainingRows = csvData.slice(processedRows.length);
+                showStatus(`Processing remaining ${remainingRows.length} rows without AI...`, 'info');
+
+                for (const row of remainingRows) {
+                    const fallbackRow = {
+                        ...row,
+                        description_eng: row['Description'] || '',
+                        description_vie: row['Description'] || '',
+                        supplier_agent_need: false,
+                        supplier_agent: '',
+                        ticket: row['Issue key'] || '',
+                        po: row['Custom field (PO Number(s))'] || '',
+                        suid: extractSUID(row['Custom field (Supplier)'] || ''),
+                        su_name: extractSupplierName(row['Custom field (Supplier)'] || ''),
+                        order_number: row['Custom field (Order ID(s))'] || '',
+                        po_nocs: extractPODigits(row['Custom field (PO Number(s))'] || ''),
+                        customer: extractCustomerName(row['Custom field (Customer Name)'] || ''),
+                        customer_contact: row['Custom field (Customer Contact(s))'] || '',
+                        issue_id: row['Issue id'] || '',
+                        agent_account: row['Assignee'] || '',
+                        issue_type: row['Customer Request Type'] || ''
+                    };
+                    processedRows.push(fallbackRow);
+                }
+            }
+
+            return processedRows;
+        }
+
+        async function processRowWithAI(row, apiKey) {
+            try {
+                const description = row['Description'] || '';
+                if (!description) {
+                    showStatus(`Skipping row with empty description: ${row['Issue key']}`, 'warning');
+                    return { ...row, description_eng: '', description_vie: '', supplier_agent_need: false, supplier_agent: '' };
+                }
+
+                const prompt = `Analyze this support ticket description and provide the following information in JSON format:
+
+Description: "${description}"
+
+Please provide:
+1. description_eng: English translation of the description.
+2. description_vie: Vietnamese translation of the description.
+3. supplier_agent_need: boolean (true/false). This is the most important instruction. Set to true ONLY if the description contains a clear closing signature from a supplier agent. A signature is a name that appears after a closing phrase like "Regards,", "Best regards,", "Thanks,", "Thank you,". A name appearing on its own line at the very end of the message can also be a signature. Crucially, if you see "Regards" or a similar closing but there is NO NAME following it, you MUST set this to false. Do not set to true for customer names or names mentioned in the main body of the ticket.
+4. supplier_agent: string. If supplier_agent_need is true, extract ONLY the first name from the signature (e.g., "Stella" from "Thank you. Stella"). Otherwise, return an empty string.
+
+Return only valid JSON with these exact keys.`;
+
+                const responseText = await callGeminiAPI(prompt, apiKey);
+                
+                // Clean the response to get only the JSON part
+                const jsonMatch = responseText.match(/```json\n([\s\S]*?)\n```/);
+                if (!jsonMatch || !jsonMatch[1]) {
+                    // Fallback for cases where the AI doesn't return the markdown block
+                    try {
+                        const parsed = JSON.parse(responseText);
+                        jsonMatch = [null, JSON.stringify(parsed)];
+                    } catch (e) {
+                         throw new Error('Invalid JSON response from AI. Could not parse: ' + responseText);
+                    }
+                }
+                const aiResult = JSON.parse(jsonMatch[1]);
+
+                const processedRow = {
+                    ...row,
+                    ...aiResult,
+                    ticket: row['Issue key'] || '',
+                    po: row['Custom field (PO Number(s))'] || '',
+                    suid: extractSUID(row['Custom field (Supplier)'] || ''),
+                    su_name: extractSupplierName(row['Custom field (Supplier)'] || ''),
+                    order_number: row['Custom field (Order ID(s))'] || '',
+                    po_nocs: extractPODigits(row['Custom field (PO Number(s))'] || ''),
+                    customer: extractCustomerName(row['Custom field (Customer Name)'] || ''),
+                    customer_contact: row['Custom field (Customer Contact(s))'] || '',
+                    issue_id: row['Issue id'] || '',
+                    agent_account: row['Assignee'] || '',
+                    issue_type: row['Customer Request Type'] || ''
+                };
+
+                return processedRow;
+
+            } catch (error) {
+                console.error(`Error processing row with AI (${row['Issue key']}):`, error);
+
+                // Handle quota exceeded error specifically
+                if (error.message.startsWith('QUOTA_EXCEEDED:')) {
+                    const retryDelay = error.message.split(':')[1];
+                    showStatus(`⚠️ Gemini API quota exceeded. Please wait ${retryDelay} before processing more data. Using fallback processing for row ${row['Issue key']}.`, 'warning');
+                } else {
+                    showStatus(`Warning: Failed to process row ${row['Issue key']} with AI. Using original data.`, 'warning');
+                }
+
+                return {
+                    ...row,
+                    description_eng: row['Description'] || '',
+                    description_vie: row['Description'] || '',
+                    supplier_agent_need: false,
+                    supplier_agent: '',
+                    ticket: row['Issue key'] || '',
+                    po: row['Custom field (PO Number(s))'] || '',
+                    suid: extractSUID(row['Custom field (Supplier)'] || ''),
+                    su_name: extractSupplierName(row['Custom field (Supplier)'] || ''),
+                    order_number: row['Custom field (Order ID(s))'] || '',
+                    po_nocs: extractPODigits(row['Custom field (PO Number(s))'] || ''),
+                    customer: extractCustomerName(row['Custom field (Customer Name)'] || ''),
+                    customer_contact: row['Custom field (Customer Contact(s))'] || '',
+                    issue_id: row['Issue id'] || '',
+                    agent_account: row['Assignee'] || '',
+                    issue_type: row['Customer Request Type'] || ''
+                };
+            }
+        }
+
+        async function callGeminiAPI(prompt, apiKey) {
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+            });
+
+            if (!response.ok) {
+                const errorBody = await response.text();
+
+                // Handle quota exceeded error specifically
+                if (response.status === 429) {
+                    const errorData = JSON.parse(errorBody);
+                    const retryDelay = errorData.error?.details?.find(d => d['@type']?.includes('RetryInfo'))?.retryDelay;
+                    throw new Error(`QUOTA_EXCEEDED:${retryDelay || '60s'}`);
+                }
+
+                throw new Error(`Gemini API error: ${response.status} ${response.statusText}. ${errorBody}`);
+            }
+
+            const data = await response.json();
+            if (!data.candidates || !data.candidates[0].content.parts[0].text) {
+                throw new Error('Invalid response structure from Gemini API');
+            }
+            return data.candidates[0].content.parts[0].text;
+        }
+
+        // Helper functions for data extraction
+        function extractSUID(supplierField) {
+            const match = supplierField.match(/^(\d+)/);
+            return match ? match[1] : '';
+        }
+
+        function extractSupplierName(supplierField) {
+            const parts = supplierField.split(' - ');
+            return parts.length > 1 ? parts[1] : '';
+        }
+
+        function extractPODigits(poField) {
+            const match = poField.match(/(?:CS|CA)(\d{9})/);
+            return match ? match[1] : '';
+        }
+
+        function extractCustomerName(customerField) {
+            if (!customerField) return '';
+            return customerField.split(',')[0].trim();
+        }
+
+        async function getAgentSTT(assigneeAccount) {
+            if (!supabaseClient || !assigneeAccount) return '';
+            try {
+                const { data, error } = await supabaseClient
+                    .from('agent')
+                    .select('stt')
+                    .eq('agent_account', assigneeAccount)
+                    .maybeSingle();
+
+                if (error) {
+                    if (error.code === 'PGRST301' || error.message.includes('401')) {
+                        console.warn('Authentication issue accessing agent table:', error);
+                        showStatus('⚠️ Authentication issue. Please check database permissions.', 'warning');
+                    } else {
+                        throw error;
+                    }
+                    return '';
+                }
+                return data ? data.stt : '';
+            } catch (error) {
+                console.error('Error fetching agent STT:', error);
+                showStatus('⚠️ Error fetching agent data. Using default values.', 'warning');
+                return '';
+            }
+        }
+
+        async function getIssueType(assigneeAccount, customerRequestType) {
+            if (!supabaseClient || !assigneeAccount || !customerRequestType) return '';
+            try {
+                const { data: agentData, error: agentError } = await supabaseClient
+                    .from('agent')
+                    .select('team')
+                    .eq('agent_account', assigneeAccount)
+                    .maybeSingle();
+
+                if (agentError) {
+                    if (agentError.code === 'PGRST301' || agentError.message.includes('401')) {
+                        console.warn('Authentication issue accessing agent table:', agentError);
+                        showStatus('⚠️ Authentication issue. Please check database permissions.', 'warning');
+                    } else {
+                        throw agentError;
+                    }
+                    return '';
+                }
+                if (!agentData) return '';
+
+                let taskName = customerRequestType;
+                if (customerRequestType === 'Update Tracking Number') {
+                    taskName = 'Update tracking number/Order Status';
+                } else if (customerRequestType === 'Email Request') {
+                    taskName = 'Carrier Inquiry';
+                }
+
+                const { data: kpiData, error: kpiError } = await supabaseClient
+                    .from('kpi_per_task')
+                    .select('id')
+                    .eq('team', agentData.team)
+                    .eq('task_name', taskName)
+                    .limit(1) // Ensure we only get one result
+                    .maybeSingle();
+
+                if (kpiError) {
+                    if (kpiError.code === 'PGRST301' || kpiError.message.includes('401')) {
+                        console.warn('Authentication issue accessing kpi_per_task table:', kpiError);
+                        showStatus('⚠️ Authentication issue. Please check database permissions.', 'warning');
+                    } else {
+                        throw kpiError;
+                    }
+                    return '';
+                }
+                return kpiData ? kpiData.id : '';
+            } catch (error) {
+                console.error('Error fetching issue type:', error);
+                showStatus('⚠️ Error fetching issue type data. Using default values.', 'warning');
+                return '';
+            }
+        }
+
+        // Data preparation and UI functions
+        async function prepareForImport(processedRows) {
+            return processedRows.map(row => ({
+                ticket: row.ticket,
+                po: row.po,
+                suid: row.suid,
+                su_name: row.su_name,
+                supplier_agent_need: row.supplier_agent_need,
+                supplier_agent: row.supplier_agent,
+                order_number: row.order_number,
+                po_nocs: row.po_nocs,
+                customer: row.customer,
+                customer_contact: row.customer_contact,
+                agent_account: row.agent_account,
+                issue_type: row.issue_type,
+                issue_id: row.issue_id,
+                description_eng: row.description_eng,
+                description_vie: row.description_vie
+            }));
+        }
+
+        function showDataPreview(data) {
+            if (!dataPreview || !initialState || !previewHeader || !previewBody) return;
+            if (data.length === 0) {
+                showStatus('No data to preview', 'warning');
+                initialState.classList.remove('hidden');
+                dataPreview.classList.add('hidden');
+                return;
+            }
+
+            initialState.classList.add('hidden');
+            dataPreview.classList.remove('hidden');
+
+            const headers = Object.keys(data[0]);
+            previewHeader.innerHTML = headers.map(header =>
+                `<th class="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">${header}</th>`
+            ).join('');
+
+            const previewRows = data.slice(0, 10);
+            previewBody.innerHTML = previewRows.map(row =>
+                `<tr>${headers.map(header => {
+                    const isDescription = header === 'description_eng' || header === 'description_vie';
+                    // For description columns, use 'pre-wrap' to preserve formatting. For others, use 'nowrap'.
+                    const cellClass = `px-6 py-4 text-sm text-main ${isDescription ? 'whitespace-pre-wrap' : 'whitespace-nowrap'}`;
+                    const cellContent = row[header] || '';
+                    return `<td class="${cellClass}">${cellContent}</td>`;
+                }).join('')}</tr>`
+            ).join('');
+
+            if (data.length > 10) {
+                showStatus(`Showing first 10 rows of ${data.length} total rows`, 'info');
+            }
+        }
+
+        async function importToDatabase() {
+            if (!supabaseClient) {
+                showStatus('Supabase client not initialized.', 'error');
+                return;
+            }
+            if (processedData.length === 0) {
+                showStatus('No data to import', 'error');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to import ${processedData.length} records to the tickets table?`)) {
+                return;
+            }
+
+            try {
+                showStatus('Importing data to tickets table...', 'info');
+                setProcessing(true);
+
+                const ticketData = processedData.map(row => ({
+                    ticket: row.ticket,
+                    po: row.po,
+                    suid: row.suid,
+                    su_name: row.su_name,
+                    supplier_agent_need: row.supplier_agent_need,
+                    supplier_agent: row.supplier_agent,
+                    order_number: row.order_number,
+                    po_nocs: row.po_nocs,
+                    customer: row.customer,
+                    customer_contact: row.customer_contact,
+                    issue_type: row.issue_type,
+                    issue_id: row.issue_id,
+                    description_eng: row.description_eng,
+                    description_vie: row.description_vie,
+                    assignee_account: row.agent_account, // CSV Assignee data goes here
+                    time_start: null,
+                    time_end: null,
+                    agent_handle_ticket: row.agent_account, // Also populate this field
+                    ticket_status_id: null // Corrected field
+                }));
+
+                const { error } = await supabaseClient
+                    .from('tickets')
+                    .insert(ticketData);
+
+                if (error) {
+                    if (error.code === 'PGRST301' || error.message.includes('401')) {
+                        throw new Error('Authentication failed. Please check database permissions and ensure you have access to the tickets table.');
+                    }
+                    throw error;
+                }
+
+                showStatus(`✅ Successfully imported ${processedData.length} records to tickets table`, 'success');
+                if (importBtn) {
+                    importBtn.disabled = true;
+                    importBtn.textContent = 'Import Complete';
+                }
+                if (duplicateSection) duplicateSection.classList.add('hidden');
+
+
+            } catch (error) {
+                console.error('Import error:', error);
+                showStatus(`❌ Import failed: ${error.message}`, 'error');
+            } finally {
+                setProcessing(false);
+            }
+        }
+
+        function downloadProcessedCSV() {
+            if (processedData.length === 0) {
+                showStatus('No data to download', 'error');
+                return;
+            }
+
+            const headers = Object.keys(processedData[0]);
+            const csvContent = [
+                headers.join(','),
+                ...processedData.map(row =>
+                    headers.map(header => {
+                        const value = row[header] === null || row[header] === undefined ? '' : String(row[header]);
+                        return `"${value.replace(/"/g, '""')}"`;
+                    }).join(',')
+                )
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `processed_tickets_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+
+            showStatus('CSV file downloaded', 'success');
+        }
+
+        // UI helper functions
+        function setProcessing(processing) {
+            if (processBtn) processBtn.disabled = processing;
+            if (processing) {
+                if (processText) processText.textContent = 'Processing...';
+                if (processSpinner) processSpinner.classList.remove('hidden');
+            } else {
+                if (processText) processText.textContent = 'Process CSV';
+                if (processSpinner) processSpinner.classList.add('hidden');
+            }
+        }
+
+        function showProgressPanel() {
+            if (!progressPanel) return;
+            progressPanel.classList.remove('hidden');
+            for (let i = 1; i <= 3; i++) {
+                updateStep(i, 'pending', getStepText(i));
+            }
+        }
+
+        function updateStep(stepNumber, status, text) {
+            const icon = document.getElementById(`step${stepNumber}-icon`);
+            const textEl = document.getElementById(`step${stepNumber}-text`);
+            if (!icon || !textEl) return;
+
+            icon.className = 'w-6 h-6 rounded-full flex items-center justify-center mr-3';
+
+            switch (status) {
+                case 'pending':
+                    icon.classList.add('bg-gray-300');
+                    icon.innerHTML = `<span class="text-xs text-white">${stepNumber}</span>`;
+                    break;
+                case 'processing':
+                    icon.classList.add('bg-blue-500');
+                    icon.innerHTML = '<div class="loading-spinner w-3 h-3"></div>';
+                    break;
+                case 'complete':
+                    icon.classList.add('bg-green-500');
+                    icon.innerHTML = '<svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>';
+                    break;
+                case 'error':
+                    icon.classList.add('bg-red-500');
+                    icon.innerHTML = '<svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>';
+                    break;
+            }
+
+            textEl.textContent = text;
+        }
+
+        function getStepText(stepNumber) {
+            switch (stepNumber) {
+                case 1: return 'Parse CSV file';
+                case 2: return 'Process with AI';
+                case 3: return 'Prepare for import';
+                default: return '';
+            }
+        }
+
+        function getCurrentStep() {
+            if (document.getElementById('step3-icon')?.classList.contains('bg-blue-500')) return 3;
+            if (document.getElementById('step2-icon')?.classList.contains('bg-blue-500')) return 2;
+            return 1;
+        }
+
+        // Duplicate detection functions
+        async function checkForDuplicates() {
+            if (!supabaseClient) {
+                showStatus('Supabase client not initialized.', 'error');
+                return;
+            }
+            if (processedData.length === 0) {
+                showStatus('No data to check for duplicates', 'error');
+                return;
+            }
+
+            try {
+                showStatus('Checking for duplicates in database...', 'info');
+                if (checkDuplicatesBtn) checkDuplicatesBtn.disabled = true;
+
+                const issueIds = processedData.map(row => row.issue_id).filter(id => id);
+                if (issueIds.length === 0) {
+                    showStatus('No issue IDs found in the processed data to check for duplicates.', 'warning');
+                    if (importBtn) importBtn.disabled = false;
+                    return;
+                }
+
+                const { data: existingTickets, error } = await supabaseClient
+                    .from('tickets')
+                    .select('issue_id, ticket')
+                    .in('issue_id', issueIds);
+
+                if (error) {
+                    if (error.code === 'PGRST301' || error.message.includes('401')) {
+                        throw new Error('Authentication failed. Please check database permissions and ensure you have access to the tickets table.');
+                    }
+                    throw error;
+                }
+
+                const existingIssueIds = new Set(existingTickets.map(t => String(t.issue_id)));
+                const duplicates = processedData.filter(row => existingIssueIds.has(String(row.issue_id)));
+
+                if (duplicates.length === 0) {
+                    showStatus('No duplicates found. Ready to import!', 'success');
+                    if (importBtn) importBtn.disabled = false;
+                    if (duplicateList) duplicateList.innerHTML = '<p class="text-green-600">✅ No duplicates detected</p>';
+                } else {
+                    showStatus(`Found ${duplicates.length} potential duplicates`, 'warning');
+                    displayDuplicates(duplicates);
+                    if (importBtn) importBtn.disabled = true; // Disable import until user resolves duplicates
+                }
+
+            } catch (error) {
+                console.error('Duplicate check error:', error);
+                showStatus(`Error checking duplicates: ${error.message}`, 'error');
+            } finally {
+                if (checkDuplicatesBtn) checkDuplicatesBtn.disabled = false;
+            }
+        }
+
+        function displayDuplicates(duplicates) {
+            if (!duplicateList) return;
+            duplicateList.innerHTML = `
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                    <h5 class="font-medium text-yellow-800 mb-2">⚠️ Potential Duplicates Found</h5>
+                    <p class="text-sm text-yellow-700 mb-3">
+                        These tickets may already exist in the database. Please review carefully and select which ones to remove from the current import batch.
+                        <br><strong>Note:</strong> Do not delete if this is a ticket re-opened by the supplier.
+                    </p>
+                </div>
+                <div class="space-y-2">
+                    ${duplicates.map((duplicate, index) => `
+                        <div class="flex items-center p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <input type="checkbox" id="duplicate-${index}" class="duplicate-checkbox h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
+                                   data-issue-id="${duplicate.issue_id}">
+                            <label for="duplicate-${index}" class="ml-3 flex-1">
+                                <div class="font-medium text-gray-900">
+                                    Ticket: ${duplicate.ticket} (ID: ${duplicate.issue_id})
+                                </div>
+                                <div class="text-sm text-gray-600">
+                                    Customer: ${duplicate.customer || 'N/A'} | Supplier: ${duplicate.su_name || 'N/A'}
+                                </div>
+                            </label>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+
+            document.querySelectorAll('.duplicate-checkbox').forEach(checkbox => {
+                checkbox.addEventListener('change', updateRemoveButton);
+            });
+
+            if (removeSelectedBtn) removeSelectedBtn.disabled = true;
+        }
+
+        function updateRemoveButton() {
+            if (!removeSelectedBtn) return;
+            const checkedBoxes = document.querySelectorAll('.duplicate-checkbox:checked');
+            removeSelectedBtn.disabled = checkedBoxes.length === 0;
+            
+            // If any duplicate is selected for removal, disable the main import button
+            // The user must either deselect them or confirm removal.
+            if (importBtn) {
+                const anyChecked = checkedBoxes.length > 0;
+                const allChecked = document.querySelectorAll('.duplicate-checkbox').length === checkedBoxes.length;
+                
+                // Disable import if there are duplicates and none are selected for removal
+                // Or if there are duplicates and some are selected.
+                // Basically, force user to make a choice about duplicates.
+                const hasDuplicates = document.querySelectorAll('.duplicate-checkbox').length > 0;
+                importBtn.disabled = hasDuplicates;
+            }
+        }
+
+        function removeSelectedDuplicates() {
+            const checkedBoxes = document.querySelectorAll('.duplicate-checkbox:checked');
+
+            if (checkedBoxes.length === 0) {
+                showStatus('No duplicates selected for removal', 'warning');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to remove ${checkedBoxes.length} item(s) from the import list? This will not delete them from the database.`)) {
+                return;
+            }
+
+            const issueIdsToRemove = new Set(Array.from(checkedBoxes).map(cb => cb.dataset.issueId));
+
+            const originalLength = processedData.length;
+            processedData = processedData.filter(row => !issueIdsToRemove.has(String(row.issue_id)));
+
+            const removedCount = originalLength - processedData.length;
+            showStatus(`Removed ${removedCount} item(s) from the import list.`, 'success');
+
+            // Update preview and duplicate list
+            showDataPreview(processedData);
+            if (processedData.length > 0) {
+                 checkForDuplicates(); // Re-run check on the filtered list
+            } else {
+                if (duplicateSection) duplicateSection.classList.add('hidden');
+                if (importBtn) importBtn.disabled = true;
+            }
+           
+            if (document.querySelectorAll('.duplicate-checkbox:not(:checked)').length === 0) {
+                 if (importBtn) importBtn.disabled = false;
+                 if (duplicateList) duplicateList.innerHTML = '<p class="text-green-600">✅ No duplicates detected</p>';
+                 if (removeSelectedBtn) removeSelectedBtn.disabled = true;
+            }
+        }
+
+        // Theme switcher logic
+        function setTheme(theme) {
+            document.documentElement.className = theme;
+            localStorage.setItem('theme', theme);
+            document.querySelectorAll('#theme-switcher .theme-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.theme === theme);
+            });
+        }
+
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            setTheme(savedTheme);
+
+            const themeSwitcher = document.getElementById('theme-switcher');
+            if (themeSwitcher) {
+                themeSwitcher.addEventListener('click', (e) => {
+                    if (e.target.matches('.theme-btn')) {
+                        const theme = e.target.dataset.theme;
+                        if (theme) {
+                            setTheme(theme);
+                        }
+                    }
+                });
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', initTheme);
+
+    </script>
+</body>
+</html>
