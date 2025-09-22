@@ -72,8 +72,11 @@
                 includeFooterCheckbox: document.getElementById('include-footer'), addLabelReminderCheckbox: document.getElementById('add-label-reminder'),
                 labelNameInput: document.getElementById('label-name'), addOptionalFieldCheckbox: document.getElementById('add-optional-field'),
                 optionalFieldNameInput: document.getElementById('optional-field-name'), addFollowUpCheckbox: document.getElementById('add-follow-up'),
+                needGreetingCheckbox: document.getElementById('need-greeting'), emailCarrierCheckbox: document.getElementById('email-carrier'),
                 customerTemplateFields: document.getElementById('customer-template-fields'), customerSubjectInput: document.getElementById('customer-subject'),
-                customerBodyInput: document.getElementById('customer-body'), internalCommentFields: document.getElementById('internal-comment-fields'),
+                customerBodyInput: document.getElementById('customer-body'), carrierEmailFields: document.getElementById('carrier-email-fields'),
+                carrierEmailSubjectInput: document.getElementById('carrier-email-subject'), bolNamingMethodInput: document.getElementById('bol-naming-method'),
+                internalCommentFields: document.getElementById('internal-comment-fields'),
                 addInternalCommentCheckbox: document.getElementById('add-internal-comment'), internalCommentInputContainer: document.getElementById('internal-comment-input-container'),
                 internalCommentBodyInput: document.getElementById('internal-comment-body'), cancelBtn: document.getElementById('cancel-btn'),
                 viewerTitle: document.getElementById('viewer-title'), viewerCategory: document.getElementById('viewer-category'),
@@ -278,11 +281,15 @@
                     dom.addInternalCommentCheckbox.checked = template.addInternalComment;
                     dom.addOptionalFieldCheckbox.checked = template.hasOptionalField;
                     dom.addFollowUpCheckbox.checked = !!template.followUpGuide;
+                    dom.needGreetingCheckbox.checked = template.needGreeting !== false; // Default to true
+                    dom.emailCarrierCheckbox.checked = template.emailCarrier || false;
                     dom.internalCommentBodyInput.value = template.internalComment || '';
                     dom.labelNameInput.value = template.labelName || '';
                     dom.optionalFieldNameInput.value = template.optionalFieldNames || '';
                     dom.customerSubjectInput.value = template.customerSubject || '';
                     dom.customerBodyInput.value = template.customerBody || '';
+                    dom.carrierEmailSubjectInput.value = template.carrierEmailSubject || '';
+                    dom.bolNamingMethodInput.value = template.bolNamingMethod || '';
                     if (template.movementGuide) template.movementGuide.forEach(step => dom.movementGuideStepsContainer.appendChild(createGuideStepEditor('movement', step)));
                     if (template.followUpGuide) template.followUpGuide.forEach(step => dom.followUpGuideStepsContainer.appendChild(createGuideStepEditor('follow-up', step)));
                 } else {
@@ -587,8 +594,9 @@ function createGuideStepEditor(type, stepData = {}) {
                     }
                 });
 
-                await initializeAppUI(); 
-                await syncWithSupabase(); 
+                await initializeAppUI();
+                await syncWithSupabase();
+                await updateAllTemplatesWithGreeting(); // Update existing templates
 
                 dom.newTemplateBtn.addEventListener('click', () => showTemplateForm());
                 dom.cancelBtn.addEventListener('click', () => showView('welcome'));
@@ -636,11 +644,15 @@ function createGuideStepEditor(type, stepData = {}) {
                         sendToCustomer: dom.sendToCustomerCheckbox.checked, includeFooter: dom.includeFooterCheckbox.checked,
                         addLabelReminder: dom.addLabelReminderCheckbox.checked, addInternalComment: dom.addInternalCommentCheckbox.checked,
                         hasOptionalField: dom.addOptionalFieldCheckbox.checked,
+                        needGreeting: dom.needGreetingCheckbox.checked,
+                        emailCarrier: dom.emailCarrierCheckbox.checked,
                         labelName: dom.labelNameInput.value.trim() || null,
                         internalComment: dom.internalCommentBodyInput.value.trim() || null,
                         optionalFieldNames: dom.optionalFieldNameInput.value.trim() || null,
                         customerSubject: dom.customerSubjectInput.value.trim() || null,
                         customerBody: dom.customerBodyInput.value.trim() || null,
+                        carrierEmailSubject: dom.carrierEmailSubjectInput.value.trim() || null,
+                        bolNamingMethod: dom.bolNamingMethodInput.value.trim() || null,
                         movementGuide: getGuideData(dom.movementGuideStepsContainer),
                         followUpGuide: dom.addFollowUpCheckbox.checked ? getGuideData(dom.followUpGuideStepsContainer, true) : null
                     };
@@ -707,7 +719,7 @@ function createGuideStepEditor(type, stepData = {}) {
                     updateFinalOutput();
                 }, 500)); 
 
-                [dom.mainIssueInput, dom.sendToCustomerCheckbox, dom.addLabelReminderCheckbox, dom.addOptionalFieldCheckbox, dom.addInternalCommentCheckbox, dom.addFollowUpCheckbox].forEach(el => el.addEventListener('input', updateFormVisibility));
+                [dom.mainIssueInput, dom.sendToCustomerCheckbox, dom.addLabelReminderCheckbox, dom.addOptionalFieldCheckbox, dom.addInternalCommentCheckbox, dom.addFollowUpCheckbox, dom.needGreetingCheckbox, dom.emailCarrierCheckbox].forEach(el => el.addEventListener('input', updateFormVisibility));
                 ['customer-email', 'customer-name', 'customer-order', 'customer-brand'].forEach(id => document.getElementById(id).addEventListener('input', updateCustomerEmailPreview));
                 document.getElementById('copy-cust-email-addr-btn').addEventListener('click', () => copyPlainTextToClipboard(document.getElementById('customer-email-address-output').textContent, document.getElementById('customer-copy-feedback')));
                 document.getElementById('copy-cust-subject-btn').addEventListener('click', () => copyPlainTextToClipboard(document.getElementById('customer-email-subject-output').textContent, document.getElementById('customer-copy-feedback')));
@@ -1243,15 +1255,43 @@ function createGuideStepEditor(type, stepData = {}) {
             }
             function insertTextAtCursor(textarea, text) { const start = textarea.selectionStart; textarea.value = textarea.value.substring(0, start) + text + textarea.value.substring(textarea.selectionEnd); textarea.selectionEnd = start + text.length; }
             function serializeEditorContent() { return dom.templateContentTextarea.value; }
-            function updateFormVisibility() { 
-                const isMovement = dom.mainIssueInput.value.trim().toLowerCase() === 'movement'; 
-                dom.customerTemplateFields.classList.toggle('hidden', !dom.sendToCustomerCheckbox.checked); 
-                dom.labelNameInput.classList.toggle('hidden', !dom.addLabelReminderCheckbox.checked); 
-                dom.optionalFieldNameInput.classList.toggle('hidden', !dom.addOptionalFieldCheckbox.checked); 
-                dom.internalCommentFields.classList.toggle('hidden', !isMovement); 
-                dom.internalCommentInputContainer.classList.toggle('hidden', !dom.addInternalCommentCheckbox.checked || !isMovement); 
+            function updateFormVisibility() {
+                const isMovement = dom.mainIssueInput.value.trim().toLowerCase() === 'movement';
+                dom.customerTemplateFields.classList.toggle('hidden', !dom.sendToCustomerCheckbox.checked);
+                dom.carrierEmailFields.classList.toggle('hidden', !dom.emailCarrierCheckbox.checked);
+                dom.labelNameInput.classList.toggle('hidden', !dom.addLabelReminderCheckbox.checked);
+                dom.optionalFieldNameInput.classList.toggle('hidden', !dom.addOptionalFieldCheckbox.checked);
+                dom.internalCommentFields.classList.toggle('hidden', !isMovement);
+                dom.internalCommentInputContainer.classList.toggle('hidden', !dom.addInternalCommentCheckbox.checked || !isMovement);
                 dom.movementGuideEditor.classList.toggle('hidden', !isMovement);
                 dom.followUpGuideEditor.classList.toggle('hidden', !dom.addFollowUpCheckbox.checked);
+            }
+
+            // --- Template Update Functions ---
+            async function updateAllTemplatesWithGreeting() {
+                try {
+                    const { data: templates, error } = await supabase
+                        .from('templates')
+                        .select('id, needGreeting')
+                        .is('needGreeting', null);
+
+                    if (error) throw error;
+
+                    if (templates && templates.length > 0) {
+                        const { error: updateError } = await supabase
+                            .from('templates')
+                            .update({ needGreeting: true })
+                            .in('id', templates.map(t => t.id));
+
+                        if (updateError) throw updateError;
+
+                        showNotification(`Updated ${templates.length} templates with needGreeting=true`, 'success');
+                        await syncWithSupabase();
+                    }
+                } catch (error) {
+                    console.error('Error updating templates:', error);
+                    showNotification('Error updating templates: ' + error.message, 'error');
+                }
             }
 
             // --- User Management Functions ---
@@ -1271,7 +1311,7 @@ function createGuideStepEditor(type, stepData = {}) {
 
                     const tbody = document.getElementById('users-table-body');
                     tbody.innerHTML = data.map(user => `
-                        <tr data-user-id="${user.id}">
+                        <tr data-user-id="${user.stt}">
                             <td class="p-2 border-b">
                                 <span class="user-account-display">${user.account_name || 'Chưa có tài khoản'}</span>
                                 <input type="text" class="user-account-edit hidden w-full p-1 border rounded" value="${user.account_name || ''}" data-field="account_name" placeholder="Nhập tên tài khoản">
@@ -1296,19 +1336,19 @@ function createGuideStepEditor(type, stepData = {}) {
                                 </select>
                             </td>
                             <td class="p-2 border-b">
-                                <button class="edit-user-btn bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs mr-1" data-user-id="${user.id}">
+                                <button class="edit-user-btn bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs mr-1" data-user-id="${user.stt}">
                                     Sửa
                                 </button>
-                                <button class="save-user-btn hidden bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs mr-1" data-user-id="${user.id}">
+                                <button class="save-user-btn hidden bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs mr-1" data-user-id="${user.stt}">
                                     Lưu
                                 </button>
-                                <button class="cancel-edit-btn hidden bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs mr-1" data-user-id="${user.id}">
+                                <button class="cancel-edit-btn hidden bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs mr-1" data-user-id="${user.stt}">
                                     Hủy
                                 </button>
-                                <button class="change-password-btn bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs mr-1" data-user-id="${user.id}">
+                                <button class="change-password-btn bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs mr-1" data-user-id="${user.stt}">
                                     Đổi MK
                                 </button>
-                                <button class="delete-user-btn bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs" data-user-id="${user.id}">
+                                <button class="delete-user-btn bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs" data-user-id="${user.stt}">
                                     Xóa
                                 </button>
                             </td>
@@ -1403,9 +1443,9 @@ function createGuideStepEditor(type, stepData = {}) {
                             // Check if account name already exists (for other users)
                             const { data: existingUsers, error: checkError } = await supabase
                                 .from('vcn_agent')
-                                .select('id, account_name')
+                                .select('stt, account_name')
                                 .eq('account_name', accountName)
-                                .neq('id', userId);
+                                .neq('stt', userId);
 
                             if (checkError) throw checkError;
 
@@ -1422,7 +1462,7 @@ function createGuideStepEditor(type, stepData = {}) {
                                     level: level === 'member' ? 'user' : level, // Store as 'user' in DB
                                     status: status
                                 })
-                                .eq('id', userId);
+                                .eq('stt', userId);
 
                             if (error) throw error;
                             showNotification('Cập nhật thông tin thành công', 'success');
@@ -1442,7 +1482,7 @@ function createGuideStepEditor(type, stepData = {}) {
                                 const { error } = await supabase
                                     .from('vcn_agent')
                                     .update({ account_password: newPassword })
-                                    .eq('id', userId);
+                                    .eq('stt', userId);
 
                                 if (error) throw error;
                                 showNotification('Đổi mật khẩu thành công', 'success');
@@ -1461,7 +1501,7 @@ function createGuideStepEditor(type, stepData = {}) {
                                 const { error } = await supabase
                                     .from('vcn_agent')
                                     .delete()
-                                    .eq('id', userId);
+                                    .eq('stt', userId);
 
                                 if (error) throw error;
                                 showNotification('Xóa tài khoản thành công', 'success');

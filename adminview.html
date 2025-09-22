@@ -140,6 +140,10 @@
                              <div>
                                 <label class="flex items-center"><input type="checkbox" id="add-follow-up" class="h-4 w-4 text-[rgb(var(--color-accent-primary))] border-[rgb(var(--color-border))] rounded"><span class="ml-2 text-sm">Add Required Follow-up Steps</span></label>
                             </div>
+                            <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+                                <label class="flex items-center"><input type="checkbox" id="need-greeting" class="h-4 w-4 text-[rgb(var(--color-accent-primary))] border-[rgb(var(--color-border))] rounded" checked><span class="ml-2 text-sm">Include opening greeting</span></label>
+                                <label class="flex items-center"><input type="checkbox" id="email-carrier" class="h-4 w-4 text-[rgb(var(--color-accent-primary))] border-[rgb(var(--color-border))] rounded"><span class="ml-2 text-sm">Require Email to Carrier (FMOP)</span></label>
+                            </div>
                             <div id="customer-template-fields" class="hidden p-4 border-l-4 border-rose-400 bg-rose-50 space-y-4">
                                 <h4 class="font-semibold text-rose-800">Customer Email Content</h4>
                                 <p class="text-xs text-gray-600">Use: <code class="placeholder-tag">{{Customer_Name}}</code>, <code class="placeholder-tag">{{Order_Number}}</code>, <code class="placeholder-tag">{{Brand}}</code></p>
@@ -150,6 +154,18 @@
                                 <div>
                                     <label for="customer-body" class="block text-sm font-medium text-gray-700 mb-1">Customer Email Body</label>
                                     <textarea id="customer-body" rows="6" class="w-full p-2 border border-gray-300 rounded-lg" placeholder="Hello {{Customer_Name}},..."></textarea>
+                                </div>
+                            </div>
+                            <div id="carrier-email-fields" class="hidden p-4 border-l-4 border-orange-400 bg-orange-50 space-y-4">
+                                <h4 class="font-semibold text-orange-800">Carrier Email Content (FMOP)</h4>
+                                <p class="text-xs text-gray-600">Use: <code class="placeholder-tag">{{carrier}}</code>, <code class="placeholder-tag">{{ticket}}</code> placeholders</p>
+                                <div>
+                                    <label for="carrier-email-subject" class="block text-sm font-medium text-gray-700 mb-1">Carrier Email Subject</label>
+                                    <input type="text" id="carrier-email-subject" class="w-full p-2 border border-gray-300 rounded-lg" placeholder="BOL Request for {{ticket}}">
+                                </div>
+                                <div>
+                                    <label for="bol-naming-method" class="block text-sm font-medium text-gray-700 mb-1">BOL File Naming Method</label>
+                                    <input type="text" id="bol-naming-method" class="w-full p-2 border border-gray-300 rounded-lg" placeholder="BOL_{{ticket}}_{{carrier}}">
                                 </div>
                             </div>
                             <div id="internal-comment-fields" class="hidden p-4 border-l-4 border-gray-400 bg-gray-50 space-y-4">

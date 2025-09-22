@@ -40,7 +40,7 @@
             }
             
             const user = JSON.parse(currentUser);
-            if (user.status !== 'active' || (user.level !== 'leader' && user.level !== 'key')) {
+            if (user.status !== 'active') {
                 alert('Bạn không có quyền truy cập trang này');
                 window.location.href = 'dashboard-v2.html';
                 return;
@@ -57,13 +57,26 @@
                     <p class="text-secondary mt-2">Import and process ticket data with AI-powered analysis</p>
                 </div>
                 <div class="flex items-center gap-4">
-                    <div id="theme-switcher" class="flex items-center gap-1 bg-section p-1 rounded-lg border border-secondary">
-                        <button data-theme="dark" class="theme-btn text-xs font-semibold py-1.5 px-3 rounded-md">Dark</button>
-                        <button data-theme="daylight" class="theme-btn text-xs font-semibold py-1.5 px-3 rounded-md">Daylight</button>
-                        <button data-theme="sunset" class="theme-btn text-xs font-semibold py-1.5 px-3 rounded-md">Sunset</button>
-                        <button data-theme="twilight" class="theme-btn text-xs font-semibold py-1.5 px-3 rounded-md">Twilight</button>
-                        <button data-theme="blossom-dawn" class="theme-btn text-xs font-semibold py-1.5 px-3 rounded-md">Blossom Dawn</button>
-                        <button data-theme="blue-sky" class="theme-btn text-xs font-semibold py-1.5 px-3 rounded-md">Blue Sky</button>
+                    <!-- Theme Switcher - Collapsible Button -->
+                    <div class="relative">
+                        <button id="theme-toggle-btn" class="flex items-center gap-2 bg-section p-2 rounded-lg border border-secondary hover:bg-button transition-colors">
+                            <span class="text-sm font-medium">🎨</span>
+                            <span id="current-theme-name" class="text-sm font-medium hidden sm:inline">Dark</span>
+                            <svg class="w-4 h-4 transition-transform duration-200" id="theme-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <div id="theme-dropdown" class="absolute top-full right-0 mt-2 bg-section border border-secondary rounded-lg shadow-lg p-2 hidden z-50 min-w-[200px]">
+                            <div class="grid grid-cols-1 gap-1">
+                                <button data-theme="dark" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌙 Dark</button>
+                                <button data-theme="daylight" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">☀️ Daylight</button>
+                                <button data-theme="sunset" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌅 Sunset</button>
+                                <button data-theme="twilight" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌆 Twilight</button>
+                                <button data-theme="blossom-dawn" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌸 Blossom Dawn</button>
+                                <button data-theme="blue-sky" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌤️ Blue Sky</button>
+                                <button data-theme="fresh-mint" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌿 Fresh Mint</button>
+                            </div>
+                        </div>
                     </div>
                     <button onclick="window.location.href='adminview.html'" class="px-4 py-2 bg-button hover:brightness-110 text-main font-semibold rounded-lg">
                         ← Back to Admin
@@ -87,8 +100,28 @@
                         <label class="block text-sm font-medium text-secondary mb-2">
                             Select CSV File
                         </label>
-                        <input type="file" id="csv-file-input" accept=".csv" 
+                        <input type="file" id="csv-file-input" accept=".csv"
                                class="block w-full text-sm text-main file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-button file:text-main hover:file:brightness-110">
+                    </div>
+
+                    <!-- Processing Options -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-secondary mb-3">Processing Options</label>
+                        <div class="space-y-3">
+                            <label class="flex items-center">
+                                <input type="radio" name="processing-mode" value="ai" id="ai-processing" checked
+                                       class="h-4 w-4 text-blue-600 border-secondary rounded focus:ring-blue-500">
+                                <span class="ml-2 text-sm text-main">🤖 AI Processing (Recommended)</span>
+                            </label>
+                            <p class="ml-6 text-xs text-secondary">Uses AI to translate descriptions and enhance data quality</p>
+
+                            <label class="flex items-center">
+                                <input type="radio" name="processing-mode" value="basic" id="basic-processing"
+                                       class="h-4 w-4 text-blue-600 border-secondary rounded focus:ring-blue-500">
+                                <span class="ml-2 text-sm text-main">⚡ Basic Processing (Fast)</span>
+                            </label>
+                            <p class="ml-6 text-xs text-secondary">Direct import without AI processing. English descriptions are preserved.</p>
+                        </div>
                     </div>
 
                     <!-- Process Button -->
@@ -113,7 +146,7 @@
                             <div id="step2-icon" class="w-6 h-6 rounded-full bg-gray-500 flex items-center justify-center mr-3">
                                 <span class="text-xs text-white">2</span>
                             </div>
-                            <span id="step2-text" class="text-secondary">Process with AI</span>
+                            <span id="step2-text" class="text-secondary">Process data</span>
                         </div>
                         <div class="flex items-center">
                             <div id="step3-icon" class="w-6 h-6 rounded-full bg-gray-500 flex items-center justify-center mr-3">
@@ -320,11 +353,21 @@
                 updateStep(1, 'complete', 'CSV parsed successfully');
                 showStatus(`Parsed ${csvData.length} rows from CSV`, 'success');
                 
-                // Step 2: Process with AI
-                updateStep(2, 'processing', 'Processing with AI...');
-                const processedRows = await processWithAI(csvData, GEMINI_API_KEY);
-                updateStep(2, 'complete', 'AI processing complete');
-                showStatus(`Processed ${processedRows.length} rows with AI`, 'success');
+                // Step 2: Process data (AI or Basic)
+                const processingMode = document.querySelector('input[name="processing-mode"]:checked').value;
+                let processedRows;
+
+                if (processingMode === 'ai') {
+                    updateStep(2, 'processing', 'Processing with AI...');
+                    processedRows = await processWithAI(csvData, GEMINI_API_KEY);
+                    updateStep(2, 'complete', 'AI processing complete');
+                    showStatus(`Processed ${processedRows.length} rows with AI`, 'success');
+                } else {
+                    updateStep(2, 'processing', 'Basic processing...');
+                    processedRows = await processBasic(csvData);
+                    updateStep(2, 'complete', 'Basic processing complete');
+                    showStatus(`Processed ${processedRows.length} rows with basic processing`, 'success');
+                }
                 
                 // Step 3: Prepare for import
                 updateStep(3, 'processing', 'Preparing data...');
@@ -519,6 +562,44 @@
                     };
                     processedRows.push(fallbackRow);
                 }
+            }
+
+            return processedRows;
+        }
+
+        // Basic processing function (without AI)
+        async function processBasic(csvData) {
+            const processedRows = [];
+
+            for (const row of csvData) {
+                const description = row['Description'] || '';
+
+                // Check if description is already in English (basic heuristic)
+                const isEnglish = /^[a-zA-Z0-9\s.,!?;:()\-'"]+$/.test(description) &&
+                                 description.length > 0 &&
+                                 !/[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(description);
+
+                const processedRow = {
+                    ...row,
+                    description_eng: isEnglish ? description : '', // Keep English descriptions, empty for non-English
+                    description_vie: isEnglish ? '' : description, // Keep non-English in Vietnamese field
+                    supplier_agent_need: false,
+                    supplier_agent: '',
+                    ticket: row['Issue key'] || '',
+                    po: row['Custom field (PO Number(s))'] || '',
+                    suid: extractSUID(row['Custom field (Supplier)'] || ''),
+                    su_name: extractSupplierName(row['Custom field (Supplier)'] || ''),
+                    order_number: row['Custom field (Order ID(s))'] || '',
+                    po_nocs: extractPODigits(row['Custom field (PO Number(s))'] || ''),
+                    customer: extractCustomerName(row['Custom field (Customer Name)'] || ''),
+                    customer_contact: row['Custom field (Customer Contact(s))'] || '',
+                    issue_id: row['Issue id'] || '',
+                    agent_account: row['Assignee'] || '',
+                    assignee_account: row['Assignee'] || '', // Add assignee_account field
+                    issue_type: row['Customer Request Type'] || ''
+                };
+
+                processedRows.push(processedRow);
             }
 
             return processedRows;
@@ -1096,29 +1177,88 @@ Return only valid JSON with these exact keys.`;
         }
 
         // Theme switcher logic
+        function toggleThemeDropdown() {
+            const themeDropdown = document.getElementById('theme-dropdown');
+            const themeChevron = document.getElementById('theme-chevron');
+            const isHidden = themeDropdown.classList.contains('hidden');
+
+            if (isHidden) {
+                themeDropdown.classList.remove('hidden');
+                themeChevron.style.transform = 'rotate(180deg)';
+            } else {
+                themeDropdown.classList.add('hidden');
+                themeChevron.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        function hideThemeDropdown() {
+            const themeDropdown = document.getElementById('theme-dropdown');
+            const themeChevron = document.getElementById('theme-chevron');
+            themeDropdown.classList.add('hidden');
+            themeChevron.style.transform = 'rotate(0deg)';
+        }
+
         function setTheme(theme) {
             document.documentElement.className = theme;
             localStorage.setItem('theme', theme);
-            document.querySelectorAll('#theme-switcher .theme-btn').forEach(btn => {
+
+            // Update theme buttons
+            document.querySelectorAll('.theme-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.theme === theme);
             });
+
+            // Update current theme name display
+            const currentThemeName = document.getElementById('current-theme-name');
+            const themeNames = {
+                'dark': '🌙 Dark',
+                'daylight': '☀️ Daylight',
+                'sunset': '🌅 Sunset',
+                'twilight': '🌆 Twilight',
+                'blossom-dawn': '🌸 Blossom Dawn',
+                'blue-sky': '🌤️ Blue Sky',
+                'fresh-mint': '🌿 Fresh Mint'
+            };
+            if (currentThemeName) {
+                currentThemeName.textContent = themeNames[theme] || theme;
+            }
         }
 
         function initTheme() {
             const savedTheme = localStorage.getItem('theme') || 'dark';
             setTheme(savedTheme);
 
-            const themeSwitcher = document.getElementById('theme-switcher');
-            if (themeSwitcher) {
-                themeSwitcher.addEventListener('click', (e) => {
+            // Add event listeners for theme functionality
+            const themeToggleBtn = document.getElementById('theme-toggle-btn');
+            const themeDropdown = document.getElementById('theme-dropdown');
+
+            if (themeToggleBtn) {
+                themeToggleBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleThemeDropdown();
+                });
+            }
+
+            if (themeDropdown) {
+                themeDropdown.addEventListener('click', (e) => {
                     if (e.target.matches('.theme-btn')) {
                         const theme = e.target.dataset.theme;
                         if (theme) {
                             setTheme(theme);
+                            hideThemeDropdown();
                         }
                     }
                 });
             }
+
+            // Close theme dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                const themeToggleBtn = document.getElementById('theme-toggle-btn');
+                const themeDropdown = document.getElementById('theme-dropdown');
+                if (themeToggleBtn && themeDropdown &&
+                    !themeToggleBtn.contains(e.target) && !themeDropdown.contains(e.target)) {
+                    hideThemeDropdown();
+                }
+            });
         }
 
         document.addEventListener('DOMContentLoaded', initTheme);

@@ -168,6 +168,32 @@
         html.blue-sky .js-copy-btn { background-color: #bae6fd; }
         html.blue-sky .js-copy-btn:hover { background-color: #7dd3fc; }
 
+        /* Fresh Mint Theme */
+        html.fresh-mint body { background-color: #f0fdf4; color: #166534; }
+        html.fresh-mint h1, html.fresh-mint h2, html.fresh-mint h3 { color: #14532d; }
+        html.fresh-mint .bg-section, html.fresh-mint .bg-popup-col { background-color: #dcfce7; border-color: #bbf7d0; }
+        html.fresh-mint .bg-popup-main { background-color: #f0fdf4; }
+        html.fresh-mint .bg-header-footer, html.fresh-mint #main-content thead th { background-color: #bbf7d0; }
+        html.fresh-mint .text-main { color: #166534; }
+        html.fresh-mint .text-secondary { color: #15803d; }
+        html.fresh-mint .text-headings { color: #14532d; }
+        html.fresh-mint .border-main { border-color: #bbf7d0; }
+        html.fresh-mint .border-secondary { border-color: #86efac; }
+        html.fresh-mint .group-hover > td { background-color: rgba(187, 247, 208, 0.7) !important; }
+        html.fresh-mint .bg-button { background-color: #dcfce7; color: #15803d; }
+        html.fresh-mint .bg-button:hover { background-color: #bbf7d0; }
+        html.fresh-mint select, html.fresh-mint input, html.fresh-mint textarea { background-color: #f0fdf4; color: #166534; border-color: #bbf7d0; }
+        html.fresh-mint .theme-btn { color: #15803d; }
+        html.fresh-mint .theme-btn:hover { background-color: #bbf7d0; }
+        html.fresh-mint .theme-btn.active { background-color: #16a34a; color: white; }
+        html.fresh-mint .toolbar-btn { background-color: #059669; color: white; }
+        html.fresh-mint .btn-wizard { background-color: #10b981; color: white; }
+        html.fresh-mint .btn-shipping { background-color: #22c55e; color: white; }
+        html.fresh-mint .btn-history { background-color: #f59e0b; color: #14532d; }
+        html.fresh-mint .btn-email { background-color: #eab308; color: #14532d; }
+        html.fresh-mint .js-copy-btn { background-color: #bbf7d0; }
+        html.fresh-mint .js-copy-btn:hover { background-color: #86efac; }
+
         /* Fire Effect Animation - Subtle */
         .fire-effect {
             display: inline-block;

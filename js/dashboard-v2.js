@@ -9,7 +9,10 @@
         const ticketTableBody = document.getElementById('ticket-table-body');
         const loaderContainer = document.getElementById('loader-container');
         const messageArea = document.getElementById('message-area');
-        const themeSwitcher = document.getElementById('theme-switcher');
+        const themeToggleBtn = document.getElementById('theme-toggle-btn');
+        const themeDropdown = document.getElementById('theme-dropdown');
+        const currentThemeName = document.getElementById('current-theme-name');
+        const themeChevron = document.getElementById('theme-chevron');
         const templateSelectionModal = document.getElementById('template-selection-modal');
         const closeTemplateSelectionModal = document.getElementById('close-template-selection-modal');
         const popupProjectTabs = document.getElementById('popup-project-tabs-container');
@@ -96,7 +99,7 @@
             const refreshBtn = document.getElementById('refresh-tickets-btn');
             const csvImportBtn = document.getElementById('csv-import-btn');
             const adminPanelBtn = document.getElementById('admin-panel-btn');
-            const leaderViewBtn = document.getElementById('leader-view-btn');
+
 
             if (refreshBtn) {
                 refreshBtn.addEventListener('click', () => {
@@ -120,17 +123,7 @@
                 }
             }
 
-            if (currentUser.level === 'leader') {
-                if (leaderViewBtn) {
-                    leaderViewBtn.classList.remove('hidden');
-                    leaderViewBtn.addEventListener('click', () => {
-                        const isLeaderView = localStorage.getItem('leaderViewMode') === 'true';
-                        localStorage.setItem('leaderViewMode', (!isLeaderView).toString());
-                        leaderViewBtn.textContent = !isLeaderView ? '👤 Normal View' : '👑 Leader View';
-                        fetchAndRenderTickets();
-                    });
-                }
-            }
+            // Leader view button is handled in HTML now
         }
 
         document.addEventListener('DOMContentLoaded', async () => {
@@ -174,8 +167,25 @@
 
 
             popupSearchInput.addEventListener('input', (e) => renderPopupTemplateList(e.target.value.trim()));
-            themeSwitcher.addEventListener('click', (e) => {
-                if (e.target.matches('.theme-btn')) setTheme(e.target.dataset.theme);
+
+            // Theme switcher event listeners
+            themeToggleBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleThemeDropdown();
+            });
+
+            themeDropdown.addEventListener('click', (e) => {
+                if (e.target.matches('.theme-btn')) {
+                    setTheme(e.target.dataset.theme);
+                    hideThemeDropdown();
+                }
+            });
+
+            // Close theme dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!themeToggleBtn.contains(e.target) && !themeDropdown.contains(e.target)) {
+                    hideThemeDropdown();
+                }
             });
              document.getElementById('customer-email-modal').addEventListener('click', (e) => {
                 const copyBtn = e.target.closest('.js-copy-btn');
@@ -256,14 +266,50 @@
             ).join('');
         }
 
+        // Theme management functions
+        function toggleThemeDropdown() {
+            const isHidden = themeDropdown.classList.contains('hidden');
+            if (isHidden) {
+                showThemeDropdown();
+            } else {
+                hideThemeDropdown();
+            }
+        }
+
+        function showThemeDropdown() {
+            themeDropdown.classList.remove('hidden');
+            themeChevron.style.transform = 'rotate(180deg)';
+        }
+
+        function hideThemeDropdown() {
+            themeDropdown.classList.add('hidden');
+            themeChevron.style.transform = 'rotate(0deg)';
+        }
+
         function setTheme(theme) {
             document.documentElement.className = theme;
             localStorage.setItem('theme', theme);
-            themeSwitcher.querySelectorAll('.theme-btn').forEach(btn => {
+
+            // Update theme buttons
+            themeDropdown.querySelectorAll('.theme-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.theme === theme);
             });
+
+            // Update current theme name display
+            const themeNames = {
+                'dark': '🌙 Dark',
+                'daylight': '☀️ Daylight',
+                'sunset': '🌅 Sunset',
+                'twilight': '🌆 Twilight',
+                'blossom-dawn': '🌸 Blossom Dawn',
+                'blue-sky': '🌤️ Blue Sky',
+                'fresh-mint': '🌿 Fresh Mint'
+            };
+            currentThemeName.textContent = themeNames[theme] || theme;
+
             fetchAndRenderTickets(); // Re-render table to update status colors
         }
+
         function initTheme() { setTheme(localStorage.getItem('theme') || 'dark'); }
         
         function showMessage(message, type = 'info', duration = 3000) {
@@ -508,7 +554,8 @@
 
             if (isLeaderView) {
                 // In leader view, show assignee name from agent table
-                return `<span class="text-sm">Assigned to: ${item.assignee_account}</span>`;
+                const assigneeName = allAgentsMap.get(item.assignee_account) || item.assignee_account;
+                return `<span class="text-sm font-medium text-blue-600">Assigned to: ${assigneeName}</span>`;
             } else {
                 // Regular view - show "Send to leader" button
                 return `
@@ -937,14 +984,30 @@
             const manualSupplierName = document.getElementById('viewer-manual-supplier-name').value.trim();
             
             let greeting = '';
-            if (agentName) {
-                greeting = (allSettings.greeting_person?.value || 'Hi {{name}},').replace('{{name}}', toTitleCase(agentName));
-            } else if (manualSupplierName) {
-                greeting = (allSettings.greeting_team?.value || 'Hi {{name}} Team,').replace('{{name}}', cleanSupplierName(manualSupplierName));
+
+            // Check if template needs greeting (default true for backward compatibility)
+            const needsGreeting = template.needGreeting !== false;
+
+            if (needsGreeting) {
+                if (agentName) {
+                    greeting = (allSettings.greeting_person?.value || 'Hi {{name}},').replace('{{name}}', toTitleCase(agentName));
+                } else if (manualSupplierName) {
+                    greeting = (allSettings.greeting_team?.value || 'Hi {{name}} Team,').replace('{{name}}', cleanSupplierName(manualSupplierName));
+                }
             }
-            
+
             let content = template.content || '';
-            
+
+            // Process special placeholders {{carrier}} and {{name}} for SUID search logic
+            if (content.includes('{{carrier}}') || content.includes('{{name}}')) {
+                // If agentName is available, replace {{name}} with it
+                if (agentName) {
+                    content = content.replace(/\{\{name\}\}/g, toTitleCase(agentName));
+                }
+                // {{carrier}} placeholder - this would be replaced with actual carrier data
+                // For now, we'll leave it as is for manual replacement
+            }
+
             // Process optional sections
             document.querySelectorAll('[data-optional-name]').forEach(checkbox => {
                 if (!checkbox.checked) {
@@ -962,7 +1025,7 @@
             const assigneeName = allAgentsMap.get(assigneeAccount);
             const signature = allSignatures.find(s => s.name === assigneeName) || allSignatures.find(s => s.isDefault) || allSignatures[0];
             let signatureText = signature ? `${signature.name}\n${signature.title || ''}\n${signature.department || ''}`.trim() : '';
-            
+
             let finalPlainText = `${greeting ? greeting + '\n\n' : ''}${content}${footerText ? `\n\n${footerText}` : ''}\n\nBest regards,\n${signatureText}`;
 
             const finalOutput = document.getElementById('final-output');
@@ -1022,9 +1085,11 @@
             if (!template) return;
             
             setTimeout(async () => {
+                if (template.followUpGuide) await openFollowUpGuideModal(template.followUpGuide);
+                if (template.emailCarrier) await openCarrierEmailModal(template);
                 if (template.sendToCustomer) await openCustomerEmailModal(template);
                 if (template.addLabelReminder && template.labelName) await openLabelReminderModal(template.labelName);
-            }, 400); 
+            }, 400);
         }
         
         function validatePlaceholders() {
@@ -1121,6 +1186,79 @@
         // --- Workflow Modals ---
         function _openModal(modal) { modal.classList.remove('hidden'); setTimeout(() => { modal.classList.remove('opacity-0'); modal.querySelector('.modal-content').classList.remove('scale-95'); }, 10); };
         function _closeModal(modal) { modal.classList.add('opacity-0'); modal.querySelector('.modal-content').classList.add('scale-95'); setTimeout(() => modal.classList.add('hidden'), 300); };
+
+        // Follow-up guide modal function
+        function openFollowUpGuideModal(guideData) {
+            return new Promise(resolve => {
+                const modal = document.getElementById('follow-up-guide-modal');
+                const output = document.getElementById('follow-up-guide-output');
+
+                output.innerHTML = '';
+                guideData.forEach(step => {
+                    output.innerHTML += `
+                        <div class="p-3 rounded-lg border bg-gray-50">
+                            <h3 class="font-bold text-lg">${step.title}</h3>
+                            <div class="pl-4 text-sm whitespace-pre-wrap mt-2">
+                                ${(step.action || 'N/A').replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-blue-500 hover:underline">$1</a>')}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                _openModal(modal);
+                document.getElementById('close-follow-up-guide-modal-btn').onclick = () => {
+                    _closeModal(modal);
+                    resolve();
+                };
+            });
+        }
+
+        // Carrier email modal function
+        function openCarrierEmailModal(template) {
+            return new Promise(resolve => {
+                const modal = document.getElementById('carrier-email-modal');
+                const carrierSelect = document.getElementById('carrier-name');
+                const carrierEmailInput = document.getElementById('carrier-email-address');
+                const subjectOutput = document.getElementById('carrier-email-subject-output');
+                const bolNamingOutput = document.getElementById('bol-naming-output');
+
+                // Populate carrier dropdown (placeholder data - should be loaded from database)
+                carrierSelect.innerHTML = `
+                    <option value="">Select Carrier...</option>
+                    <option value="fedex" data-email="carrier_mail@fedex.com">FedEx</option>
+                    <option value="ups" data-email="carrier_mail@ups.com">UPS</option>
+                    <option value="dhl" data-email="carrier_mail@dhl.com">DHL</option>
+                `;
+
+                // Handle carrier selection
+                carrierSelect.onchange = () => {
+                    const selectedOption = carrierSelect.options[carrierSelect.selectedIndex];
+                    const email = selectedOption.dataset.email || '';
+                    carrierEmailInput.value = email;
+
+                    // Update subject and BOL naming with placeholders replaced
+                    const ticketNumber = popupCurrentTicket?.ticket || 'TICKET_NUMBER';
+                    const carrierName = selectedOption.text || 'CARRIER_NAME';
+
+                    const subject = (template.carrierEmailSubject || '').replace(/\{\{ticket\}\}/g, ticketNumber).replace(/\{\{carrier\}\}/g, carrierName);
+                    const bolNaming = (template.bolNamingMethod || '').replace(/\{\{ticket\}\}/g, ticketNumber).replace(/\{\{carrier\}\}/g, carrierName);
+
+                    subjectOutput.textContent = subject;
+                    bolNamingOutput.textContent = bolNaming;
+                };
+
+                // Copy button handlers
+                document.getElementById('copy-carrier-email-btn').onclick = () => copyToClipboard(carrierEmailInput.value, 'carrier-copy-feedback');
+                document.getElementById('copy-carrier-subject-btn').onclick = () => copyToClipboard(subjectOutput.textContent, 'carrier-copy-feedback');
+                document.getElementById('copy-bol-naming-btn').onclick = () => copyToClipboard(bolNamingOutput.textContent, 'carrier-copy-feedback');
+
+                _openModal(modal);
+                document.getElementById('close-carrier-modal-btn').onclick = () => {
+                    _closeModal(modal);
+                    resolve();
+                };
+            });
+        }
         
         function openCustomerEmailModal(template) {
             return new Promise(resolve => {
@@ -1189,6 +1327,30 @@
         }
 
         // New functions for enhanced functionality
+        function copyToClipboard(text, feedbackId = 'copy-feedback') {
+            navigator.clipboard.writeText(text).then(() => {
+                const feedback = document.getElementById(feedbackId);
+                if (feedback) {
+                    feedback.classList.remove('opacity-0');
+                    setTimeout(() => feedback.classList.add('opacity-0'), 2000);
+                }
+            }).catch(() => {
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+
+                const feedback = document.getElementById(feedbackId);
+                if (feedback) {
+                    feedback.classList.remove('opacity-0');
+                    setTimeout(() => feedback.classList.add('opacity-0'), 2000);
+                }
+            });
+        }
+
         async function sendToLeader(ticketId) {
             try {
                 const { error } = await supabaseClient
