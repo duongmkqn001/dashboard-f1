@@ -212,12 +212,13 @@
                     const lastUpdated = template.updated_at || template.created_at;
                     const timeAgoStr = lastUpdated ? timeAgo(lastUpdated) : '';
                     const customerTag = template.sendToCustomer ? '<span class="font-semibold text-rose-600 bg-rose-100 px-1.5 py-0.5 rounded-full ml-2">Customer</span>' : '';
+                    const carrierTag = template.emailCarrier ? '<span class="font-semibold text-orange-600 bg-orange-100 px-1.5 py-0.5 rounded-full ml-2">Carrier</span>' : '';
                     
                     item.innerHTML = `
                         <div class="flex justify-between items-start">
                             <div class="flex-grow mr-2">
                                 <span class="font-medium">${template.name}</span>
-                                <p class="text-xs text-[rgb(var(--color-text-muted))] mt-1">${timeAgoStr}${customerTag}</p>
+                                <p class="text-xs text-[rgb(var(--color-text-muted))] mt-1">${timeAgoStr}${customerTag}${carrierTag}</p>
                             </div>
                             <div class="flex gap-2 flex-shrink-0">
                                 <button class="edit-btn p-1" title="Sửa"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-[rgb(var(--color-text-muted))] hover:text-[rgb(var(--color-accent-primary))]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.536L16.732 3.732z" /></svg></button>
@@ -458,13 +459,24 @@
                     const greetingTeamTpl = settingsMap.get('greeting_team')?.value || 'Hi {{name}} Team,';
                     const agentName = toTitleCase(dom.viewerAgentNameInput.value.trim());
                     const manualName = dom.viewerManualSupplierNameInput.value.trim();
+
+                    // Handle Hi {{name}} placeholders in template content first
+                    if (agentName) {
+                        content = content.replace(/Hi\s*\{\{name\}\}/gi, greetingPersonTpl.replace('{{name}}', agentName).replace(',', ''));
+                    } else if (dom.viewerSuIdInput.value.trim() && manualName) {
+                        content = content.replace(/Hi\s*\{\{name\}\}/gi, greetingTeamTpl.replace('{{name}}', toTitleCase(manualName)).replace(',', ''));
+                    }
+
+                    // Only add greeting if needGreeting is true and no agent name/SUID is provided
                     let greeting = '';
-                    if (agentName) greeting = greetingPersonTpl.replace('{{name}}', agentName);
-                    else if (dom.viewerSuIdInput.value.trim() && manualName) greeting = greetingTeamTpl.replace('{{name}}', toTitleCase(manualName));
-                    
+                    if (template.needGreeting !== false) {
+                        if (agentName) greeting = greetingPersonTpl.replace('{{name}}', agentName);
+                        else if (dom.viewerSuIdInput.value.trim() && manualName) greeting = greetingTeamTpl.replace('{{name}}', toTitleCase(manualName));
+                    }
+
                     const footerText = settingsMap.get('footer_text')?.value || '';
                     const footerPart = (template.includeFooter && footerText) ? `\n\n${footerText}` : '';
-                    
+
                     finalPlainText = `${greeting ? greeting + '\n\n' : ''}${content.trim()}${footerPart}\n\n${currentRandomClosing},\n${signatureText}`;
                 }
                 
@@ -695,6 +707,7 @@ function createGuideStepEditor(type, stepData = {}) {
                     if (template.followUpGuide) await openFollowUpGuideModal(template.followUpGuide);
                     if (template.addLabelReminder && template.labelName) await openLabelReminderModal(template.labelName);
                     if (template.sendToCustomer) await openCustomerModal();
+                    if (template.emailCarrier) await openCarrierEmailModal(template);
                     if (template.issue.toLowerCase() === 'movement' && template.addInternalComment && template.internalComment) {
                         await openInternalCommentModal(replaceGeneralPlaceholders(template.internalComment));
                     }
@@ -725,6 +738,15 @@ function createGuideStepEditor(type, stepData = {}) {
                 document.getElementById('copy-cust-subject-btn').addEventListener('click', () => copyPlainTextToClipboard(document.getElementById('customer-email-subject-output').textContent, document.getElementById('customer-copy-feedback')));
                 document.getElementById('copy-cust-body-btn').addEventListener('click', () => copyPlainTextToClipboard(document.getElementById('customer-email-body-output').dataset.plainText, document.getElementById('customer-copy-feedback')));
                 document.getElementById('copy-internal-comment-btn').addEventListener('click', () => copyPlainTextToClipboard(document.getElementById('internal-comment-output').dataset.plainText, document.getElementById('internal-comment-copy-feedback')));
+
+                // Carrier email modal event listeners
+                document.getElementById('close-carrier-modal-btn').addEventListener('click', () => _closeModal(document.getElementById('carrier-email-modal')));
+                document.getElementById('copy-carrier-email-btn').addEventListener('click', () => copyPlainTextToClipboard(document.getElementById('carrier-email-address').value, document.getElementById('carrier-copy-feedback')));
+                document.getElementById('copy-carrier-subject-btn').addEventListener('click', () => copyPlainTextToClipboard(document.getElementById('carrier-email-subject-output').textContent, document.getElementById('carrier-copy-feedback')));
+                document.getElementById('copy-carrier-bol-btn').addEventListener('click', () => copyPlainTextToClipboard(document.getElementById('carrier-bol-name-output').textContent, document.getElementById('carrier-copy-feedback')));
+                document.getElementById('copy-carrier-body-btn').addEventListener('click', () => copyPlainTextToClipboard(document.getElementById('carrier-email-body-output').dataset.plainText, document.getElementById('carrier-copy-feedback')));
+                ['carrier-ticket', 'carrier-po', 'carrier-name'].forEach(id => document.getElementById(id).addEventListener('input', updateCarrierEmailPreview));
+                document.getElementById('carrier-name').addEventListener('change', updateCarrierEmailAddress);
             }
             
             // --- Data Manager ---
@@ -1179,6 +1201,81 @@ function createGuideStepEditor(type, stepData = {}) {
             }
             const openMovementGuideModal = (guide) => openGuideModal('movement-guide-modal', 'movement-guide-output', guide, 'close-movement-guide-modal-btn');
             const openFollowUpGuideModal = (guide) => openGuideModal('follow-up-guide-modal', 'follow-up-guide-output', guide, 'close-follow-up-guide-modal-btn');
+
+            async function openCarrierEmailModal(template) {
+                await populateCarrierDropdown();
+                updateCarrierEmailPreview();
+                _openModal(document.getElementById('carrier-email-modal'));
+            }
+
+            async function populateCarrierDropdown() {
+                const carrierSelect = document.getElementById('carrier-name');
+                carrierSelect.innerHTML = '<option value="">-- Select Carrier --</option>';
+
+                try {
+                    const carrierPlaceholders = getFromCache(CACHE_KEYS.PLACEHOLDERS).filter(p => p.key === 'carrier_email');
+                    if (carrierPlaceholders.length > 0 && carrierPlaceholders[0].options) {
+                        carrierPlaceholders[0].options.forEach(option => {
+                            const optionElement = document.createElement('option');
+                            optionElement.value = option.value;
+                            optionElement.textContent = option.text || option.value;
+                            optionElement.dataset.email = option.value; // Store email in data attribute
+                            carrierSelect.appendChild(optionElement);
+                        });
+                    }
+                } catch (error) {
+                    console.error('Error loading carrier options:', error);
+                }
+            }
+
+            function updateCarrierEmailAddress() {
+                const carrierSelect = document.getElementById('carrier-name');
+                const emailInput = document.getElementById('carrier-email-address');
+                const selectedOption = carrierSelect.options[carrierSelect.selectedIndex];
+
+                if (selectedOption && selectedOption.dataset.email) {
+                    emailInput.value = selectedOption.dataset.email;
+                } else {
+                    emailInput.value = '';
+                }
+                updateCarrierEmailPreview();
+            }
+
+            function updateCarrierEmailPreview() {
+                const template = getFromCache(CACHE_KEYS.TEMPLATES).find(t => t.id === currentTemplateId);
+                if (!template) return;
+
+                const ticket = document.getElementById('carrier-ticket').value.trim();
+                const po = document.getElementById('carrier-po').value.trim();
+                const carrierName = document.getElementById('carrier-name').options[document.getElementById('carrier-name').selectedIndex]?.text || '';
+
+                // Generate email subject: {{ticket}} - Pickup Request PO {{PO}}
+                const subjectTemplate = template.carrierEmailSubject || '{{ticket}} - Pickup Request PO {{PO}}';
+                const emailSubject = subjectTemplate
+                    .replace(/\{\{ticket\}\}/g, ticket)
+                    .replace(/\{\{PO\}\}/g, po);
+
+                // Generate BOL name: today_{{PO}}_{{carrier_name}}
+                const bolTemplate = template.bolNamingMethod || 'today_{{PO}}_{{carrier_name}}';
+                const today = new Date().toISOString().split('T')[0].replace(/-/g, '');
+                const bolName = bolTemplate
+                    .replace(/today/g, today)
+                    .replace(/\{\{PO\}\}/g, po)
+                    .replace(/\{\{carrier_name\}\}/g, carrierName.replace(/\s+/g, '_'));
+
+                // Generate email body (use template content with placeholders replaced)
+                let emailBody = template.content || '';
+                emailBody = emailBody
+                    .replace(/\{\{ticket\}\}/g, ticket)
+                    .replace(/\{\{PO\}\}/g, po)
+                    .replace(/\{\{carrier\}\}/g, carrierName);
+
+                // Update preview
+                document.getElementById('carrier-email-subject-output').textContent = emailSubject;
+                document.getElementById('carrier-bol-name-output').textContent = bolName;
+                document.getElementById('carrier-email-body-output').innerHTML = escapeHTML(emailBody).replace(/\n/g, '<br>');
+                document.getElementById('carrier-email-body-output').dataset.plainText = emailBody;
+            }
             const openLabelReminderModal = (label) => new Promise(r => { const m = document.getElementById('label-reminder-modal'); document.getElementById('label-reminder-text').textContent = `Remember to add the "${label}" label to the ticket!`; _openModal(m); document.getElementById('close-label-reminder-modal-btn').onclick = () => { _closeModal(m); r(); }; });
             const openCustomerModal = () => new Promise(r => { const m = document.getElementById('customer-email-modal'); ['customer-email', 'customer-name', 'customer-order'].forEach(id=>document.getElementById(id).value=''); updateCustomerEmailPreview(); _openModal(m); document.getElementById('close-customer-modal-btn').onclick = () => { _closeModal(m); r(); }; });
             const openInternalCommentModal = (comment) => new Promise(r => { const m = document.getElementById('internal-comment-modal'); const out = document.getElementById('internal-comment-output'); out.innerHTML = comment.replace(/\n/g, '<br>'); out.dataset.plainText = comment; _openModal(m); document.getElementById('close-internal-comment-modal-btn').onclick = () => { _closeModal(m); r(); }; });

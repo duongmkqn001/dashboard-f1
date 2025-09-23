@@ -574,15 +574,11 @@
             for (const row of csvData) {
                 const description = row['Description'] || '';
 
-                // Check if description is already in English (basic heuristic)
-                const isEnglish = /^[a-zA-Z0-9\s.,!?;:()\-'"]+$/.test(description) &&
-                                 description.length > 0 &&
-                                 !/[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i.test(description);
-
+                // For basic processing, fill description directly into description_eng
                 const processedRow = {
                     ...row,
-                    description_eng: isEnglish ? description : '', // Keep English descriptions, empty for non-English
-                    description_vie: isEnglish ? '' : description, // Keep non-English in Vietnamese field
+                    description_eng: description, // Fill description directly into description_eng
+                    description_vie: '', // Leave Vietnamese field empty for basic processing
                     supplier_agent_need: false,
                     supplier_agent: '',
                     ticket: row['Issue key'] || '',

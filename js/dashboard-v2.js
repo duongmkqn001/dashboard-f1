@@ -442,10 +442,10 @@
                     if (index === 0) {
                         html += `
                             <td class="px-4 py-4 align-middle text-center border-b border-main" rowspan="${rowCount}">
-                                <button data-action="start" data-ticket-id="${firstItem.id}" class="p-2 rounded-full hover:bg-green-500/20 text-green-400"><svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="M6.271 5.055a.5.5 0 0 1 .52.038l3.5 2.5a.5.5 0 0 1 0 .814l-3.5 2.5A.5.5 0 0 1 6 10.5v-5a.5.5 0 0 1 .271-.445z"/></svg></button>
+                                ${renderStartButton(firstItem)}
                             </td>
                             <td class="px-4 py-4 align-middle text-center border-b border-main" rowspan="${rowCount}">
-                                <button data-action="end" data-ticket-id="${firstItem.id}" class="p-2 rounded-full hover:bg-red-500/20 text-red-400"><svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/><path d="M5 6.5A1.5 1.5 0 0 1 6.5 5h3A1.5 1.5 0 0 1 11 6.5v3A1.5 1.5 0 0 1 9.5 11h-3A1.5 1.5 0 0 1 5 9.5v-3z"/></svg></button>
+                                ${renderEndButton(firstItem)}
                             </td>
                             <td class="px-6 py-4 align-middle font-medium text-headings border-b border-main" rowspan="${rowCount}">
                                 <a href="https://supporthub.service.csnzoo.com/browse/${firstItem.ticket}" target="_blank" class="text-blue-400 hover:text-blue-300 underline">
@@ -463,6 +463,9 @@
                             <td class="px-6 py-4 align-middle border-b border-main" rowspan="${rowCount}">${firstItem.po || ''}</td>
                             <td class="px-6 py-4 align-middle border-b border-main" rowspan="${rowCount}">
                                 ${renderDescriptionColumn(firstItem)}
+                            </td>
+                            <td class="px-6 py-4 text-center align-middle border-b border-main" rowspan="${rowCount}">
+                                ${renderLastUpdateColumn(firstItem)}
                             </td>
                             <td class="px-6 py-4 text-center align-middle border-b border-main" rowspan="${rowCount}">
                                 ${renderNeedHelpColumn(firstItem)}
@@ -487,7 +490,76 @@
             });
         }
 
-        
+        function renderStartButton(item) {
+            if (item.time_start) {
+                // Show start time (hours:minutes:seconds only)
+                const startTime = new Date(item.time_start);
+                const timeString = startTime.toLocaleTimeString('vi-VN', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+                return `
+                    <div class="flex flex-col items-center">
+                        <button class="p-2 rounded-full text-gray-500 cursor-not-allowed" disabled>
+                            <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                                <path d="M6.271 5.055a.5.5 0 0 1 .52.038l3.5 2.5a.5.5 0 0 1 0 .814l-3.5 2.5A.5.5 0 0 1 6 10.5v-5a.5.5 0 0 1 .271-.445z"/>
+                            </svg>
+                        </button>
+                        <div class="text-xs text-green-600 font-medium mt-1">${timeString}</div>
+                    </div>
+                `;
+            } else {
+                return `
+                    <div class="flex flex-col items-center">
+                        <button data-action="start" data-ticket-id="${item.id}" class="p-3 rounded-lg bg-green-600 hover:bg-green-500 text-white transition-colors" title="Start working on this ticket">
+                            <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                                <path d="M6.271 5.055a.5.5 0 0 1 .52.038l3.5 2.5a.5.5 0 0 1 0 .814l-3.5 2.5A.5.5 0 0 1 6 10.5v-5a.5.5 0 0 1 .271-.445z"/>
+                            </svg>
+                        </button>
+                        <div class="text-xs text-secondary mt-1">Start</div>
+                    </div>
+                `;
+            }
+        }
+
+        function renderEndButton(item) {
+            return `
+                <div class="flex flex-col items-center">
+                    <button data-action="end" data-ticket-id="${item.id}" class="p-3 rounded-lg bg-red-600 hover:bg-red-500 text-white transition-colors" title="Complete this ticket">
+                        <svg class="w-5 h-5" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14m0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16"/>
+                            <path d="M5 6.5A1.5 1.5 0 0 1 6.5 5h3A1.5 1.5 0 0 1 11 6.5v3A1.5 1.5 0 0 1 9.5 11h-3A1.5 1.5 0 0 1 5 9.5v-3z"/>
+                        </svg>
+                    </button>
+                    <div class="text-xs text-secondary mt-1">End</div>
+                </div>
+            `;
+        }
+
+        function renderLastUpdateColumn(item) {
+            if (item.created_at) {
+                const updateTime = new Date(item.created_at);
+                const timeString = updateTime.toLocaleString('vi-VN', {
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+                return `
+                    <div class="text-center">
+                        <div class="text-xs text-secondary font-medium">${timeString}</div>
+                    </div>
+                `;
+            } else {
+                return `<div class="text-center text-xs text-secondary">N/A</div>`;
+            }
+        }
+
+
         function renderActionButtons(item) {
             const orderWizardUrl = `https://admin.wayfair.com/v/order/search/get_admin_bar_search_results?gensearchval=${item.po || ''}`;
             const updateShippingUrl = `https://admin.wayfair.com/wizards/shipping/update_shipping_info.php?OrID=${item.order_number || ''}&PoNum=${item.po_nocs || ''}`;
@@ -677,15 +749,10 @@
                 if (error) throw error;
 
                 showMessage(`Nhóm ticket đã được ${action === 'start' ? 'bắt đầu' : 'kết thúc'}.`, 'success');
-                
+
                 if (action === 'start') {
-                    button.classList.add('text-gray-500', 'cursor-not-allowed');
-                    // Add start time display
-                    const startTime = new Date().toLocaleString('vi-VN');
-                    const timeDiv = document.createElement('div');
-                    timeDiv.className = 'text-xs text-secondary mt-1';
-                    timeDiv.textContent = startTime;
-                    button.parentElement.appendChild(timeDiv);
+                    // Refresh the table to show updated start time
+                    fetchAndRenderTickets();
                 } else if (action === 'end') {
                     // Handle KPI update for end action
                     await handleEndTicket(firstTicketId);
