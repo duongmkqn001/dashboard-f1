@@ -33,6 +33,31 @@
                             <button id="leader-view-btn" class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors hidden flex items-center gap-1">
                                 👑 <span class="hidden sm:inline">Leader View</span>
                             </button>
+                            <button id="mos-view-btn" class="px-3 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium rounded-lg transition-colors hidden flex items-center gap-1">
+                                🚢 <span class="hidden sm:inline">MoS Requests</span>
+                                <span id="mos-notification-badge" class="ml-1 px-2 py-1 bg-red-500 text-white text-xs rounded-full hidden">0</span>
+                            </button>
+                            <!-- Facebook-style notification bell -->
+                            <div id="notifications-container" class="relative hidden">
+                                <button id="notifications-btn" class="relative p-2 text-gray-600 hover:text-gray-800 transition-colors">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                                    </svg>
+                                    <span id="notification-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center hidden">0</span>
+                                </button>
+                                <!-- Dropdown notification panel -->
+                                <div id="notifications-dropdown" class="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 hidden">
+                                    <div class="p-4 border-b border-gray-200">
+                                        <h3 class="text-lg font-semibold text-gray-900">Notifications</h3>
+                                    </div>
+                                    <div id="notifications-list" class="max-h-96 overflow-y-auto">
+                                        <!-- Notifications will be populated here -->
+                                    </div>
+                                    <div class="p-3 border-t border-gray-200 text-center">
+                                        <button id="mark-all-read-btn" class="text-sm text-blue-600 hover:text-blue-800">Mark all as read</button>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 
@@ -86,6 +111,9 @@
 
             <div id="toolbar" class="mb-8 p-4 bg-section rounded-lg border border-main">
                 <h2 class="text-lg font-semibold text-headings mb-3">Công Cụ</h2>
+                <div class="flex items-center gap-4 mb-3">
+                    <!-- Notification moved to header -->
+                </div>
                 <div id="toolbar-buttons" class="flex flex-wrap gap-2">
                     <!-- Toolbar buttons will be injected here -->
                 </div>
@@ -105,7 +133,13 @@
                         <tr>
                             <th scope="col" class="px-4 py-3 text-center">Start</th>
                             <th scope="col" class="px-4 py-3 text-center">End</th>
-                            <th scope="col" class="px-6 py-3">Ticket</th>
+                            <th scope="col" class="px-6 py-3 cursor-pointer group" id="ticket-type-header">
+                                <div class="flex items-center gap-2">
+                                    <span>Ticket</span>
+                                    <span class="text-xs opacity-60 group-hover:opacity-100" id="ticket-type-filter-text">(All)</span>
+                                    <span class="text-xs opacity-60 group-hover:opacity-100">🔄</span>
+                                </div>
+                            </th>
                             <th scope="col" class="px-6 py-3 text-center" style="min-width: 180px;">Ticket Status</th>
                             <th scope="col" class="px-6 py-3">Issue Type</th>
                             <th scope="col" class="px-6 py-3 text-center">Actions</th>
@@ -113,6 +147,7 @@
                             <th scope="col" class="px-6 py-3" style="min-width: 200px;">Description</th>
                             <th scope="col" class="px-6 py-3 text-center">Last Update</th>
                             <th scope="col" class="px-6 py-3 text-center">Need Help</th>
+                            <th scope="col" class="px-6 py-3 text-center" id="mos-actions-header" style="display: none;">MoS Actions</th>
                         </tr>
                     </thead>
                     <tbody id="ticket-table-body" class="divide-y-0"></tbody>
@@ -205,6 +240,14 @@
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="space-y-4">
                     <div>
+                        <label for="carrier-ticket" class="block text-sm font-medium">Ticket Number</label>
+                        <input type="text" id="carrier-ticket" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button" placeholder="Enter ticket number">
+                    </div>
+                    <div>
+                        <label for="carrier-po" class="block text-sm font-medium">PO Number</label>
+                        <input type="text" id="carrier-po" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button" placeholder="Enter PO number">
+                    </div>
+                    <div>
                         <label for="carrier-name" class="block text-sm font-medium">Carrier Name</label>
                         <select id="carrier-name" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button">
                             <option value="">Select Carrier...</option>
@@ -239,11 +282,21 @@
                             </button>
                         </div>
                     </div>
+                    <div class="border border-secondary p-2 rounded-lg bg-button">
+                        <label class="block text-xs font-medium text-secondary mb-1">Email Body</label>
+                        <div class="flex items-center gap-2">
+                            <div id="carrier-email-body-output" class="flex-grow p-2 bg-section rounded-md text-sm max-h-32 overflow-y-auto"></div>
+                            <button id="copy-carrier-body-btn" class="p-1.5 rounded-md" title="Copy Email Body">
+                                📋
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div id="carrier-copy-feedback" class="h-5 mt-2 text-sm text-green-500 font-medium opacity-0 transition-opacity">Đã sao chép!</div>
             <div class="mt-6 flex justify-end gap-3">
                 <button id="close-carrier-modal-btn" class="bg-button hover:brightness-90 text-main font-bold py-2 px-4 rounded-lg">Đóng</button>
+                <button id="continue-to-template-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hidden">Tiếp tục đến Template</button>
             </div>
         </div>
     </div>
@@ -277,11 +330,21 @@
             // Show admin button for leaders/keys
             const adminBtn = document.getElementById('admin-panel-btn');
             const leaderViewBtn = document.getElementById('leader-view-btn');
+            const mosViewBtn = document.getElementById('mos-view-btn');
+            const notificationsBtn = document.getElementById('notifications-btn');
+
             if (user.level === 'leader' || user.level === 'key') {
                 adminBtn.classList.remove('hidden');
+                mosViewBtn.classList.remove('hidden'); // Show MoS view for leaders/keys
             }
             if (user.level === 'leader') {
                 leaderViewBtn.classList.remove('hidden');
+            }
+
+            // Show notifications for all users
+            const notificationsContainer = document.getElementById('notifications-container');
+            if (notificationsContainer) {
+                notificationsContainer.classList.remove('hidden');
             }
 
             // Add logout functionality to user greeting
@@ -320,8 +383,55 @@
                     // Toggle leader view mode
                     const currentIsLeaderView = localStorage.getItem('leaderViewMode') === 'true';
                     localStorage.setItem('leaderViewMode', (!currentIsLeaderView).toString());
+                    localStorage.setItem('mosViewMode', 'false'); // Disable MoS view when switching to leader view
                     window.location.reload();
                 };
+            }
+
+            if (mosViewBtn) {
+                // Initialize MoS view button text
+                const isMosView = localStorage.getItem('mosViewMode') === 'true';
+                mosViewBtn.innerHTML = isMosView ?
+                    '👤 <span class="hidden sm:inline">Normal View</span>' :
+                    '🚢 <span class="hidden sm:inline">MoS Requests</span>';
+
+                mosViewBtn.onclick = () => {
+                    // Toggle MoS view mode
+                    const currentIsMosView = localStorage.getItem('mosViewMode') === 'true';
+                    localStorage.setItem('mosViewMode', (!currentIsMosView).toString());
+                    localStorage.setItem('leaderViewMode', 'false'); // Disable leader view when switching to MoS view
+                    window.location.reload();
+                };
+            }
+
+            // Setup Facebook-style notification dropdown
+            if (notificationsBtn) {
+                const notificationsDropdown = document.getElementById('notifications-dropdown');
+                const markAllReadBtn = document.getElementById('mark-all-read-btn');
+
+                notificationsBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    notificationsDropdown.classList.toggle('hidden');
+                    if (!notificationsDropdown.classList.contains('hidden')) {
+                        loadNotificationsDropdown();
+                    }
+                };
+
+                // Mark all as read functionality
+                if (markAllReadBtn) {
+                    markAllReadBtn.onclick = async () => {
+                        await markAllNotificationsAsRead();
+                        loadNotificationsDropdown();
+                        updateNotificationCounts();
+                    };
+                }
+
+                // Close dropdown when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (!notificationsBtn.contains(e.target) && !notificationsDropdown.contains(e.target)) {
+                        notificationsDropdown.classList.add('hidden');
+                    }
+                });
             }
 
             // OT Mode toggle

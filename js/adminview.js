@@ -3,6 +3,22 @@
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmYnh0YnlkcmpjbXFscmtsc2RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY5ODM2NDksImV4cCI6MjA3MjU1OTY0OX0.bOgnown0UZzstbnYfUSEImwaSGP6lg2FccRg-yDFTPU';
         const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+        // --- Global Utility Functions ---
+        function showNotification(message, type = 'info') {
+            const t = document.getElementById('notification-toast');
+            if (t) {
+                t.textContent = message;
+                t.className = `fixed bottom-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg transition-all duration-300 z-50 ${type==='success'?'bg-green-600':type==='error'?'bg-red-600':'bg-gray-800'}`;
+                t.classList.remove('opacity-0','translate-y-4');
+                setTimeout(() => t.classList.add('opacity-0','translate-y-4'), 3000);
+            }
+        }
+
+        // Function to set ticket data from dashboard (called from dashboard-v2.js)
+        window.setAdminViewTicketData = function(ticketData) {
+            currentTicketData = ticketData;
+        };
+
         document.addEventListener('DOMContentLoaded', () => {
             // --- Authentication & User Info ---
             const currentUser = localStorage.getItem('currentUser');
@@ -38,12 +54,16 @@
                 }
             }
 
+            // --- Admin Navigation Setup ---
+            setupAdminNavigation();
+
             // --- Global State & Cache Keys ---
             let currentProject = null;
             let currentIssue = null;
             let currentTemplateId = null;
             let currentRandomClosing = '';
             let pendingImportData = null;
+            let currentTicketData = null; // Store ticket data from dashboard
 
             const CACHE_KEYS = {
                 PROJECTS: 'tm-cache-projects', TEMPLATES: 'tm-cache-templates',
@@ -305,7 +325,22 @@
             }
 
             function createPlaceholderInput(pKey, allPlaceholdersMap) {
-                const placeholderData = allPlaceholdersMap.get(pKey.toLowerCase());
+                // Try to find placeholder data with case-insensitive matching
+                let placeholderData = allPlaceholdersMap.get(pKey.toLowerCase());
+                if (!placeholderData) {
+                    // Try exact match if lowercase didn't work
+                    placeholderData = allPlaceholdersMap.get(pKey);
+                }
+                if (!placeholderData) {
+                    // Try to find by iterating through all keys (case-insensitive)
+                    for (const [key, data] of allPlaceholdersMap) {
+                        if (key.toLowerCase() === pKey.toLowerCase()) {
+                            placeholderData = data;
+                            break;
+                        }
+                    }
+                }
+
                 const wrapper = document.createElement('div');
                 wrapper.className = 'flex flex-col mb-4 placeholder-input-wrapper';
                 const uniqueId = `ph-${pKey}-${Math.random().toString(36).substr(2, 9)}`;
@@ -340,9 +375,30 @@
                 const closings = (closingsData && closingsData.options) ? closingsData.options : [{ value: 'Best regards' }];
                 currentRandomClosing = closings[Math.floor(Math.random() * closings.length)].value;
 
-                dom.viewerAgentNameInput.value = '';
-                dom.viewerSuIdInput.value = '';
-                dom.viewerManualSupplierNameInput.value = '';
+                // Auto-fill fields with ticket data if available
+                if (currentTicketData) {
+                    dom.viewerSuIdInput.value = currentTicketData.suid || '';
+                    // Auto-fill other placeholders from ticket data
+                    setTimeout(() => {
+                        const placeholderInputs = document.querySelectorAll('[data-placeholder]');
+                        placeholderInputs.forEach(input => {
+                            const placeholder = input.dataset.placeholder;
+                            if (placeholder === 'po' && currentTicketData.po) {
+                                input.value = currentTicketData.po;
+                            } else if (placeholder === 'order_number' && currentTicketData.order_number) {
+                                input.value = currentTicketData.order_number;
+                            } else if (placeholder === 'item_number' && currentTicketData.item_number) {
+                                input.value = currentTicketData.item_number;
+                            } else if (placeholder === 'customer_name' && currentTicketData.customer) {
+                                input.value = currentTicketData.customer.split(' ')[0];
+                            }
+                        });
+                    }, 100);
+                } else {
+                    dom.viewerAgentNameInput.value = '';
+                    dom.viewerSuIdInput.value = '';
+                    dom.viewerManualSupplierNameInput.value = '';
+                }
                 
                 dom.viewerTitle.textContent = template.name;
                 dom.viewerCategory.textContent = `Dự án: ${template.projects?.name || 'N/A'} / Danh mục: ${template.issue}`;
@@ -355,8 +411,13 @@
                 dom.placeholdersContainer.innerHTML = '';
                 dom.optionalsContainer.innerHTML = '';
                 
-                const allPlaceholdersMap = new Map(allPlaceholders.map(p => [p.key, p]));
-                const ignoredPlaceholders = new Set(['signature', 'Customer_Name', 'Order_Number', 'Brand']);
+                // Create placeholder map with both original and lowercase keys for better matching
+                const allPlaceholdersMap = new Map();
+                allPlaceholders.forEach(p => {
+                    allPlaceholdersMap.set(p.key, p);
+                    allPlaceholdersMap.set(p.key.toLowerCase(), p);
+                });
+                const ignoredPlaceholders = new Set(['signature', 'Customer_Name', 'Order_Number', 'Brand', 'greeting']);
                 const optionalBlockRegex = /\[\[(.*?)]]([\s\S]*?)\[\[\/\1]]/g;
 
                 const basePlaceholders = [...new Set(Array.from(content.replace(optionalBlockRegex, '').matchAll(/\{\{([a-zA-Z0-9_]+)\}\}/g), m => m[1]))];
@@ -423,6 +484,13 @@
                 dom.showFollowUpGuideBtn.classList.toggle('hidden', !(template.followUpGuide?.length > 0));
                 showView('viewer');
                 updateFinalOutput();
+
+                // If template requires carrier email, open the modal immediately
+                if (template.emailCarrier) {
+                    setTimeout(async () => {
+                        await openCarrierEmailModal(template);
+                    }, 100); // Small delay to ensure the viewer is fully loaded
+                }
             }
 
             function updateFinalOutput() {
@@ -460,12 +528,28 @@
                     const agentName = toTitleCase(dom.viewerAgentNameInput.value.trim());
                     const manualName = dom.viewerManualSupplierNameInput.value.trim();
 
-                    // Handle Hi {{name}} placeholders in template content first
+                    // Handle Hi {{name}} placeholders in template content - should work exactly like greeting logic
                     if (agentName) {
-                        content = content.replace(/Hi\s*\{\{name\}\}/gi, greetingPersonTpl.replace('{{name}}', agentName).replace(',', ''));
+                        // For agent name, use person greeting template
+                        const hiNameReplacement = greetingPersonTpl.replace('{{name}}', agentName);
+                        content = content.replace(/Hi\s*\{\{name\}\}/gi, hiNameReplacement);
                     } else if (dom.viewerSuIdInput.value.trim() && manualName) {
-                        content = content.replace(/Hi\s*\{\{name\}\}/gi, greetingTeamTpl.replace('{{name}}', toTitleCase(manualName)).replace(',', ''));
+                        // For supplier team, use team greeting template
+                        const hiNameReplacement = greetingTeamTpl.replace('{{name}}', toTitleCase(manualName));
+                        content = content.replace(/Hi\s*\{\{name\}\}/gi, hiNameReplacement);
+                    } else {
+                        // If no name available, remove Hi {{name}} placeholders
+                        content = content.replace(/Hi\s*\{\{name\}\}/gi, '');
                     }
+
+                    // Handle {{greeting}} placeholder - works similar to greeting logic
+                    let greetingReplacement = '';
+                    if (agentName) {
+                        greetingReplacement = greetingPersonTpl.replace('{{name}}', agentName);
+                    } else if (dom.viewerSuIdInput.value.trim() && manualName) {
+                        greetingReplacement = greetingTeamTpl.replace('{{name}}', toTitleCase(manualName));
+                    }
+                    content = content.replace(/\{\{greeting\}\}/gi, greetingReplacement);
 
                     // Only add greeting if needGreeting is true and no agent name/SUID is provided
                     let greeting = '';
@@ -490,8 +574,23 @@
                 if (!isSpecialIssue) {
                     const footerText = new Map(getFromCache(CACHE_KEYS.SETTINGS).map(s => [s.key, s.value])).get('footer_text')?.value || '';
                     if (footerText) {
-                        const escapedFooter = escapeHTML(footerText).replace(/\n/g, '<br>');
-                        htmlText = htmlText.replace(escapedFooter, `<i>${escapedFooter}</i>`);
+                        // Process footer with HTML formatting support
+                        let formattedFooter = footerText
+                            .replace(/\n/g, '<br>') // Convert line breaks
+                            .replace(/&/g, '&amp;') // Escape ampersands first
+                            .replace(/</g, '&lt;') // Escape less than
+                            .replace(/>/g, '&gt;') // Escape greater than
+                            .replace(/&lt;b&gt;/g, '<b>') // Restore bold tags
+                            .replace(/&lt;\/b&gt;/g, '</b>')
+                            .replace(/&lt;i&gt;/g, '<i>') // Restore italic tags
+                            .replace(/&lt;\/i&gt;/g, '</i>')
+                            .replace(/&lt;u&gt;/g, '<u>') // Restore underline tags
+                            .replace(/&lt;\/u&gt;/g, '</u>')
+                            .replace(/&lt;br&gt;/g, '<br>'); // Restore line break tags
+
+                        // Find and replace the footer in the HTML text
+                        const plainFooter = escapeHTML(footerText).replace(/\n/g, '<br>');
+                        htmlText = htmlText.replace(plainFooter, formattedFooter);
                     }
                 }
                 
@@ -707,7 +806,7 @@ function createGuideStepEditor(type, stepData = {}) {
                     if (template.followUpGuide) await openFollowUpGuideModal(template.followUpGuide);
                     if (template.addLabelReminder && template.labelName) await openLabelReminderModal(template.labelName);
                     if (template.sendToCustomer) await openCustomerModal();
-                    if (template.emailCarrier) await openCarrierEmailModal(template);
+                    // Carrier email modal is now opened immediately when template is selected, not here
                     if (template.issue.toLowerCase() === 'movement' && template.addInternalComment && template.internalComment) {
                         await openInternalCommentModal(replaceGeneralPlaceholders(template.internalComment));
                     }
@@ -839,6 +938,45 @@ function createGuideStepEditor(type, stepData = {}) {
                 document.getElementById('footer-text-input').value = settingsMap.get('footer_text')?.value || '';
                 document.getElementById('greeting-person-input').value = settingsMap.get('greeting_person')?.value || '';
                 document.getElementById('greeting-team-input').value = settingsMap.get('greeting_team')?.value || '';
+
+                // Setup footer formatting buttons
+                setupFooterFormattingButtons();
+            }
+
+            function setupFooterFormattingButtons() {
+                const footerInput = document.getElementById('footer-text-input');
+                const boldBtn = document.getElementById('footer-bold-btn');
+                const italicBtn = document.getElementById('footer-italic-btn');
+                const underlineBtn = document.getElementById('footer-underline-btn');
+                const linebreakBtn = document.getElementById('footer-linebreak-btn');
+
+                function insertFormatting(startTag, endTag) {
+                    const start = footerInput.selectionStart;
+                    const end = footerInput.selectionEnd;
+                    const selectedText = footerInput.value.substring(start, end);
+                    const beforeText = footerInput.value.substring(0, start);
+                    const afterText = footerInput.value.substring(end);
+
+                    const newText = beforeText + startTag + selectedText + endTag + afterText;
+                    footerInput.value = newText;
+
+                    // Set cursor position after the inserted tags
+                    const newCursorPos = start + startTag.length + selectedText.length + endTag.length;
+                    footerInput.setSelectionRange(newCursorPos, newCursorPos);
+                    footerInput.focus();
+                }
+
+                boldBtn.addEventListener('click', () => insertFormatting('<b>', '</b>'));
+                italicBtn.addEventListener('click', () => insertFormatting('<i>', '</i>'));
+                underlineBtn.addEventListener('click', () => insertFormatting('<u>', '</u>'));
+                linebreakBtn.addEventListener('click', () => {
+                    const start = footerInput.selectionStart;
+                    const beforeText = footerInput.value.substring(0, start);
+                    const afterText = footerInput.value.substring(start);
+                    footerInput.value = beforeText + '<br>' + afterText;
+                    footerInput.setSelectionRange(start + 4, start + 4);
+                    footerInput.focus();
+                });
             }
             function renderProjectsTable() {
                 const container = document.getElementById('projects-table');
@@ -1144,7 +1282,6 @@ function createGuideStepEditor(type, stepData = {}) {
             const escapeHTML = (str) => str.replace(/[&<>"']/g, (match) => ({'&': '&amp;','<': '&lt;','>': '&gt;','"': '&quot;',"'": '&#39;'}[match]));
             function applyTheme(theme) { document.documentElement.className = theme === 'dark' ? 'dark' : (theme === 'yellow' ? 'theme-yellow' : ''); localStorage.setItem('ticketManagerTheme', theme); document.querySelectorAll('#theme-switcher button').forEach(btn => btn.style.boxShadow = `0 0 0 2px ${theme===btn.dataset.theme?'rgb(var(--color-accent-primary))':'transparent'}`); }
             function loadTheme() { applyTheme(localStorage.getItem('ticketManagerTheme') || 'light'); }
-            function showNotification(message, type = 'info') { const t = dom.notificationToast; t.textContent = message; t.className = `fixed bottom-5 right-5 text-white py-2 px-4 rounded-lg shadow-lg transition-all duration-300 z-50 ${type==='success'?'bg-green-600':type==='error'?'bg-red-600':'bg-gray-800'}`; t.classList.remove('opacity-0','translate-y-4'); setTimeout(() => t.classList.add('opacity-0','translate-y-4'), 3000); }
             const _openModal = (modal) => { modal.classList.remove('hidden'); setTimeout(() => { modal.classList.remove('opacity-0'); modal.querySelector('.modal-content').classList.remove('scale-95'); }, 10); };
             const _closeModal = (modal) => { modal.classList.add('opacity-0'); modal.querySelector('.modal-content').classList.add('scale-95'); setTimeout(() => modal.classList.add('hidden'), 300); };
             const escapeRegExp = (string) => string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -1204,6 +1341,20 @@ function createGuideStepEditor(type, stepData = {}) {
 
             async function openCarrierEmailModal(template) {
                 await populateCarrierDropdown();
+
+                // Auto-fill ticket data if available
+                if (currentTicketData) {
+                    const ticketInput = document.getElementById('carrier-ticket');
+                    const poInput = document.getElementById('carrier-po');
+
+                    if (ticketInput && currentTicketData.ticket) {
+                        ticketInput.value = currentTicketData.ticket;
+                    }
+                    if (poInput && currentTicketData.po) {
+                        poInput.value = currentTicketData.po;
+                    }
+                }
+
                 updateCarrierEmailPreview();
                 _openModal(document.getElementById('carrier-email-modal'));
             }
@@ -1813,4 +1964,1789 @@ function createGuideStepEditor(type, stepData = {}) {
             }
 
             initializeApp();
+        });
+
+        // --- Admin Navigation Functions ---
+        function setupAdminNavigation() {
+            // Navigation buttons
+            const navButtons = {
+                'nav-account-management': 'section-account-management',
+                'nav-human-resources': 'section-human-resources',
+                'nav-template-management': 'section-template-management',
+                'nav-work-schedule': 'section-work-schedule'
+            };
+
+            // Set up navigation event listeners
+            Object.keys(navButtons).forEach(buttonId => {
+                const button = document.getElementById(buttonId);
+                if (button) {
+                    button.addEventListener('click', () => {
+                        showAdminSection(navButtons[buttonId]);
+                        updateActiveNavButton(buttonId);
+                    });
+                }
+            });
+
+            // Dashboard link
+            const dashboardLink = document.getElementById('nav-dashboard-link');
+            if (dashboardLink) {
+                dashboardLink.addEventListener('click', () => {
+                    window.location.href = 'dashboard-v2.html';
+                });
+            }
+
+            // Show template management by default
+            showAdminSection('section-template-management');
+            updateActiveNavButton('nav-template-management');
+
+            // Initialize sections
+            initializeAccountManagement();
+            initializeHumanResources();
+            initializeWorkSchedule();
+        }
+
+        function showAdminSection(sectionId) {
+            // Hide all sections
+            document.querySelectorAll('.admin-section').forEach(section => {
+                section.classList.add('hidden');
+            });
+
+            // Show selected section
+            const targetSection = document.getElementById(sectionId);
+            if (targetSection) {
+                targetSection.classList.remove('hidden');
+            }
+        }
+
+        function updateActiveNavButton(activeButtonId) {
+            // Remove active state from all nav buttons
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('ring-2', 'ring-white', 'ring-opacity-50');
+            });
+
+            // Add active state to selected button
+            const activeButton = document.getElementById(activeButtonId);
+            if (activeButton) {
+                activeButton.classList.add('ring-2', 'ring-white', 'ring-opacity-50');
+            }
+        }
+
+        // --- Account Management Functions ---
+        function initializeAccountManagement() {
+            loadUsersList();
+            setupUserManagement();
+        }
+
+        async function loadUsersList() {
+            try {
+                const { data: users, error } = await supabase
+                    .from('vcn_agent')
+                    .select('*')
+                    .order('name');
+
+                if (error) throw error;
+
+                const usersList = document.getElementById('users-list');
+                if (usersList) {
+                    usersList.innerHTML = users.map(user => `
+                        <div class="user-item p-3 border border-gray-200 rounded-lg hover:bg-gray-50 cursor-pointer" data-user-id="${user.stt}">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h4 class="font-semibold">${user.name}</h4>
+                                    <p class="text-sm text-gray-600">${user.account_name}</p>
+                                    <span class="text-xs px-2 py-1 rounded-full ${user.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${user.status}</span>
+                                </div>
+                                <div class="text-sm text-gray-500">
+                                    Level: ${user.level}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+
+                    // Add click handlers for user items
+                    usersList.querySelectorAll('.user-item').forEach(item => {
+                        item.addEventListener('click', () => {
+                            const userId = item.dataset.userId;
+                            const user = users.find(u => u.stt == userId);
+                            showUserDetails(user);
+                        });
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading users:', error);
+            }
+        }
+
+        function showUserDetails(user) {
+            const userDetailsForm = document.getElementById('user-details-form');
+            if (userDetailsForm) {
+                userDetailsForm.innerHTML = `
+                    <form id="edit-user-form" class="space-y-4">
+                        <input type="hidden" id="edit-user-id" value="${user.stt}">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Name</label>
+                            <input type="text" id="edit-user-name" value="${user.name}" class="w-full p-2 border rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Account Name</label>
+                            <input type="text" id="edit-user-account" value="${user.account_name}" class="w-full p-2 border rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Password</label>
+                            <div class="flex gap-2">
+                                <input type="password" id="edit-user-password" placeholder="Enter new password" class="flex-1 p-2 border rounded-lg">
+                                <button type="button" id="change-password-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white px-4 py-2 rounded-lg">
+                                    Change Password
+                                </button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Level</label>
+                            <select id="edit-user-level" class="w-full p-2 border rounded-lg">
+                                <option value="member" ${user.level === 'member' ? 'selected' : ''}>Member</option>
+                                <option value="leader" ${user.level === 'leader' ? 'selected' : ''}>Leader</option>
+                                <option value="key" ${user.level === 'key' ? 'selected' : ''}>Key</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Status</label>
+                            <select id="edit-user-status" class="w-full p-2 border rounded-lg">
+                                <option value="active" ${user.status === 'active' ? 'selected' : ''}>Active</option>
+                                <option value="inactive" ${user.status === 'inactive' ? 'selected' : ''}>Inactive</option>
+                            </select>
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
+                                Update User
+                            </button>
+                            <button type="button" id="delete-user-btn" class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg">
+                                Delete User
+                            </button>
+                        </div>
+                    </form>
+                `;
+
+                // Setup form handlers
+                setupUserFormHandlers(user);
+            }
+        }
+
+        function setupUserManagement() {
+            const createUserBtn = document.getElementById('create-user-btn');
+            if (createUserBtn) {
+                createUserBtn.addEventListener('click', () => {
+                    showCreateUserForm();
+                });
+            }
+        }
+
+        function showCreateUserForm() {
+            const userDetailsForm = document.getElementById('user-details-form');
+            if (userDetailsForm) {
+                userDetailsForm.innerHTML = `
+                    <form id="create-user-form" class="space-y-4">
+                        <h3 class="text-lg font-semibold mb-4">Create New User</h3>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Name</label>
+                            <input type="text" id="create-user-name" class="w-full p-2 border rounded-lg" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Account Name</label>
+                            <input type="text" id="create-user-account" class="w-full p-2 border rounded-lg" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Password</label>
+                            <input type="password" id="create-user-password" class="w-full p-2 border rounded-lg" required>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Level</label>
+                            <select id="create-user-level" class="w-full p-2 border rounded-lg">
+                                <option value="member">Member</option>
+                                <option value="leader">Leader</option>
+                                <option value="key">Key</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Status</label>
+                            <select id="create-user-status" class="w-full p-2 border rounded-lg">
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                            </select>
+                        </div>
+                        <div class="flex gap-2">
+                            <button type="submit" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg">
+                                Create User
+                            </button>
+                            <button type="button" id="cancel-create-btn" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg">
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                `;
+
+                // Setup form handlers
+                setupCreateUserFormHandlers();
+            }
+        }
+
+        function setupCreateUserFormHandlers() {
+            const form = document.getElementById('create-user-form');
+            const cancelBtn = document.getElementById('cancel-create-btn');
+
+            if (form) {
+                form.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    await createNewUser();
+                });
+            }
+
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', () => {
+                    document.getElementById('user-details-form').innerHTML = '<p class="text-gray-500">Select a user to view/edit details</p>';
+                });
+            }
+        }
+
+        async function createNewUser() {
+            try {
+                const userData = {
+                    name: document.getElementById('create-user-name').value,
+                    account_name: document.getElementById('create-user-account').value,
+                    account_password: document.getElementById('create-user-password').value,
+                    level: document.getElementById('create-user-level').value,
+                    status: document.getElementById('create-user-status').value
+                };
+
+                // Validate required fields
+                if (!userData.name || !userData.account_name || !userData.account_password) {
+                    showNotification('Please fill in all required fields', 'error');
+                    return;
+                }
+
+                // Check if account name already exists
+                const { data: existingUsers, error: checkError } = await supabase
+                    .from('vcn_agent')
+                    .select('account_name')
+                    .eq('account_name', userData.account_name);
+
+                if (checkError) throw checkError;
+
+                if (existingUsers && existingUsers.length > 0) {
+                    showNotification('Account name already exists', 'error');
+                    return;
+                }
+
+                const { error } = await supabase
+                    .from('vcn_agent')
+                    .insert(userData);
+
+                if (error) throw error;
+
+                showNotification('User created successfully', 'success');
+                loadUsersList();
+                document.getElementById('user-details-form').innerHTML = '<p class="text-gray-500">Select a user to view/edit details</p>';
+            } catch (error) {
+                console.error('Error creating user:', error);
+                showNotification('Error creating user', 'error');
+            }
+        }
+
+        function setupUserFormHandlers(user) {
+            const form = document.getElementById('edit-user-form');
+            const deleteBtn = document.getElementById('delete-user-btn');
+            const changePasswordBtn = document.getElementById('change-password-btn');
+
+            if (form) {
+                form.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    await updateUser();
+                });
+            }
+
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', async () => {
+                    if (confirm('Are you sure you want to delete this user?')) {
+                        await deleteUser(user.stt);
+                    }
+                });
+            }
+
+            if (changePasswordBtn) {
+                changePasswordBtn.addEventListener('click', async () => {
+                    const newPassword = document.getElementById('edit-user-password').value;
+                    if (!newPassword) {
+                        showNotification('Please enter a new password', 'error');
+                        return;
+                    }
+                    await changeUserPassword(user.stt, newPassword);
+                });
+            }
+        }
+
+        async function updateUser() {
+            try {
+                const userId = document.getElementById('edit-user-id').value;
+                const userData = {
+                    name: document.getElementById('edit-user-name').value,
+                    account_name: document.getElementById('edit-user-account').value,
+                    level: document.getElementById('edit-user-level').value,
+                    status: document.getElementById('edit-user-status').value
+                };
+
+                const { error } = await supabase
+                    .from('vcn_agent')
+                    .update(userData)
+                    .eq('stt', userId);
+
+                if (error) throw error;
+
+                showNotification('User updated successfully', 'success');
+                loadUsersList();
+            } catch (error) {
+                console.error('Error updating user:', error);
+                showNotification('Error updating user', 'error');
+            }
+        }
+
+        async function changeUserPassword(userId, newPassword) {
+            try {
+                const { error } = await supabase
+                    .from('vcn_agent')
+                    .update({ account_password: newPassword })
+                    .eq('stt', userId);
+
+                if (error) throw error;
+
+                showNotification('Password changed successfully', 'success');
+                document.getElementById('edit-user-password').value = '';
+            } catch (error) {
+                console.error('Error changing password:', error);
+                showNotification('Error changing password', 'error');
+            }
+        }
+
+        async function deleteUser(userId) {
+            try {
+                const { error } = await supabase
+                    .from('vcn_agent')
+                    .delete()
+                    .eq('stt', userId);
+
+                if (error) throw error;
+
+                showNotification('User deleted successfully', 'success');
+                loadUsersList();
+                document.getElementById('user-details-form').innerHTML = '<p class="text-gray-500">Select a user to view/edit details</p>';
+            } catch (error) {
+                console.error('Error deleting user:', error);
+                showNotification('Error deleting user', 'error');
+            }
+        }
+
+        // --- Human Resources Functions ---
+        function initializeHumanResources() {
+            loadMembersList();
+            loadKPIData();
+            loadPerformanceMetrics();
+        }
+
+        async function loadMembersList() {
+            try {
+                const { data: members, error } = await supabase
+                    .from('vcn_agent')
+                    .select('*')
+                    .eq('status', 'active')
+                    .order('name');
+
+                if (error) throw error;
+
+                const membersList = document.getElementById('members-list');
+                if (membersList) {
+                    membersList.innerHTML = members.map(member => `
+                        <div class="p-2 border border-gray-200 rounded">
+                            <div class="font-semibold">${member.name}</div>
+                            <div class="text-sm text-gray-600">${member.level}</div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error loading members:', error);
+            }
+        }
+
+        async function loadKPIData() {
+            const kpiDashboard = document.getElementById('kpi-dashboard');
+            if (kpiDashboard) {
+                kpiDashboard.innerHTML = `
+                    <div class="space-y-3">
+                        <div class="p-3 bg-blue-50 rounded">
+                            <div class="text-lg font-bold text-blue-800">24</div>
+                            <div class="text-sm text-blue-600">Active Members</div>
+                        </div>
+                        <div class="p-3 bg-green-50 rounded">
+                            <div class="text-lg font-bold text-green-800">156</div>
+                            <div class="text-sm text-green-600">Tasks Completed</div>
+                        </div>
+                        <div class="p-3 bg-yellow-50 rounded">
+                            <div class="text-lg font-bold text-yellow-800">89%</div>
+                            <div class="text-sm text-yellow-600">Efficiency Rate</div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        async function loadPerformanceMetrics() {
+            const performanceMetrics = document.getElementById('performance-metrics');
+            if (performanceMetrics) {
+                performanceMetrics.innerHTML = `
+                    <div class="space-y-2">
+                        <div class="text-sm">
+                            <div class="flex justify-between">
+                                <span>Avg Response Time</span>
+                                <span class="font-semibold">2.3 min</span>
+                            </div>
+                        </div>
+                        <div class="text-sm">
+                            <div class="flex justify-between">
+                                <span>Customer Satisfaction</span>
+                                <span class="font-semibold">4.8/5</span>
+                            </div>
+                        </div>
+                        <div class="text-sm">
+                            <div class="flex justify-between">
+                                <span>Templates Used</span>
+                                <span class="font-semibold">342</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // --- Work Schedule Functions ---
+        function initializeWorkSchedule() {
+            setupWorkScheduleHandlers();
+            loadMembersForSchedule();
+            loadAccountsForSchedule();
+            loadCurrentAssignments();
+            loadRotationSchedule();
+            initializeCalendar();
+        }
+
+        function setupWorkScheduleHandlers() {
+            // Assignment type radio buttons
+            const assignmentTypeRadios = document.querySelectorAll('input[name="assignment-type"]');
+            assignmentTypeRadios.forEach(radio => {
+                radio.addEventListener('change', (e) => {
+                    const manualDiv = document.getElementById('manual-assignment');
+                    const autoDiv = document.getElementById('auto-assignment');
+
+                    if (e.target.value === 'manual') {
+                        manualDiv.classList.remove('hidden');
+                        autoDiv.classList.add('hidden');
+                    } else {
+                        manualDiv.classList.add('hidden');
+                        autoDiv.classList.remove('hidden');
+                    }
+                });
+            });
+
+            // Manual assignment buttons and controls
+            const assignBtn = document.getElementById('assign-manual-btn');
+            const previewManualBtn = document.getElementById('preview-manual-btn');
+            if (assignBtn) {
+                assignBtn.addEventListener('click', assignManualTask);
+            }
+            if (previewManualBtn) {
+                previewManualBtn.addEventListener('click', previewManualAssignment);
+            }
+
+            // Date option radio buttons
+            const dateOptionRadios = document.querySelectorAll('input[name="date-option"]');
+            dateOptionRadios.forEach(radio => {
+                radio.addEventListener('change', handleDateOptionChange);
+            });
+
+            // Auto assignment type radio buttons
+            const autoTypeRadios = document.querySelectorAll('input[name="auto-assignment-type"]');
+            autoTypeRadios.forEach(radio => {
+                radio.addEventListener('change', handleAutoAssignmentTypeChange);
+            });
+
+            // Initialize date inputs
+            handleDateOptionChange();
+
+            // Auto assignment checkbox
+            const autoCheckbox = document.getElementById('enable-auto-assignment');
+            if (autoCheckbox) {
+                autoCheckbox.addEventListener('change', toggleAutoAssignment);
+            }
+
+            // Add to schedule button
+            const addToScheduleBtn = document.getElementById('add-to-schedule-btn');
+            if (addToScheduleBtn) {
+                addToScheduleBtn.addEventListener('click', addToRotationSchedule);
+            }
+
+            // Auto assignment preview buttons
+            const previewBtn = document.getElementById('preview-auto-assignment');
+            const confirmBtn = document.getElementById('confirm-auto-assignment');
+            const cancelBtn = document.getElementById('cancel-auto-assignment');
+
+            if (previewBtn) {
+                previewBtn.addEventListener('click', showAutoAssignmentPreview);
+            }
+            if (confirmBtn) {
+                confirmBtn.addEventListener('click', confirmAutoAssignment);
+            }
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', hideAutoAssignmentPreview);
+            }
+        }
+
+        async function loadMembersForSchedule() {
+            try {
+                const { data: members, error } = await supabase
+                    .from('vcn_agent')
+                    .select('stt, name, level, account_name')
+                    .eq('status', 'active')
+                    .order('name');
+
+                if (error) throw error;
+
+                const selectMember = document.getElementById('select-member');
+                const scheduleMember = document.getElementById('schedule-member');
+                const registeredMembersList = document.getElementById('registered-members-list');
+
+                const memberOptions = '<option value="">Choose a member...</option>' +
+                    members.map(member => `<option value="${member.stt}" title="Account: ${member.account_name || 'N/A'}">${member.name} (${member.level || 'member'})</option>`).join('');
+
+                if (selectMember) {
+                    selectMember.innerHTML = memberOptions;
+                }
+
+                if (scheduleMember) {
+                    scheduleMember.innerHTML = memberOptions;
+                }
+
+                if (registeredMembersList) {
+                    registeredMembersList.innerHTML = members.map(member => `
+                        <div class="p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                            <div class="font-medium text-blue-600">${member.name}</div>
+                            <div class="text-sm text-gray-600">Level: ${member.level || 'member'}</div>
+                            ${member.account_name ? `<div class="text-xs text-gray-500 mt-1">Account: ${member.account_name}</div>` : ''}
+                        </div>
+                    `).join('');
+                }
+
+                // Store members data for later use
+                window.membersData = members;
+            } catch (error) {
+                console.error('Error loading members for schedule:', error);
+                const selectMember = document.getElementById('select-member');
+                const scheduleMember = document.getElementById('schedule-member');
+
+                const errorOption = '<option value="">Error loading members</option>';
+                if (selectMember) selectMember.innerHTML = errorOption;
+                if (scheduleMember) scheduleMember.innerHTML = errorOption;
+            }
+        }
+
+        async function loadAccountsForSchedule() {
+            try {
+                // Load accounts from the agent table with agent names
+                const { data: agentData, error: agentError } = await supabase
+                    .from('agent')
+                    .select('agent_account, agent_name, team')
+                    .not('agent_account', 'is', null)
+                    .order('agent_account');
+
+                if (agentError) {
+                    console.warn('Could not load from agent table, using vcn_agent table:', agentError);
+
+                    // Fallback to vcn_agent table
+                    const { data: vcnAgentData, error: vcnError } = await supabase
+                        .from('vcn_agent')
+                        .select('account_name, name')
+                        .eq('status', 'active')
+                        .order('account_name');
+
+                    if (vcnError) throw vcnError;
+
+                    const accounts = vcnAgentData.map(agent => ({
+                        id: agent.account_name,
+                        name: `${agent.account_name} (${agent.name})`,
+                        agent_name: agent.name,
+                        team: null
+                    }));
+
+                    populateAccountDropdowns(accounts);
+                    return;
+                }
+
+                // Use agent table data with enhanced display
+                const accounts = agentData.map(agent => ({
+                    id: agent.agent_account,
+                    name: `${agent.agent_account} (${agent.agent_name}${agent.team ? ` - ${agent.team}` : ''})`,
+                    agent_name: agent.agent_name,
+                    team: agent.team
+                }));
+
+                // If no accounts found, show message
+                if (accounts.length === 0) {
+                    console.warn('No accounts found in agent table');
+                    populateAccountDropdowns([]);
+                    return;
+                }
+
+                populateAccountDropdowns(accounts);
+            } catch (error) {
+                console.error('Error loading accounts for schedule:', error);
+                // Show error in UI
+                const selectAccount = document.getElementById('select-account');
+                if (selectAccount) {
+                    selectAccount.innerHTML = '<option value="">Error loading accounts</option>';
+                }
+            }
+        }
+
+        function populateAccountDropdowns(accounts) {
+            const selectAccount = document.getElementById('select-account');
+            const scheduleAccount = document.getElementById('schedule-account');
+            const availableAccountsList = document.getElementById('available-accounts-list');
+
+            if (accounts.length === 0) {
+                const noAccountsOption = '<option value="">No accounts available</option>';
+                if (selectAccount) selectAccount.innerHTML = noAccountsOption;
+                if (scheduleAccount) scheduleAccount.innerHTML = noAccountsOption;
+                if (availableAccountsList) {
+                    availableAccountsList.innerHTML = '<div class="p-2 text-gray-500 text-center">No accounts found in agent table</div>';
+                }
+                return;
+            }
+
+            const accountOptions = '<option value="">Choose an account...</option>' +
+                accounts.map(account => `<option value="${account.id}" title="${account.agent_name}${account.team ? ` (${account.team})` : ''}">${account.name}</option>`).join('');
+
+            if (selectAccount) {
+                selectAccount.innerHTML = accountOptions;
+            }
+
+            if (scheduleAccount) {
+                scheduleAccount.innerHTML = accountOptions;
+            }
+
+            if (availableAccountsList) {
+                availableAccountsList.innerHTML = accounts.map(account => `
+                    <div class="p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
+                        <div class="font-medium text-blue-600">${account.id}</div>
+                        <div class="text-sm text-gray-600">${account.agent_name}</div>
+                        ${account.team ? `<div class="text-xs text-gray-500 mt-1">Team: ${account.team}</div>` : ''}
+                    </div>
+                `).join('');
+            }
+        }
+
+        async function assignManualTask() {
+            const memberId = document.getElementById('select-member').value;
+            const accountId = document.getElementById('select-account').value;
+            const dateOption = document.querySelector('input[name="date-option"]:checked').value;
+
+            if (!memberId || !accountId) {
+                showNotification('Please select both member and account', 'error');
+                return;
+            }
+
+            try {
+                const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+
+                // Calculate dates based on option
+                let dates = [];
+                const today = new Date();
+
+                if (dateOption === 'single') {
+                    const selectedDate = document.getElementById('assignment-date').value;
+                    if (!selectedDate) {
+                        showNotification('Please select an assignment date', 'error');
+                        return;
+                    }
+                    dates = [selectedDate];
+                } else if (dateOption === 'week') {
+                    dates = getNext5Weekdays(today);
+                } else if (dateOption === 'custom') {
+                    const startDate = new Date(document.getElementById('start-date').value);
+                    const endDate = new Date(document.getElementById('end-date').value);
+
+                    if (!startDate || !endDate) {
+                        showNotification('Please select both start and end dates', 'error');
+                        return;
+                    }
+
+                    if (startDate > endDate) {
+                        showNotification('Start date must be before end date', 'error');
+                        return;
+                    }
+
+                    dates = getWeekdaysInRange(startDate, endDate);
+                }
+
+                if (dates.length === 0) {
+                    showNotification('No valid dates selected', 'error');
+                    return;
+                }
+
+                // Check for existing assignments and prepare data
+                const assignments = [];
+                const updates = [];
+
+                for (const date of dates) {
+                    // Check if assignment already exists for this date
+                    const { data: existingAssignment, error: checkError } = await supabase
+                        .from('manual_reschedule_assignments')
+                        .select('*')
+                        .eq('assigned_date', date)
+                        .single();
+
+                    if (checkError && checkError.code !== 'PGRST116') {
+                        throw checkError;
+                    }
+
+                    if (existingAssignment) {
+                        // Prepare update
+                        updates.push({
+                            id: existingAssignment.id,
+                            member_id: memberId,
+                            account_id: accountId,
+                            assignment_type: 'manual',
+                            assigned_by: currentUser.stt,
+                            status: 'assigned'
+                        });
+                    } else {
+                        // Prepare insert
+                        assignments.push({
+                            assigned_date: date,
+                            member_id: memberId,
+                            account_id: accountId,
+                            assignment_type: 'manual',
+                            assigned_by: currentUser.stt,
+                            status: 'assigned'
+                        });
+                    }
+                }
+
+                // Perform batch operations
+                if (assignments.length > 0) {
+                    const { error: insertError } = await supabase
+                        .from('manual_reschedule_assignments')
+                        .insert(assignments);
+
+                    if (insertError) throw insertError;
+                }
+
+                // Perform updates one by one (Supabase doesn't support batch updates easily)
+                for (const update of updates) {
+                    const { id, ...updateData } = update;
+                    const { error: updateError } = await supabase
+                        .from('manual_reschedule_assignments')
+                        .update(updateData)
+                        .eq('id', id);
+
+                    if (updateError) throw updateError;
+                }
+
+                // Create notification for the assigned user
+                await createManualRescheduleNotification(memberId, accountId);
+
+                const totalAssignments = assignments.length + updates.length;
+                showNotification(`${totalAssignments} assignment${totalAssignments > 1 ? 's' : ''} created successfully`, 'success');
+                loadCurrentAssignments();
+
+                // Reset form
+                document.getElementById('select-member').value = '';
+                document.getElementById('select-account').value = '';
+                document.getElementById('manual-assignment-preview').classList.add('hidden');
+            } catch (error) {
+                console.error('Error assigning task:', error);
+                showNotification('Error assigning task', 'error');
+            }
+        }
+
+        async function loadCurrentAssignments() {
+            try {
+                const today = new Date().toISOString().split('T')[0];
+
+                const { data: assignments, error } = await supabase
+                    .from('manual_reschedule_assignments')
+                    .select(`
+                        *,
+                        vcn_agent!manual_reschedule_assignments_member_id_fkey(name)
+                    `)
+                    .eq('assigned_date', today)
+                    .order('assigned_at', { ascending: false });
+
+                if (error) throw error;
+
+                const currentAssignments = document.getElementById('current-assignments');
+                if (currentAssignments) {
+                    if (assignments && assignments.length > 0) {
+                        currentAssignments.innerHTML = assignments.map(assignment => {
+                            const statusColors = {
+                                'assigned': 'bg-blue-100 text-blue-800',
+                                'started': 'bg-yellow-100 text-yellow-800',
+                                'completed': 'bg-green-100 text-green-800',
+                                'skipped': 'bg-red-100 text-red-800'
+                            };
+
+                            const assignedTime = new Date(assignment.assigned_at).toLocaleTimeString('en-US', {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+
+                            return `
+                                <div class="p-3 border border-gray-200 rounded">
+                                    <div class="flex justify-between items-center">
+                                        <div>
+                                            <div class="font-semibold">${assignment.vcn_agent?.name || 'Unknown'}</div>
+                                            <div class="text-sm text-gray-600">Account: ${assignment.account_id}</div>
+                                            <div class="text-xs text-gray-500">Assigned at ${assignedTime}</div>
+                                            <div class="text-xs text-gray-500">Type: ${assignment.assignment_type}</div>
+                                        </div>
+                                        <div class="flex items-center space-x-2">
+                                            <span class="px-2 py-1 ${statusColors[assignment.status] || 'bg-gray-100 text-gray-800'} text-xs rounded-full">
+                                                ${assignment.status.charAt(0).toUpperCase() + assignment.status.slice(1)}
+                                            </span>
+                                            <button onclick="deleteAssignment(${assignment.id})"
+                                                    class="text-red-500 hover:text-red-700 text-sm px-2 py-1 rounded border border-red-300 hover:bg-red-50"
+                                                    title="Delete Assignment">
+                                                ✕
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                    } else {
+                        currentAssignments.innerHTML = `
+                            <div class="p-3 text-center text-gray-500">
+                                No assignments for today
+                            </div>
+                        `;
+                    }
+                }
+
+                // Also load assignment history and refresh calendar
+                loadAssignmentHistory();
+                if (typeof renderCalendar === 'function') {
+                    renderCalendar();
+                }
+            } catch (error) {
+                console.error('Error loading current assignments:', error);
+                const currentAssignments = document.getElementById('current-assignments');
+                if (currentAssignments) {
+                    currentAssignments.innerHTML = `
+                        <div class="p-3 text-center text-red-500">
+                            Error loading assignments
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        function toggleAutoAssignment() {
+            const isEnabled = document.getElementById('enable-auto-assignment').checked;
+
+            // Update the setting in the database
+            updateManualRescheduleSettings('auto_assignment_enabled', isEnabled.toString());
+
+            showNotification(
+                isEnabled ? 'Auto assignment enabled' : 'Auto assignment disabled',
+                'info'
+            );
+        }
+
+        async function createManualRescheduleNotification(memberId, accountId) {
+            try {
+                const { data: settings, error: settingsError } = await supabase
+                    .from('manual_reschedule_settings')
+                    .select('setting_value')
+                    .eq('setting_key', 'notification_message')
+                    .single();
+
+                if (settingsError) throw settingsError;
+
+                const baseMessage = settings?.setting_value || 'You have been assigned to perform the Manual Reschedule POs task today.';
+                const message = `${baseMessage} Account: ${accountId}. Click here to start: manual-reschedule-pos.html`;
+
+                const { error: notificationError } = await supabase
+                    .from('notifications')
+                    .insert({
+                        recipient_id: memberId,
+                        message: message,
+                        type: 'assignment',
+                        related_ticket_id: null
+                    });
+
+                if (notificationError) throw notificationError;
+            } catch (error) {
+                console.error('Error creating notification:', error);
+            }
+        }
+
+        async function loadAssignmentHistory() {
+            try {
+                const { data: history, error } = await supabase
+                    .from('manual_reschedule_assignments')
+                    .select(`
+                        *,
+                        vcn_agent!manual_reschedule_assignments_member_id_fkey(name)
+                    `)
+                    .order('assigned_date', { ascending: false })
+                    .limit(10);
+
+                if (error) throw error;
+
+                const assignmentHistory = document.getElementById('assignment-history');
+                if (assignmentHistory) {
+                    if (history && history.length > 0) {
+                        assignmentHistory.innerHTML = history.map(assignment => {
+                            const assignedDate = new Date(assignment.assigned_date).toLocaleDateString();
+                            const statusColors = {
+                                'assigned': 'bg-blue-100 text-blue-800',
+                                'started': 'bg-yellow-100 text-yellow-800',
+                                'completed': 'bg-green-100 text-green-800',
+                                'skipped': 'bg-red-100 text-red-800'
+                            };
+
+                            return `
+                                <div class="p-2 border border-gray-100 rounded text-sm">
+                                    <div class="flex justify-between items-center">
+                                        <div>
+                                            <span class="font-medium">${assignment.vcn_agent?.name || 'Unknown'}</span>
+                                            <span class="text-gray-600">- ${assignment.account_id}</span>
+                                        </div>
+                                        <div class="text-right">
+                                            <div class="text-xs text-gray-500">${assignedDate}</div>
+                                            <span class="px-1 py-0.5 ${statusColors[assignment.status] || 'bg-gray-100 text-gray-800'} text-xs rounded">
+                                                ${assignment.status}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('');
+                    } else {
+                        assignmentHistory.innerHTML = `
+                            <div class="p-3 text-center text-gray-500 text-sm">
+                                No assignment history
+                            </div>
+                        `;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading assignment history:', error);
+            }
+        }
+
+        async function updateManualRescheduleSettings(key, value) {
+            try {
+                const { error } = await supabase
+                    .from('manual_reschedule_settings')
+                    .upsert({
+                        setting_key: key,
+                        setting_value: value
+                    }, {
+                        onConflict: 'setting_key'
+                    });
+
+                if (error) throw error;
+            } catch (error) {
+                console.error('Error updating settings:', error);
+            }
+        }
+
+        // --- Automatic Assignment System ---
+        async function initializeAutoAssignmentSystem() {
+            try {
+                // Check if auto assignment is enabled
+                const { data: settings, error } = await supabase
+                    .from('manual_reschedule_settings')
+                    .select('setting_value')
+                    .eq('setting_key', 'auto_assignment_enabled')
+                    .single();
+
+                if (error) throw error;
+
+                const isEnabled = settings?.setting_value === 'true';
+
+                if (isEnabled) {
+                    // Set up daily check at 8:28 AM
+                    scheduleAutoAssignment();
+                }
+            } catch (error) {
+                console.error('Error initializing auto assignment system:', error);
+            }
+        }
+
+        function scheduleAutoAssignment() {
+            const now = new Date();
+            const targetTime = new Date();
+            targetTime.setHours(8, 28, 0, 0); // 8:28 AM
+
+            // If it's already past 8:28 AM today, schedule for tomorrow
+            if (now > targetTime) {
+                targetTime.setDate(targetTime.getDate() + 1);
+            }
+
+            const timeUntilTarget = targetTime.getTime() - now.getTime();
+
+            setTimeout(async () => {
+                await performAutoAssignment();
+                // Schedule the next day
+                scheduleAutoAssignment();
+            }, timeUntilTarget);
+        }
+
+        // --- Manual Assignment Functions ---
+        function handleDateOptionChange() {
+            const selectedOption = document.querySelector('input[name="date-option"]:checked').value;
+            const singleDateInput = document.getElementById('single-date-input');
+            const customDateInputs = document.getElementById('custom-date-inputs');
+
+            // Hide all date inputs first
+            singleDateInput.classList.add('hidden');
+            customDateInputs.classList.add('hidden');
+
+            // Show appropriate input based on selection
+            if (selectedOption === 'single') {
+                singleDateInput.classList.remove('hidden');
+                // Set default to today
+                document.getElementById('assignment-date').value = new Date().toISOString().split('T')[0];
+            } else if (selectedOption === 'custom') {
+                customDateInputs.classList.remove('hidden');
+                // Set default start date to today
+                document.getElementById('start-date').value = new Date().toISOString().split('T')[0];
+            }
+            // For 'week' option, we don't need date inputs as it's automatic
+        }
+
+        function handleAutoAssignmentTypeChange() {
+            // This function can be used to update preview logic based on assignment type
+            const selectedType = document.querySelector('input[name="auto-assignment-type"]:checked').value;
+            console.log('Auto assignment type changed to:', selectedType);
+        }
+
+        async function previewManualAssignment() {
+            const memberId = document.getElementById('select-member').value;
+            const accountId = document.getElementById('select-account').value;
+            const dateOption = document.querySelector('input[name="date-option"]:checked').value;
+
+            if (!memberId || !accountId) {
+                showNotification('Please select both member and account', 'error');
+                return;
+            }
+
+            try {
+                // Get member name
+                const { data: member, error: memberError } = await supabase
+                    .from('vcn_agent')
+                    .select('name')
+                    .eq('stt', memberId)
+                    .single();
+
+                if (memberError) throw memberError;
+
+                // Calculate dates based on option
+                let dates = [];
+                const today = new Date();
+
+                if (dateOption === 'single') {
+                    const selectedDate = document.getElementById('assignment-date').value;
+                    dates = [selectedDate];
+                } else if (dateOption === 'week') {
+                    // Generate next 5 weekdays
+                    dates = getNext5Weekdays(today);
+                } else if (dateOption === 'custom') {
+                    const startDate = new Date(document.getElementById('start-date').value);
+                    const endDate = new Date(document.getElementById('end-date').value);
+                    dates = getWeekdaysInRange(startDate, endDate);
+                }
+
+                // Show preview
+                const previewDiv = document.getElementById('manual-assignment-preview');
+                const previewContent = document.getElementById('manual-preview-content');
+
+                previewContent.innerHTML = `
+                    <div class="space-y-2">
+                        <div><strong>👤 Agent:</strong> ${member.name}</div>
+                        <div><strong>🏢 Account:</strong> ${accountId}</div>
+                        <div><strong>📅 Dates:</strong></div>
+                        <ul class="list-disc list-inside ml-4 text-xs">
+                            ${dates.map(date => `<li>${new Date(date).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}</li>`).join('')}
+                        </ul>
+                        <div class="text-xs text-gray-600 mt-2">
+                            <strong>Total assignments:</strong> ${dates.length} day${dates.length > 1 ? 's' : ''}
+                        </div>
+                    </div>
+                `;
+
+                previewDiv.classList.remove('hidden');
+            } catch (error) {
+                console.error('Error previewing assignment:', error);
+                showNotification('Error generating preview', 'error');
+            }
+        }
+
+        // --- Auto Assignment Preview Functions ---
+        async function showAutoAssignmentPreview() {
+            try {
+                const assignmentType = document.querySelector('input[name="auto-assignment-type"]:checked').value;
+
+                if (assignmentType === 'daily') {
+                    const nextAssignment = await getNextAutoAssignment();
+                    if (!nextAssignment) {
+                        showNotification('No active agents or accounts found', 'error');
+                        return;
+                    }
+
+                    const previewDiv = document.getElementById('auto-assignment-preview');
+                    const previewContent = document.getElementById('preview-content');
+
+                    previewContent.innerHTML = `
+                        <div class="bg-blue-50 border border-blue-200 rounded p-2 mb-2">
+                            <strong>Next Auto Assignment (Daily):</strong><br>
+                            👤 <strong>Agent:</strong> ${nextAssignment.memberName} (${nextAssignment.agentIndex}/${nextAssignment.totalAgents})<br>
+                            🏢 <strong>Account:</strong> ${nextAssignment.account_id} (${nextAssignment.accountIndex}/${nextAssignment.totalAccounts})<br>
+                            📅 <strong>Date:</strong> ${new Date().toLocaleDateString()}<br>
+                            🔄 <strong>Sequential Pairing #${nextAssignment.pairingIndex}:</strong> Account ${nextAssignment.accountIndex} → Agent ${nextAssignment.agentIndex}
+                        </div>
+                        <div class="text-xs text-gray-600 mt-1">
+                            <strong>Logic:</strong> Sequential pairing - Account 1→Agent 1, Account 2→Agent 2, etc. When reaching the end of either list, it wraps around while continuing the sequence.
+                        </div>
+                    `;
+                } else {
+                    // Weekly assignment preview
+                    const weeklyAssignments = await getNext5DayAssignments();
+                    if (!weeklyAssignments || weeklyAssignments.length === 0) {
+                        showNotification('No active agents or accounts found', 'error');
+                        return;
+                    }
+
+                    const previewDiv = document.getElementById('auto-assignment-preview');
+                    const previewContent = document.getElementById('preview-content');
+
+                    previewContent.innerHTML = `
+                        <div class="bg-blue-50 border border-blue-200 rounded p-2 mb-2">
+                            <strong>Next Auto Assignment (5 Days):</strong><br>
+                            ${weeklyAssignments.map((assignment) => `
+                                <div class="text-sm mt-1">
+                                    📅 <strong>${assignment.date}:</strong> Account ${assignment.accountIndex} (${assignment.account_id}) → Agent ${assignment.agentIndex} (${assignment.memberName})
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="text-xs text-gray-600 mt-1">
+                            <strong>Logic:</strong> Sequential pairing across 5 weekdays. Each day continues from where the previous assignment left off.
+                        </div>
+                    `;
+                }
+
+                document.getElementById('auto-assignment-preview').classList.remove('hidden');
+                document.getElementById('preview-auto-assignment').textContent = 'Refresh Preview';
+            } catch (error) {
+                console.error('Error showing preview:', error);
+                showNotification('Error loading preview', 'error');
+            }
+        }
+
+        function hideAutoAssignmentPreview() {
+            const previewDiv = document.getElementById('auto-assignment-preview');
+            previewDiv.classList.add('hidden');
+            document.getElementById('preview-auto-assignment').textContent = 'Show Preview';
+        }
+
+        // --- Utility Functions for Date Handling ---
+        function getNext5Weekdays(startDate) {
+            const dates = [];
+            let currentDate = new Date(startDate);
+            let weekdaysAdded = 0;
+
+            while (weekdaysAdded < 5) {
+                const dayOfWeek = currentDate.getDay();
+                // Skip weekends (0 = Sunday, 6 = Saturday)
+                if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                    dates.push(currentDate.toISOString().split('T')[0]);
+                    weekdaysAdded++;
+                }
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+
+            return dates;
+        }
+
+        function getWeekdaysInRange(startDate, endDate) {
+            const dates = [];
+            let currentDate = new Date(startDate);
+
+            while (currentDate <= endDate) {
+                const dayOfWeek = currentDate.getDay();
+                // Only include weekdays
+                if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                    dates.push(currentDate.toISOString().split('T')[0]);
+                }
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+
+            return dates;
+        }
+
+        async function getNext5DayAssignments() {
+            try {
+                const assignments = [];
+                const dates = getNext5Weekdays(new Date());
+
+                for (let i = 0; i < dates.length; i++) {
+                    const assignment = await getNextAutoAssignment(i);
+                    if (assignment) {
+                        assignments.push({
+                            ...assignment,
+                            date: new Date(dates[i]).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+                        });
+                    }
+                }
+
+                return assignments;
+            } catch (error) {
+                console.error('Error getting 5-day assignments:', error);
+                return [];
+            }
+        }
+
+        async function confirmAutoAssignment() {
+            try {
+                const assignmentType = document.querySelector('input[name="auto-assignment-type"]:checked').value;
+
+                if (assignmentType === 'daily') {
+                    await performAutoAssignment();
+                    showNotification('Daily auto assignment completed successfully', 'success');
+                } else {
+                    await perform5DayAutoAssignment();
+                    showNotification('5-day auto assignment completed successfully', 'success');
+                }
+
+                hideAutoAssignmentPreview();
+                loadCurrentAssignments(); // Refresh the assignments display
+            } catch (error) {
+                console.error('Error confirming auto assignment:', error);
+                showNotification('Error performing auto assignment', 'error');
+            }
+        }
+
+        async function perform5DayAutoAssignment() {
+            try {
+                const dates = getNext5Weekdays(new Date());
+                const assignments = [];
+
+                for (let i = 0; i < dates.length; i++) {
+                    const assignment = await getNextAutoAssignment(i);
+                    if (assignment) {
+                        assignments.push({
+                            assigned_date: dates[i],
+                            member_id: assignment.member_id,
+                            account_id: assignment.account_id,
+                            assignment_type: 'auto',
+                            status: 'assigned'
+                        });
+                    }
+                }
+
+                if (assignments.length > 0) {
+                    const { error: insertError } = await supabase
+                        .from('manual_reschedule_assignments')
+                        .insert(assignments);
+
+                    if (insertError) throw insertError;
+
+                    // Create notifications for each assignment
+                    for (const assignment of assignments) {
+                        await createManualRescheduleNotification(assignment.member_id, assignment.account_id);
+                    }
+                }
+
+                console.log('5-day auto assignment completed successfully');
+            } catch (error) {
+                console.error('Error performing 5-day auto assignment:', error);
+                throw error;
+            }
+        }
+
+        async function getNextAutoAssignment(dayOffset = 0) {
+            try {
+                // Get all active agents (members)
+                const { data: agents, error: agentsError } = await supabase
+                    .from('vcn_agent')
+                    .select('stt, name, account_name')
+                    .eq('status', 'active')
+                    .order('stt');
+
+                if (agentsError) throw agentsError;
+
+                // Get all available accounts from the agent table
+                const { data: accounts, error: accountsError } = await supabase
+                    .from('agent')
+                    .select('agent_account')
+                    .order('agent_account');
+
+                if (accountsError) throw accountsError;
+
+                if (!agents || agents.length === 0) {
+                    console.log('No active agents found');
+                    return null;
+                }
+
+                if (!accounts || accounts.length === 0) {
+                    console.log('No accounts found');
+                    return null;
+                }
+
+                // Get the last assignment to determine the next pairing
+                const { data: lastAssignment, error: lastError } = await supabase
+                    .from('manual_reschedule_assignments')
+                    .select('member_id, account_id')
+                    .order('assigned_date', { ascending: false })
+                    .limit(1)
+                    .single();
+
+                if (lastError && lastError.code !== 'PGRST116') {
+                    throw lastError;
+                }
+
+                // Calculate the next pairing index
+                let pairingIndex = dayOffset; // Start with day offset for multi-day assignments
+
+                if (lastAssignment) {
+                    // Find the last agent and account indices
+                    const lastAgentIndex = agents.findIndex(agent => agent.stt === lastAssignment.member_id);
+                    const lastAccountIndex = accounts.findIndex(account => account.agent_account === lastAssignment.account_id);
+
+                    if (lastAgentIndex !== -1 && lastAccountIndex !== -1) {
+                        // Calculate the last pairing index based on the sequential logic
+                        // We need to find which pairing number this was
+                        let lastPairingIndex = 0;
+
+                        // Try to reconstruct the pairing index from the last assignment
+                        // This is a simplified approach - in a real system, you might want to store this
+                        for (let i = 0; i < Math.max(agents.length, accounts.length) * 10; i++) {
+                            const testAgentIndex = i % agents.length;
+                            const testAccountIndex = i % accounts.length;
+
+                            if (testAgentIndex === lastAgentIndex && testAccountIndex === lastAccountIndex) {
+                                lastPairingIndex = i;
+                                break;
+                            }
+                        }
+
+                        pairingIndex = lastPairingIndex + 1 + dayOffset;
+                    }
+                }
+
+                // Calculate agent and account indices based on sequential pairing
+                const nextAgentIndex = pairingIndex % agents.length;
+                const nextAccountIndex = pairingIndex % accounts.length;
+
+                const nextAgent = agents[nextAgentIndex];
+                const nextAccount = accounts[nextAccountIndex];
+
+                return {
+                    member_id: nextAgent.stt,
+                    account_id: nextAccount.agent_account,
+                    memberName: nextAgent.name,
+                    agentIndex: nextAgentIndex + 1, // 1-based for display
+                    accountIndex: nextAccountIndex + 1, // 1-based for display
+                    totalAgents: agents.length,
+                    totalAccounts: accounts.length,
+                    pairingIndex: pairingIndex + 1 // 1-based for display
+                };
+            } catch (error) {
+                console.error('Error getting next assignment:', error);
+                return null;
+            }
+        }
+
+        async function performAutoAssignment() {
+            try {
+                const today = new Date();
+                const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
+
+                // Only assign on weekdays (Monday = 1, Friday = 5)
+                if (dayOfWeek < 1 || dayOfWeek > 5) {
+                    return;
+                }
+
+                const todayString = today.toISOString().split('T')[0];
+
+                // Check if assignment already exists for today
+                const { data: existingAssignment, error: checkError } = await supabase
+                    .from('manual_reschedule_assignments')
+                    .select('*')
+                    .eq('assigned_date', todayString)
+                    .single();
+
+                if (checkError && checkError.code !== 'PGRST116') {
+                    throw checkError;
+                }
+
+                if (existingAssignment) {
+                    console.log('Assignment already exists for today');
+                    return;
+                }
+
+                // Get next assignment using the shared function
+                const nextAssignment = await getNextAutoAssignment();
+
+                if (!nextAssignment) {
+                    console.log('No active schedule found');
+                    return;
+                }
+
+                // Create the assignment
+                const { error: insertError } = await supabase
+                    .from('manual_reschedule_assignments')
+                    .insert({
+                        assigned_date: todayString,
+                        member_id: nextAssignment.member_id,
+                        account_id: nextAssignment.account_id,
+                        assignment_type: 'auto',
+                        status: 'assigned'
+                    });
+
+                if (insertError) throw insertError;
+
+                // Create notification
+                await createManualRescheduleNotification(nextAssignment.member_id, nextAssignment.account_id);
+
+                // Refresh the UI
+                loadCurrentAssignments(); // This will also refresh the calendar
+
+                console.log('Auto assignment completed successfully');
+            } catch (error) {
+                console.error('Error performing auto assignment:', error);
+                throw error; // Re-throw so calling functions can handle it
+            }
+        }
+
+        async function addToRotationSchedule() {
+            const memberId = document.getElementById('schedule-member').value;
+            const accountId = document.getElementById('schedule-account').value;
+
+            if (!memberId || !accountId) {
+                showNotification('Please select both member and account', 'error');
+                return;
+            }
+
+            try {
+                // Check if this combination already exists
+                const { data: existing, error: checkError } = await supabase
+                    .from('manual_reschedule_schedule')
+                    .select('*')
+                    .eq('member_id', memberId)
+                    .eq('account_id', accountId)
+                    .eq('is_active', true)
+                    .single();
+
+                if (checkError && checkError.code !== 'PGRST116') {
+                    throw checkError;
+                }
+
+                if (existing) {
+                    showNotification('This member-account combination already exists in the schedule', 'error');
+                    return;
+                }
+
+                // Get the next rotation order
+                const { data: maxOrder, error: maxError } = await supabase
+                    .from('manual_reschedule_schedule')
+                    .select('rotation_order')
+                    .eq('is_active', true)
+                    .order('rotation_order', { ascending: false })
+                    .limit(1)
+                    .single();
+
+                if (maxError && maxError.code !== 'PGRST116') {
+                    throw maxError;
+                }
+
+                const nextOrder = (maxOrder?.rotation_order || 0) + 1;
+
+                // Add to schedule
+                const { error: insertError } = await supabase
+                    .from('manual_reschedule_schedule')
+                    .insert({
+                        member_id: memberId,
+                        account_id: accountId,
+                        rotation_order: nextOrder,
+                        is_active: true
+                    });
+
+                if (insertError) throw insertError;
+
+                showNotification('Added to rotation schedule successfully', 'success');
+                loadRotationSchedule();
+
+                // Reset form
+                document.getElementById('schedule-member').value = '';
+                document.getElementById('schedule-account').value = '';
+            } catch (error) {
+                console.error('Error adding to rotation schedule:', error);
+                showNotification('Error adding to rotation schedule', 'error');
+            }
+        }
+
+        async function loadRotationSchedule() {
+            try {
+                const { data: schedule, error } = await supabase
+                    .from('manual_reschedule_schedule')
+                    .select(`
+                        *,
+                        vcn_agent!manual_reschedule_schedule_member_id_fkey(name)
+                    `)
+                    .eq('is_active', true)
+                    .order('rotation_order');
+
+                if (error) throw error;
+
+                const scheduleList = document.getElementById('rotation-schedule-list');
+                if (scheduleList) {
+                    if (schedule && schedule.length > 0) {
+                        scheduleList.innerHTML = schedule.map((item, index) => `
+                            <div class="p-2 border border-gray-200 rounded flex justify-between items-center">
+                                <div>
+                                    <span class="font-medium">${item.vcn_agent?.name || 'Unknown'}</span>
+                                    <span class="text-gray-600">- ${item.account_id}</span>
+                                    <span class="text-xs text-gray-500">(Order: ${item.rotation_order})</span>
+                                </div>
+                                <button onclick="removeFromSchedule(${item.id})"
+                                        class="text-red-500 hover:text-red-700 text-sm">
+                                    ✕
+                                </button>
+                            </div>
+                        `).join('');
+                    } else {
+                        scheduleList.innerHTML = `
+                            <div class="p-3 text-center text-gray-500 text-sm">
+                                No rotation schedule configured
+                            </div>
+                        `;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading rotation schedule:', error);
+            }
+        }
+
+        async function removeFromSchedule(scheduleId) {
+            if (!confirm('Are you sure you want to remove this from the rotation schedule?')) {
+                return;
+            }
+
+            try {
+                const { error } = await supabase
+                    .from('manual_reschedule_schedule')
+                    .update({ is_active: false })
+                    .eq('id', scheduleId);
+
+                if (error) throw error;
+
+                showNotification('Removed from rotation schedule', 'success');
+                loadRotationSchedule();
+            } catch (error) {
+                console.error('Error removing from schedule:', error);
+                showNotification('Error removing from schedule', 'error');
+            }
+        }
+
+        // --- Calendar Functions ---
+        let currentWeekStart = new Date();
+
+        function initializeCalendar() {
+            // Set to start of current week (Monday)
+            const today = new Date();
+            const dayOfWeek = today.getDay();
+            const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
+            currentWeekStart = new Date(today);
+            currentWeekStart.setDate(today.getDate() + daysToMonday);
+
+            setupCalendarHandlers();
+            renderCalendar();
+        }
+
+        function setupCalendarHandlers() {
+            const prevWeekBtn = document.getElementById('prev-week-btn');
+            const nextWeekBtn = document.getElementById('next-week-btn');
+
+            if (prevWeekBtn) {
+                prevWeekBtn.addEventListener('click', () => {
+                    currentWeekStart.setDate(currentWeekStart.getDate() - 7);
+                    renderCalendar();
+                });
+            }
+
+            if (nextWeekBtn) {
+                nextWeekBtn.addEventListener('click', () => {
+                    currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+                    renderCalendar();
+                });
+            }
+        }
+
+        async function renderCalendar() {
+            const calendarContainer = document.getElementById('assignment-calendar');
+            const weekTitle = document.getElementById('calendar-week-title');
+
+            if (!calendarContainer || !weekTitle) return;
+
+            // Update week title
+            const weekEnd = new Date(currentWeekStart);
+            weekEnd.setDate(currentWeekStart.getDate() + 4); // Friday
+            weekTitle.textContent = `${formatDate(currentWeekStart)} - ${formatDate(weekEnd)}`;
+
+            // Generate weekdays (Monday to Friday)
+            const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+            const dates = [];
+
+            for (let i = 0; i < 5; i++) {
+                const date = new Date(currentWeekStart);
+                date.setDate(currentWeekStart.getDate() + i);
+                dates.push(date);
+            }
+
+            // Load assignments for this week
+            const startDate = dates[0].toISOString().split('T')[0];
+            const endDate = dates[4].toISOString().split('T')[0];
+
+            try {
+                const { data: assignments, error } = await supabase
+                    .from('manual_reschedule_assignments')
+                    .select(`
+                        *,
+                        vcn_agent!manual_reschedule_assignments_member_id_fkey(name)
+                    `)
+                    .gte('assigned_date', startDate)
+                    .lte('assigned_date', endDate)
+                    .order('assigned_date');
+
+                if (error) throw error;
+
+                // Also get agent account information for better display
+                const { data: agentAccounts, error: agentError } = await supabase
+                    .from('agent')
+                    .select('agent_account, agent_name, team');
+
+                // Create agent account lookup map
+                const agentAccountMap = new Map();
+                if (!agentError && agentAccounts) {
+                    agentAccounts.forEach(agent => {
+                        agentAccountMap.set(agent.agent_account, agent);
+                    });
+                }
+
+                // Create assignment map
+                const assignmentMap = new Map();
+                assignments?.forEach(assignment => {
+                    assignmentMap.set(assignment.assigned_date, assignment);
+                });
+
+                // Render calendar
+                calendarContainer.innerHTML = dates.map((date, index) => {
+                    const dateStr = date.toISOString().split('T')[0];
+                    const assignment = assignmentMap.get(dateStr);
+                    const isToday = dateStr === new Date().toISOString().split('T')[0];
+
+                    // Get agent account info for better display
+                    let accountInfo = null;
+                    if (assignment && assignment.account_id) {
+                        accountInfo = agentAccountMap.get(assignment.account_id);
+                    }
+
+                    return `
+                        <div class="border rounded-lg p-3 ${isToday ? 'bg-blue-50 border-blue-300' : 'bg-white'} min-h-[140px]">
+                            <div class="font-semibold text-sm mb-2 ${isToday ? 'text-blue-800' : 'text-gray-700'}">
+                                ${weekdays[index]}
+                            </div>
+                            <div class="text-xs text-gray-500 mb-2">
+                                ${date.getDate()}/${date.getMonth() + 1}
+                            </div>
+                            ${assignment ? `
+                                <div class="bg-green-100 border border-green-300 rounded p-2 text-xs">
+                                    <div class="font-semibold text-green-800">${assignment.vcn_agent?.name || 'Unknown Member'}</div>
+                                    <div class="text-green-600 font-medium">${assignment.account_id}</div>
+                                    ${accountInfo ? `
+                                        <div class="text-green-600 text-xs">${accountInfo.agent_name}</div>
+                                        ${accountInfo.team ? `<div class="text-green-500 text-xs">Team: ${accountInfo.team}</div>` : ''}
+                                    ` : ''}
+                                    <div class="text-green-500 mt-1">
+                                        <span class="px-1 py-0.5 bg-green-200 rounded text-xs">
+                                            ${assignment.status}
+                                        </span>
+                                    </div>
+                                    ${assignment.assignment_type === 'manual' ? `
+                                        <div class="text-xs text-blue-600 mt-1">
+                                            📝 Manual Assignment
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            ` : `
+                                <div class="text-gray-400 text-xs italic">
+                                    No assignment
+                                </div>
+                            `}
+                        </div>
+                    `;
+                }).join('');
+
+            } catch (error) {
+                console.error('Error loading calendar assignments:', error);
+                calendarContainer.innerHTML = `
+                    <div class="col-span-5 text-center text-red-500 p-4">
+                        Error loading calendar data
+                    </div>
+                `;
+            }
+        }
+
+        function formatDate(date) {
+            return date.toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+            });
+        }
+
+        // --- Global Functions for HTML onclick handlers ---
+        window.removeFromSchedule = removeFromSchedule;
+
+        // Delete assignment function
+        window.deleteAssignment = async function(assignmentId) {
+            if (!confirm('Are you sure you want to delete this assignment?')) {
+                return;
+            }
+
+            try {
+                const { error } = await supabase
+                    .from('manual_reschedule_assignments')
+                    .delete()
+                    .eq('id', assignmentId);
+
+                if (error) throw error;
+
+                showNotification('Assignment deleted successfully', 'success');
+                loadCurrentAssignments(); // This will also refresh the calendar
+            } catch (error) {
+                console.error('Error deleting assignment:', error);
+                showNotification('Error deleting assignment', 'error');
+            }
+        };
+
+        // Initialize auto assignment system when admin view loads
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeAutoAssignmentSystem();
         });

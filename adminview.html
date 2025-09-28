@@ -60,37 +60,122 @@
             </div>
         </header>
 
-        <main class="grid grid-cols-1 lg:grid-cols-4 gap-6">
-            <!-- Left Column: Projects & Categories (Vietnamese UI) -->
-            <div class="lg:col-span-1 bg-[rgb(var(--color-bg-primary))] p-4 rounded-lg shadow-md flex flex-col">
-                <div class="mb-4">
-                    <h2 class="text-xl font-bold mb-2">Dự án</h2>
-                    <div id="project-tabs-container" class="flex flex-wrap gap-2"></div>
-                </div>
-                 <div class="mt-4 pt-4 border-t border-[rgb(var(--color-border))]">
-                    <div class="flex justify-between items-center">
-                        <h3 class="text-sm font-semibold text-[rgb(var(--color-text-muted))]">Current Signer:</h3>
-                        <button id="change-signer-btn" class="text-xs text-[rgb(var(--color-accent-primary))] hover:underline">Change</button>
+        <!-- Admin Navigation -->
+        <nav class="bg-[rgb(var(--color-bg-primary))] rounded-lg shadow-md mb-6">
+            <div class="flex flex-wrap justify-center gap-2 p-4">
+                <button id="nav-account-management" class="nav-btn px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg transition-colors">
+                    👥 Account Management
+                </button>
+                <button id="nav-human-resources" class="nav-btn px-4 py-2 bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors">
+                    🏢 Human Resources
+                </button>
+                <button id="nav-template-management" class="nav-btn px-4 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-lg transition-colors">
+                    📝 Template Management
+                </button>
+                <button id="nav-work-schedule" class="nav-btn px-4 py-2 bg-orange-500 hover:bg-orange-600 text-white rounded-lg transition-colors">
+                    📅 Work Schedule
+                </button>
+                <button id="nav-dashboard-link" class="nav-btn px-4 py-2 bg-gray-500 hover:bg-gray-600 text-white rounded-lg transition-colors">
+                    🏠 Back to Dashboard
+                </button>
+            </div>
+        </nav>
+
+        <main class="bg-[rgb(var(--color-bg-primary))] rounded-lg shadow-md min-h-[80vh]">
+            <!-- Account Management Section -->
+            <div id="section-account-management" class="admin-section hidden p-6">
+                <h2 class="text-2xl font-bold mb-6 text-[rgb(var(--color-text-secondary))]">👥 Account Management</h2>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- User List -->
+                    <div class="bg-[rgb(var(--color-bg-secondary))] p-4 rounded-lg">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-semibold">User Accounts</h3>
+                            <button id="create-user-btn" class="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg">
+                                ➕ Create User
+                            </button>
+                        </div>
+                        <div id="users-list" class="space-y-2 max-h-96 overflow-y-auto">
+                            <!-- Users will be populated here -->
+                        </div>
                     </div>
-                    <p id="current-signer-display" class="font-bold text-lg text-[rgb(var(--color-accent-primary))]">Loading...</p>
+
+                    <!-- User Details/Edit Form -->
+                    <div class="bg-[rgb(var(--color-bg-secondary))] p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-4">User Details</h3>
+                        <div id="user-details-form">
+                            <p class="text-gray-500">Select a user to view/edit details</p>
+                        </div>
+                    </div>
                 </div>
-                <h2 class="text-xl font-bold mb-2 mt-4">Danh mục chính</h2>
-                <div id="issues-list" class="space-y-1 flex-grow h-[60vh] overflow-y-auto pr-2"></div>
             </div>
 
-            <!-- Middle Column: Template List (Vietnamese UI) -->
-            <div class="lg:col-span-1 bg-[rgb(var(--color-bg-primary))] p-4 rounded-lg shadow-md flex flex-col">
-                 <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
-                    <h2 class="text-xl font-bold">Danh sách Mẫu</h2>
-                    <button id="new-template-btn" class="w-full sm:w-auto bg-[rgb(var(--color-accent-primary))] hover:bg-[rgb(var(--color-accent-primary-hover))] text-white font-bold py-2 px-4 rounded-lg transition-colors">Tạo Mẫu Mới</button>
+            <!-- Human Resources Section -->
+            <div id="section-human-resources" class="admin-section hidden p-6">
+                <h2 class="text-2xl font-bold mb-6 text-[rgb(var(--color-text-secondary))]">🏢 Human Resources</h2>
+
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Member Management -->
+                    <div class="bg-[rgb(var(--color-bg-secondary))] p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-4">Member Management</h3>
+                        <div id="members-list" class="space-y-2 max-h-64 overflow-y-auto">
+                            <!-- Members will be populated here -->
+                        </div>
+                    </div>
+
+                    <!-- KPI Dashboard -->
+                    <div class="bg-[rgb(var(--color-bg-secondary))] p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-4">KPI Overview</h3>
+                        <div id="kpi-dashboard">
+                            <!-- KPI data will be populated here -->
+                        </div>
+                    </div>
+
+                    <!-- Performance Metrics -->
+                    <div class="bg-[rgb(var(--color-bg-secondary))] p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-4">Performance Metrics</h3>
+                        <div id="performance-metrics">
+                            <!-- Performance data will be populated here -->
+                        </div>
+                    </div>
                 </div>
-                <input type="text" id="search-input" placeholder="Tìm kiếm tất cả các mẫu..." class="w-full p-2 border border-[rgb(var(--color-border))] rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-[rgb(var(--color-accent-primary))] bg-[rgb(var(--color-bg-primary))]">
-                <div id="template-list" class="space-y-2 flex-grow h-[70vh] overflow-y-auto pr-2"></div>
             </div>
 
-            <!-- Right Column: Workspace -->
-            <div class="lg:col-span-2 bg-[rgb(var(--color-bg-primary))] p-6 rounded-lg shadow-md min-h-[80vh]">
-                <div id="workspace">
+            <!-- Template Management Section -->
+            <div id="section-template-management" class="admin-section p-6">
+                <h2 class="text-2xl font-bold mb-6 text-[rgb(var(--color-text-secondary))]">📝 Template Management</h2>
+
+                <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    <!-- Projects & Categories -->
+                    <div class="bg-[rgb(var(--color-bg-secondary))] p-4 rounded-lg flex flex-col">
+                        <div class="mb-4">
+                            <h3 class="text-lg font-semibold mb-2">Projects</h3>
+                            <div id="project-tabs-container" class="flex flex-wrap gap-2"></div>
+                        </div>
+                        <div class="mt-4 pt-4 border-t border-[rgb(var(--color-border))]">
+                            <div class="flex justify-between items-center">
+                                <h4 class="text-sm font-semibold text-[rgb(var(--color-text-muted))]">Current Signer:</h4>
+                                <button id="change-signer-btn" class="text-xs text-[rgb(var(--color-accent-primary))] hover:underline">Change</button>
+                            </div>
+                            <p id="current-signer-display" class="font-bold text-lg text-[rgb(var(--color-accent-primary))]">Loading...</p>
+                        </div>
+                        <h3 class="text-lg font-semibold mb-2 mt-4">Categories</h3>
+                        <div id="issues-list" class="space-y-1 flex-grow h-[40vh] overflow-y-auto pr-2"></div>
+                    </div>
+
+                    <!-- Template List -->
+                    <div class="bg-[rgb(var(--color-bg-secondary))] p-4 rounded-lg flex flex-col">
+                        <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-2">
+                            <h3 class="text-lg font-semibold">Templates</h3>
+                            <button id="new-template-btn" class="w-full sm:w-auto bg-[rgb(var(--color-accent-primary))] hover:bg-[rgb(var(--color-accent-primary-hover))] text-white font-bold py-2 px-4 rounded-lg transition-colors">Create New</button>
+                        </div>
+                        <input type="text" id="search-input" placeholder="Search templates..." class="w-full p-2 border border-[rgb(var(--color-border))] rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-[rgb(var(--color-accent-primary))] bg-[rgb(var(--color-bg-primary))]">
+                        <div id="template-list" class="space-y-2 flex-grow h-[50vh] overflow-y-auto pr-2"></div>
+                    </div>
+
+                    <!-- Template Workspace -->
+                    <div class="lg:col-span-2 bg-[rgb(var(--color-bg-secondary))] p-6 rounded-lg min-h-[60vh]">
+                        <div id="workspace">
                     <div id="welcome-screen" class="flex flex-col items-center justify-center h-full text-center">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-[rgb(var(--color-text-muted))] mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
                         <h3 class="text-2xl font-semibold text-[rgb(var(--color-text-secondary))]">Welcome!</h3>
@@ -255,6 +340,226 @@
                          <div id="copy-feedback" class="mt-2 text-green-600 font-medium opacity-0 transition-opacity duration-300">Đã sao chép vào clipboard!</div>
                     </div>
                 </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Work Schedule Section -->
+            <div id="section-work-schedule" class="admin-section hidden p-6">
+                <h2 class="text-2xl font-bold mb-6 text-[rgb(var(--color-text-secondary))]">📅 Work Schedule Management</h2>
+
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Manual Reschedule POs Assignment -->
+                    <div class="bg-[rgb(var(--color-bg-secondary))] p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-4">Manual Reschedule POs Assignment</h3>
+
+                        <div class="space-y-4">
+                            <!-- Assignment Type -->
+                            <div>
+                                <label class="block text-sm font-medium mb-2">Assignment Type</label>
+                                <div class="flex gap-4">
+                                    <label class="flex items-center">
+                                        <input type="radio" name="assignment-type" value="manual" class="mr-2" checked>
+                                        Manual Assignment
+                                    </label>
+                                    <label class="flex items-center">
+                                        <input type="radio" name="assignment-type" value="auto" class="mr-2">
+                                        Auto Assignment
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Manual Assignment -->
+                            <div id="manual-assignment" class="space-y-3">
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                    <div>
+                                        <label for="select-member" class="block text-sm font-medium mb-1">Select Member</label>
+                                        <select id="select-member" class="w-full p-2 border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-bg-primary))]">
+                                            <option value="">Choose a member...</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label for="select-account" class="block text-sm font-medium mb-1">Select Account</label>
+                                        <select id="select-account" class="w-full p-2 border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-bg-primary))]">
+                                            <option value="">Choose an account...</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <!-- Date Selection -->
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Assignment Dates</label>
+                                    <div class="space-y-2">
+                                        <label class="flex items-center">
+                                            <input type="radio" name="date-option" value="single" class="mr-2" checked>
+                                            Single Day Assignment
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="radio" name="date-option" value="week" class="mr-2">
+                                            Full Week Assignment (5 days)
+                                        </label>
+                                        <label class="flex items-center">
+                                            <input type="radio" name="date-option" value="custom" class="mr-2">
+                                            Custom Date Range
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <!-- Date Inputs -->
+                                <div id="single-date-input" class="space-y-2">
+                                    <label for="assignment-date" class="block text-sm font-medium">Assignment Date</label>
+                                    <input type="date" id="assignment-date" class="w-full p-2 border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-bg-primary))]">
+                                </div>
+
+                                <div id="custom-date-inputs" class="space-y-2 hidden">
+                                    <div class="grid grid-cols-2 gap-2">
+                                        <div>
+                                            <label for="start-date" class="block text-sm font-medium">Start Date</label>
+                                            <input type="date" id="start-date" class="w-full p-2 border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-bg-primary))]">
+                                        </div>
+                                        <div>
+                                            <label for="end-date" class="block text-sm font-medium">End Date</label>
+                                            <input type="date" id="end-date" class="w-full p-2 border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-bg-primary))]">
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Assignment Preview -->
+                                <div id="manual-assignment-preview" class="hidden bg-blue-50 border border-blue-200 rounded p-3">
+                                    <h5 class="font-medium text-sm mb-2">Assignment Preview</h5>
+                                    <div id="manual-preview-content" class="text-sm text-gray-700"></div>
+                                </div>
+
+                                <div class="flex gap-2">
+                                    <button id="preview-manual-btn" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded-lg">
+                                        Preview Assignment
+                                    </button>
+                                    <button id="assign-manual-btn" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg">
+                                        Confirm Assignment
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Auto Assignment Settings -->
+                            <div id="auto-assignment" class="space-y-3 hidden">
+                                <div>
+                                    <label class="block text-sm font-medium mb-2">Auto Assignment Schedule</label>
+                                    <p class="text-sm text-gray-600 mb-2">Daily at 8:28 AM (Monday to Friday)</p>
+                                    <label class="flex items-center mb-3">
+                                        <input type="checkbox" id="enable-auto-assignment" class="mr-2">
+                                        Enable Auto Assignment
+                                    </label>
+
+                                    <!-- Assignment Type Selection -->
+                                    <div class="space-y-2 mb-3">
+                                        <label class="block text-sm font-medium">Assignment Type</label>
+                                        <div class="space-y-1">
+                                            <label class="flex items-center">
+                                                <input type="radio" name="auto-assignment-type" value="daily" class="mr-2" checked>
+                                                Daily Assignment (1 day at a time)
+                                            </label>
+                                            <label class="flex items-center">
+                                                <input type="radio" name="auto-assignment-type" value="weekly" class="mr-2">
+                                                Weekly Assignment (5 days at once)
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <!-- Auto Assignment Preview -->
+                                    <div class="border border-gray-300 rounded-lg p-3 bg-gray-50">
+                                        <h4 class="font-medium text-sm mb-2">Smart Auto Assignment</h4>
+                                        <p class="text-xs text-gray-600 mb-2">Automatically pairs agents with accounts in sequence. Agents and accounts cycle independently.</p>
+                                        <button id="preview-auto-assignment" class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm mb-2">
+                                            Show Preview
+                                        </button>
+                                        <div id="auto-assignment-preview" class="hidden">
+                                            <div id="preview-content" class="text-sm text-gray-700 mb-2"></div>
+                                            <div class="flex gap-2">
+                                                <button id="confirm-auto-assignment" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm">
+                                                    Confirm & Assign
+                                                </button>
+                                                <button id="cancel-auto-assignment" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded text-sm">
+                                                    Cancel
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Current Assignments & Schedule -->
+                    <div class="bg-[rgb(var(--color-bg-secondary))] p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-4">Current Assignments</h3>
+
+                        <div id="current-assignments" class="space-y-3">
+                            <!-- Assignments will be populated here -->
+                        </div>
+
+                        <div class="mt-6">
+                            <h4 class="text-md font-semibold mb-3">Assignment History</h4>
+                            <div id="assignment-history" class="max-h-64 overflow-y-auto space-y-2">
+                                <!-- History will be populated here -->
+                            </div>
+                        </div>
+
+                        <div class="mt-6">
+                            <h4 class="text-md font-semibold mb-3">Assignment Calendar</h4>
+                            <div class="bg-white p-4 rounded-lg border">
+                                <div class="flex justify-between items-center mb-4">
+                                    <button id="prev-week-btn" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded">
+                                        ← Previous Week
+                                    </button>
+                                    <h5 id="calendar-week-title" class="font-semibold text-lg"></h5>
+                                    <button id="next-week-btn" class="bg-gray-500 hover:bg-gray-600 text-white px-3 py-1 rounded">
+                                        Next Week →
+                                    </button>
+                                </div>
+                                <div id="assignment-calendar" class="grid grid-cols-5 gap-2">
+                                    <!-- Calendar will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mt-6">
+                            <h4 class="text-md font-semibold mb-3">Rotation Schedule Setup</h4>
+                            <div class="space-y-3">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <select id="schedule-member" class="p-2 border rounded-lg">
+                                        <option value="">Select Member...</option>
+                                    </select>
+                                    <select id="schedule-account" class="p-2 border rounded-lg">
+                                        <option value="">Select Account...</option>
+                                    </select>
+                                </div>
+                                <button id="add-to-schedule-btn" class="w-full bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg">
+                                    Add to Rotation Schedule
+                                </button>
+                                <div id="rotation-schedule-list" class="space-y-2 max-h-32 overflow-y-auto">
+                                    <!-- Rotation schedule will be loaded here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Member & Account Lists -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                    <div class="bg-[rgb(var(--color-bg-secondary))] p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-4">Registered Members</h3>
+                        <div id="registered-members-list" class="space-y-2 max-h-48 overflow-y-auto">
+                            <!-- Members list will be populated here -->
+                        </div>
+                    </div>
+
+                    <div class="bg-[rgb(var(--color-bg-secondary))] p-4 rounded-lg">
+                        <h3 class="text-lg font-semibold mb-4">Available Accounts</h3>
+                        <div id="available-accounts-list" class="space-y-2 max-h-48 overflow-y-auto">
+                            <!-- Accounts list will be populated here -->
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
@@ -287,6 +592,15 @@
                     <div class="space-y-4">
                         <div>
                             <label for="footer-text-input" class="font-semibold block mb-1">Nội dung Chân trang</label>
+                            <div class="mb-2">
+                                <div class="flex gap-2 mb-2">
+                                    <button type="button" id="footer-bold-btn" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm font-bold" title="Bold">B</button>
+                                    <button type="button" id="footer-italic-btn" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm italic" title="Italic">I</button>
+                                    <button type="button" id="footer-underline-btn" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm underline" title="Underline">U</button>
+                                    <button type="button" id="footer-linebreak-btn" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm" title="Line Break">↵</button>
+                                </div>
+                                <p class="text-xs text-[rgb(var(--color-text-muted))] mb-1">Use formatting buttons or HTML tags: &lt;b&gt;bold&lt;/b&gt;, &lt;i&gt;italic&lt;/i&gt;, &lt;u&gt;underline&lt;/u&gt;, &lt;br&gt; for line breaks</p>
+                            </div>
                             <textarea id="footer-text-input" rows="4" class="w-full p-2 border border-[rgb(var(--color-border))] rounded-md bg-[rgb(var(--color-bg-primary))]"></textarea>
                         </div>
                         <div>
