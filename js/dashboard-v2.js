@@ -637,9 +637,9 @@
                     const detailsElement = document.getElementById(`mos-details-${mosRequest.ticket_id}`);
                     if (detailsElement) {
                         if (mosRequest.description) {
-                            detailsElement.innerHTML = `<span class="text-sm">${mosRequest.description}</span>`;
+                            detailsElement.innerHTML = `<span class="text-sm font-medium text-headings">${mosRequest.description}</span>`;
                         } else {
-                            detailsElement.innerHTML = `<span class="text-gray-400 italic">No details provided</span>`;
+                            detailsElement.innerHTML = `<span class="text-secondary italic">No details provided</span>`;
                         }
                     }
                 });
@@ -791,8 +791,8 @@
             // This will be fetched from mos_requests table
             return `
                 <div class="max-w-xs">
-                    <div id="mos-details-${item.id}" class="text-sm text-gray-700" data-ticket-id="${item.id}">
-                        <span class="text-gray-400 italic">Loading...</span>
+                    <div id="mos-details-${item.id}" class="text-sm font-medium text-headings bg-section px-3 py-2 rounded-lg border border-main" data-ticket-id="${item.id}">
+                        <span class="text-secondary italic">Loading...</span>
                     </div>
                 </div>
             `;
