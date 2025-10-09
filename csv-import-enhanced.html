@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Enhanced CSV Import with AI Processing</title>
+    <title>Nhập dữ liệu CSV</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -21,6 +21,19 @@
         @keyframes spin {
             0% { transform: rotate(0deg); }
             100% { transform: rotate(360deg); }
+        }
+        @keyframes slide-in {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        .animate-slide-in {
+            animation: slide-in 0.3s ease-out;
         }
         #theme-switcher .theme-btn.active {
             background-color: var(--bg-button-active);
@@ -53,36 +66,36 @@
         <div class="mb-8">
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-3xl font-bold text-headings">Enhanced CSV Import</h1>
-                    <p class="text-secondary mt-2">Import and process ticket data with AI-powered analysis</p>
+                    <h1 class="text-3xl font-bold text-headings">Nhập dữ liệu CSV</h1>
+                    <p class="text-secondary mt-2">Nhập và xử lý dữ liệu ticket từ file CSV</p>
                 </div>
                 <div class="flex items-center gap-4">
                     <!-- Theme Switcher - Collapsible Button -->
                     <div class="relative">
                         <button id="theme-toggle-btn" class="flex items-center gap-2 bg-section p-2 rounded-lg border border-secondary hover:bg-button transition-colors">
                             <span class="text-sm font-medium">🎨</span>
-                            <span id="current-theme-name" class="text-sm font-medium hidden sm:inline">Dark</span>
+                            <span id="current-theme-name" class="text-sm font-medium hidden sm:inline">Tối</span>
                             <svg class="w-4 h-4 transition-transform duration-200" id="theme-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                             </svg>
                         </button>
                         <div id="theme-dropdown" class="absolute top-full right-0 mt-2 bg-section border border-secondary rounded-lg shadow-lg p-2 hidden z-50 min-w-[200px]">
                             <div class="grid grid-cols-1 gap-1">
-                                <button data-theme="dark" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌙 Dark</button>
-                                <button data-theme="daylight" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">☀️ Daylight</button>
-                                <button data-theme="sunset" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌅 Sunset</button>
-                                <button data-theme="twilight" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌆 Twilight</button>
-                                <button data-theme="blossom-dawn" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌸 Blossom Dawn</button>
-                                <button data-theme="blue-sky" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌤️ Blue Sky</button>
-                                <button data-theme="fresh-mint" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌿 Fresh Mint</button>
+                                <button data-theme="dark" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌙 Tối</button>
+                                <button data-theme="daylight" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">☀️ Ban ngày</button>
+                                <button data-theme="sunset" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌅 Hoàng hôn</button>
+                                <button data-theme="twilight" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌆 Chạng vạng</button>
+                                <button data-theme="blossom-dawn" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌸 Bình minh</button>
+                                <button data-theme="blue-sky" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌤️ Trời xanh</button>
+                                <button data-theme="fresh-mint" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌿 Bạc hà</button>
                             </div>
                         </div>
                     </div>
                     <button onclick="window.location.href='adminview.html'" class="px-4 py-2 bg-button hover:brightness-110 text-main font-semibold rounded-lg">
-                        ← Back to Admin
+                        ← Quay lại Admin
                     </button>
                     <button onclick="logout()" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg">
-                        Logout
+                        Đăng xuất
                     </button>
                 </div>
             </div>
@@ -93,66 +106,46 @@
             <!-- Left Panel: Upload & Configuration -->
             <div class="lg:col-span-1">
                 <div class="bg-section rounded-lg shadow p-6 border border-main">
-                    <h2 class="text-xl font-semibold mb-4 text-headings">1. Upload CSV File</h2>
-                    
+                    <h2 class="text-xl font-semibold mb-4 text-headings">1. Tải lên file CSV</h2>
+
                     <!-- File Upload -->
                     <div class="mb-6">
                         <label class="block text-sm font-medium text-secondary mb-2">
-                            Select CSV File
+                            Chọn file CSV
                         </label>
                         <input type="file" id="csv-file-input" accept=".csv"
                                class="block w-full text-sm text-main file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-button file:text-main hover:file:brightness-110">
                     </div>
 
-                    <!-- Processing Options -->
-                    <div class="mb-6">
-                        <label class="block text-sm font-medium text-secondary mb-3">Processing Options</label>
-                        <div class="space-y-3">
-                            <label class="flex items-center">
-                                <input type="radio" name="processing-mode" value="ai" id="ai-processing" checked
-                                       class="h-4 w-4 text-blue-600 border-secondary rounded focus:ring-blue-500">
-                                <span class="ml-2 text-sm text-main">🤖 AI Processing (Recommended)</span>
-                            </label>
-                            <p class="ml-6 text-xs text-secondary">Uses AI to translate descriptions and enhance data quality</p>
-
-                            <label class="flex items-center">
-                                <input type="radio" name="processing-mode" value="basic" id="basic-processing"
-                                       class="h-4 w-4 text-blue-600 border-secondary rounded focus:ring-blue-500">
-                                <span class="ml-2 text-sm text-main">⚡ Basic Processing (Fast)</span>
-                            </label>
-                            <p class="ml-6 text-xs text-secondary">Direct import without AI processing. English descriptions are preserved.</p>
-                        </div>
-                    </div>
-
                     <!-- Process Button -->
                     <button id="process-btn" disabled
                             class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:text-gray-200 disabled:hover:bg-gray-400 text-white font-semibold rounded-lg transition-colors">
-                        <span id="process-text">Process CSV</span>
+                        <span id="process-text">Xử lý CSV</span>
                         <div id="process-spinner" class="loading-spinner ml-2 hidden inline-block"></div>
                     </button>
                 </div>
 
                 <!-- Progress Panel -->
                 <div id="progress-panel" class="bg-section rounded-lg shadow p-6 mt-6 hidden border border-main">
-                    <h3 class="text-lg font-semibold mb-4 text-headings">Processing Progress</h3>
+                    <h3 class="text-lg font-semibold mb-4 text-headings">Tiến trình xử lý</h3>
                     <div class="space-y-3">
                         <div class="flex items-center">
                             <div id="step1-icon" class="w-6 h-6 rounded-full bg-gray-500 flex items-center justify-center mr-3">
                                 <span class="text-xs text-white">1</span>
                             </div>
-                            <span id="step1-text" class="text-secondary">Parse CSV file</span>
+                            <span id="step1-text" class="text-secondary">Đọc file CSV</span>
                         </div>
                         <div class="flex items-center">
                             <div id="step2-icon" class="w-6 h-6 rounded-full bg-gray-500 flex items-center justify-center mr-3">
                                 <span class="text-xs text-white">2</span>
                             </div>
-                            <span id="step2-text" class="text-secondary">Process data</span>
+                            <span id="step2-text" class="text-secondary">Xử lý dữ liệu</span>
                         </div>
                         <div class="flex items-center">
                             <div id="step3-icon" class="w-6 h-6 rounded-full bg-gray-500 flex items-center justify-center mr-3">
                                 <span class="text-xs text-white">3</span>
                             </div>
-                            <span id="step3-text" class="text-secondary">Prepare for import</span>
+                            <span id="step3-text" class="text-secondary">Chuẩn bị nhập dữ liệu</span>
                         </div>
                     </div>
                 </div>
@@ -161,14 +154,41 @@
             <!-- Right Panel: Results & Preview -->
             <div class="lg:col-span-2">
                 <div class="bg-section rounded-lg shadow p-6 border border-main">
-                    <h2 class="text-xl font-semibold mb-4 text-headings">Processing Results</h2>
-                    
-                    <!-- Status Messages -->
-                    <div id="status-messages" class="mb-6 space-y-2"></div>
-                    
+                    <h2 class="text-xl font-semibold mb-4 text-headings">Kết quả xử lý</h2>
+
+                    <!-- Status Messages - Hidden, using toast notifications instead -->
+                    <div id="status-messages" class="hidden"></div>
+
+                    <!-- Toast Notification Container -->
+                    <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2 max-w-sm"></div>
+
                     <!-- Data Preview -->
                     <div id="data-preview" class="hidden">
-                        <h3 class="text-lg font-medium mb-3 text-headings">Processed Data Preview</h3>
+                        <!-- Import Actions - Moved to Top -->
+                        <div class="mb-6 p-4 bg-blue-50 dark:bg-blue-900 rounded-lg border-2 border-blue-300">
+                            <div class="mb-4">
+                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Chiến lược nhập dữ liệu:</label>
+                                <select id="import-strategy" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800">
+                                    <option value="replace-all">🔄 Thay thế toàn bộ - Xóa toàn bộ bảng và nhập dữ liệu mới</option>
+                                    <option value="smart-update" selected>🧠 Cập nhật thông minh - Cập nhật có sẵn, thêm mới (bỏ qua trường hợp đặc biệt)</option>
+                                    <option value="replace-non-special">⚡ Thay thế không đặc biệt - Xóa các hàng không đặc biệt, thay thế bằng dữ liệu CSV</option>
+                                    <option value="new-only">➕ Chỉ mới - Chỉ nhập ticket mới (bỏ qua ticket đã có)</option>
+                                </select>
+                                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                                    <strong>Trường hợp đặc biệt (không bao giờ cập nhật/xóa):</strong> needMos ≠ null, ticket_status_id ≠ null, need_leader_support = true
+                                </p>
+                            </div>
+                            <div class="flex gap-4">
+                                <button id="import-btn" class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-lg" disabled>
+                                    📥 Nhập vào Database
+                                </button>
+                                <button id="download-btn" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg">
+                                    💾 Tải xuống CSV đã xử lý
+                                </button>
+                            </div>
+                        </div>
+
+                        <h3 class="text-lg font-medium mb-3 text-headings">Xem trước dữ liệu đã xử lý</h3>
                         <div class="overflow-x-auto border border-main rounded-lg">
                             <table id="preview-table" class="min-w-full divide-y divide-main">
                                 <thead class="bg-header-footer">
@@ -177,39 +197,38 @@
                                 <tbody id="preview-body" class="bg-section divide-y divide-main"></tbody>
                             </table>
                         </div>
-                        
+
                         <!-- Duplicate Detection -->
                         <div id="duplicate-section" class="mt-6 hidden">
-                            <h4 class="text-lg font-medium mb-3 text-yellow-400">⚠️ Duplicate Detection</h4>
+                            <h4 class="text-lg font-medium mb-3 text-yellow-400">⚠️ Phát hiện trùng lặp</h4>
                             <div id="duplicate-list" class="space-y-2 mb-4"></div>
-                            <div class="flex gap-2 mb-4">
+                            <div class="flex flex-wrap gap-2 mb-4">
                                 <button id="check-duplicates-btn" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-semibold rounded-lg">
-                                    Check for Duplicates
+                                    🔍 Kiểm tra trùng lặp
+                                </button>
+                                <button id="select-all-duplicates-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg" disabled>
+                                    ☑️ Chọn tất cả
+                                </button>
+                                <button id="deselect-all-duplicates-btn" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg" disabled>
+                                    ☐ Bỏ chọn tất cả
+                                </button>
+                                <button id="replace-duplicates-btn" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg" disabled>
+                                    🔄 Thay thế dữ liệu đã chọn
                                 </button>
                                 <button id="remove-selected-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg" disabled>
-                                    Remove Selected Duplicates
+                                    🗑️ Xóa khỏi danh sách nhập
                                 </button>
                             </div>
                         </div>
-
-                        <!-- Import Actions -->
-                        <div class="mt-6 flex gap-4">
-                            <button id="import-btn" class="px-6 py-2 bg-green-600 hover:bg-green-700 text-white font-semibold rounded-lg" disabled>
-                                Import to Database
-                            </button>
-                            <button id="download-btn" class="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg">
-                                Download Processed CSV
-                            </button>
-                        </div>
                     </div>
-                    
+
                     <!-- Initial State -->
                     <div id="initial-state" class="text-center py-12">
                         <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
                         </svg>
-                        <h3 class="mt-2 text-sm font-medium text-headings">No file selected</h3>
-                        <p class="mt-1 text-sm text-secondary">Upload a CSV file to begin processing</p>
+                        <h3 class="mt-2 text-sm font-medium text-headings">Chưa chọn file</h3>
+                        <p class="mt-1 text-sm text-secondary">Tải lên file CSV để bắt đầu xử lý</p>
                     </div>
                 </div>
             </div>
@@ -221,9 +240,7 @@
         // Supabase configuration
         const SUPABASE_URL = 'https://pfbxtbydrjcmqlrklsdr.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmYnh0YnlkcmpjbXFscmtsc2RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY5ODM2NDksImV4cCI6MjA3MjU1OTY0OX0.bOgnown0UZzstbnYfUSEImwaSGP6lg2FccRg-yDFTPU';
-        
-        const GEMINI_API_KEY = "AIzaSyBbDfe6uVjYbXrrM3AQAgBC0JsRoArfTA0";
-        
+
         let supabaseClient;
         let processedData = [];
         
@@ -275,6 +292,9 @@
         const duplicateList = document.getElementById('duplicate-list');
         const checkDuplicatesBtn = document.getElementById('check-duplicates-btn');
         const removeSelectedBtn = document.getElementById('remove-selected-btn');
+        const selectAllDuplicatesBtn = document.getElementById('select-all-duplicates-btn');
+        const deselectAllDuplicatesBtn = document.getElementById('deselect-all-duplicates-btn');
+        const replaceDuplicatesBtn = document.getElementById('replace-duplicates-btn');
 
         // Event listeners
         if (csvFileInput) csvFileInput.addEventListener('change', handleFileSelect);
@@ -283,6 +303,9 @@
         if (downloadBtn) downloadBtn.addEventListener('click', downloadProcessedCSV);
         if (checkDuplicatesBtn) checkDuplicatesBtn.addEventListener('click', checkForDuplicates);
         if (removeSelectedBtn) removeSelectedBtn.addEventListener('click', removeSelectedDuplicates);
+        if (selectAllDuplicatesBtn) selectAllDuplicatesBtn.addEventListener('click', selectAllDuplicates);
+        if (deselectAllDuplicatesBtn) deselectAllDuplicatesBtn.addEventListener('click', deselectAllDuplicates);
+        if (replaceDuplicatesBtn) replaceDuplicatesBtn.addEventListener('click', replaceDuplicatesWithNewData);
 
         // Test database connection on page load
         window.addEventListener('load', async () => {
@@ -309,27 +332,55 @@
             window.location.href = 'index.html';
         }
 
-        // Status message functions
+        // Toast notification functions
         function showStatus(message, type = 'info') {
-            if (!statusMessages) return;
-            const statusDiv = document.createElement('div');
-            statusDiv.className = `p-3 rounded-lg text-sm ${getStatusClasses(type)}`;
-            statusDiv.textContent = message;
-            statusMessages.appendChild(statusDiv);
-            statusMessages.scrollTop = statusMessages.scrollHeight;
+            const toastContainer = document.getElementById('toast-container');
+            if (!toastContainer) return;
+
+            const toast = document.createElement('div');
+            toast.className = `p-4 rounded-lg shadow-lg text-sm transform transition-all duration-300 ${getToastClasses(type)} animate-slide-in`;
+
+            const icon = getToastIcon(type);
+            toast.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <span class="text-xl">${icon}</span>
+                    <span class="flex-1">${message}</span>
+                    <button onclick="this.parentElement.parentElement.remove()" class="text-gray-500 hover:text-gray-700 font-bold">✕</button>
+                </div>
+            `;
+
+            toastContainer.appendChild(toast);
+
+            // Auto-dismiss after 5 seconds (except for errors which stay for 8 seconds)
+            const dismissTime = type === 'error' ? 8000 : 5000;
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            }, dismissTime);
         }
 
-        function getStatusClasses(type) {
+        function getToastClasses(type) {
             switch (type) {
-                case 'success': return 'bg-green-100 text-green-800 border border-green-200';
-                case 'error': return 'bg-red-100 text-red-800 border border-red-200';
-                case 'warning': return 'bg-yellow-100 text-yellow-800 border border-yellow-200';
-                default: return 'bg-blue-100 text-blue-800 border border-blue-200';
+                case 'success': return 'bg-green-500 text-white';
+                case 'error': return 'bg-red-500 text-white';
+                case 'warning': return 'bg-yellow-500 text-white';
+                default: return 'bg-blue-500 text-white';
+            }
+        }
+
+        function getToastIcon(type) {
+            switch (type) {
+                case 'success': return '✅';
+                case 'error': return '❌';
+                case 'warning': return '⚠️';
+                default: return 'ℹ️';
             }
         }
 
         function clearStatus() {
-            if (statusMessages) statusMessages.innerHTML = '';
+            const toastContainer = document.getElementById('toast-container');
+            if (toastContainer) toastContainer.innerHTML = '';
         }
 
         // Main processing function
@@ -342,50 +393,39 @@
             setProcessing(true);
             clearStatus();
             showProgressPanel();
-            
+
             try {
                 // Step 1: Parse CSV
-                updateStep(1, 'processing', 'Parsing CSV file...');
+                updateStep(1, 'processing', 'Đang đọc file CSV...');
                 const csvData = await parseCSVFile(csvFileInput.files[0]);
                 if (csvData.length === 0) {
-                    throw new Error("CSV file is empty or could not be parsed. Please check the file format.");
+                    throw new Error("File CSV trống hoặc không thể đọc được. Vui lòng kiểm tra định dạng file.");
                 }
-                updateStep(1, 'complete', 'CSV parsed successfully');
-                showStatus(`Parsed ${csvData.length} rows from CSV`, 'success');
-                
-                // Step 2: Process data (AI or Basic)
-                const processingMode = document.querySelector('input[name="processing-mode"]:checked').value;
-                let processedRows;
+                updateStep(1, 'complete', 'Đọc CSV thành công');
+                showStatus(`Đã đọc ${csvData.length} dòng từ CSV`, 'success');
 
-                if (processingMode === 'ai') {
-                    updateStep(2, 'processing', 'Processing with AI...');
-                    processedRows = await processWithAI(csvData, GEMINI_API_KEY);
-                    updateStep(2, 'complete', 'AI processing complete');
-                    showStatus(`Processed ${processedRows.length} rows with AI`, 'success');
-                } else {
-                    updateStep(2, 'processing', 'Basic processing...');
-                    processedRows = await processBasic(csvData);
-                    updateStep(2, 'complete', 'Basic processing complete');
-                    showStatus(`Processed ${processedRows.length} rows with basic processing`, 'success');
-                }
-                
+                // Step 2: Process data (Basic only - AI removed)
+                updateStep(2, 'processing', 'Đang xử lý dữ liệu...');
+                const processedRows = await processBasic(csvData);
+                updateStep(2, 'complete', 'Xử lý dữ liệu hoàn tất');
+                showStatus(`Đã xử lý ${processedRows.length} dòng`, 'success');
+
                 // Step 3: Prepare for import
-                updateStep(3, 'processing', 'Preparing data...');
+                updateStep(3, 'processing', 'Đang chuẩn bị dữ liệu...');
                 processedData = await prepareForImport(processedRows);
-                updateStep(3, 'complete', 'Data preparation complete');
-                showStatus(`Prepared ${processedData.length} rows for import`, 'success');
-                
+                updateStep(3, 'complete', 'Chuẩn bị dữ liệu hoàn tất');
+                showStatus(`Đã chuẩn bị ${processedData.length} dòng để nhập`, 'success');
+
                 // Show preview and enable duplicate checking
                 showDataPreview(processedData);
                 if (duplicateSection) duplicateSection.classList.remove('hidden');
-                if (importBtn) importBtn.disabled = false; // Enable import button, duplicate check will handle disabling if needed.
+                if (importBtn) importBtn.disabled = false;
                 if (checkDuplicatesBtn) checkDuplicatesBtn.disabled = false;
-
 
             } catch (error) {
                 console.error('Processing error:', error);
-                showStatus(`Error: ${error.message}`, 'error');
-                updateStep(getCurrentStep(), 'error', 'Processing failed');
+                showStatus(`Lỗi: ${error.message}`, 'error');
+                updateStep(getCurrentStep(), 'error', 'Xử lý thất bại');
             } finally {
                 setProcessing(false);
             }
@@ -496,76 +536,7 @@
             return;
         }
 
-        // AI processing function
-        async function processWithAI(csvData, apiKey) {
-            const processedRows = [];
-            const batchSize = 3; // Reduced batch size to avoid quota issues
-            let quotaExceeded = false;
-
-            for (let i = 0; i < csvData.length; i += batchSize) {
-                const batch = csvData.slice(i, i + batchSize);
-                showStatus(`Processing batch ${Math.floor(i/batchSize) + 1} of ${Math.ceil(csvData.length/batchSize)}`, 'info');
-
-                try {
-                    const batchPromises = batch.map(row => processRowWithAI(row, apiKey));
-                    const batchResults = await Promise.all(batchPromises);
-                    processedRows.push(...batchResults.filter(r => r)); // Filter out null results from errors
-
-                    // Check if any result indicates quota exceeded
-                    const hasQuotaError = batchResults.some(result =>
-                        result && result.error && result.error.includes('QUOTA_EXCEEDED')
-                    );
-
-                    if (hasQuotaError) {
-                        quotaExceeded = true;
-                        showStatus('⚠️ Gemini API quota exceeded. Continuing with fallback processing for remaining rows.', 'warning');
-                        break;
-                    }
-                } catch (error) {
-                    if (error.message.includes('QUOTA_EXCEEDED')) {
-                        quotaExceeded = true;
-                        showStatus('⚠️ Gemini API quota exceeded. Continuing with fallback processing for remaining rows.', 'warning');
-                        break;
-                    }
-                    console.error('Batch processing error:', error);
-                }
-
-                // Small delay between batches
-                if (i + batchSize < csvData.length) {
-                    await new Promise(resolve => setTimeout(resolve, 2000)); // Increased delay
-                }
-            }
-
-            // If quota exceeded, process remaining rows without AI
-            if (quotaExceeded && processedRows.length < csvData.length) {
-                const remainingRows = csvData.slice(processedRows.length);
-                showStatus(`Processing remaining ${remainingRows.length} rows without AI...`, 'info');
-
-                for (const row of remainingRows) {
-                    const fallbackRow = {
-                        ...row,
-                        description_eng: row['Description'] || '',
-                        description_vie: row['Description'] || '',
-                        supplier_agent_need: false,
-                        supplier_agent: '',
-                        ticket: row['Issue key'] || '',
-                        po: row['Custom field (PO Number(s))'] || '',
-                        suid: extractSUID(row['Custom field (Supplier)'] || ''),
-                        su_name: extractSupplierName(row['Custom field (Supplier)'] || ''),
-                        order_number: row['Custom field (Order ID(s))'] || '',
-                        po_nocs: extractPODigits(row['Custom field (PO Number(s))'] || ''),
-                        customer: extractCustomerName(row['Custom field (Customer Name)'] || ''),
-                        customer_contact: row['Custom field (Customer Contact(s))'] || '',
-                        issue_id: row['Issue id'] || '',
-                        agent_account: row['Assignee'] || '',
-                        issue_type: row['Customer Request Type'] || ''
-                    };
-                    processedRows.push(fallbackRow);
-                }
-            }
-
-            return processedRows;
-        }
+        // AI processing function removed - no longer needed
 
         // Basic processing function (without AI)
         async function processBasic(csvData) {
@@ -601,117 +572,7 @@
             return processedRows;
         }
 
-        async function processRowWithAI(row, apiKey) {
-            try {
-                const description = row['Description'] || '';
-                if (!description) {
-                    showStatus(`Skipping row with empty description: ${row['Issue key']}`, 'warning');
-                    return { ...row, description_eng: '', description_vie: '', supplier_agent_need: false, supplier_agent: '' };
-                }
-
-                const prompt = `Analyze this support ticket description and provide the following information in JSON format:
-
-Description: "${description}"
-
-Please provide:
-1. description_eng: English translation of the description.
-2. description_vie: Vietnamese translation of the description.
-3. supplier_agent_need: boolean (true/false). This is the most important instruction. Set to true ONLY if the description contains a clear closing signature from a supplier agent. A signature is a name that appears after a closing phrase like "Regards,", "Best regards,", "Thanks,", "Thank you,". A name appearing on its own line at the very end of the message can also be a signature. Crucially, if you see "Regards" or a similar closing but there is NO NAME following it, you MUST set this to false. Do not set to true for customer names or names mentioned in the main body of the ticket.
-4. supplier_agent: string. If supplier_agent_need is true, extract ONLY the first name from the signature (e.g., "Stella" from "Thank you. Stella"). Otherwise, return an empty string.
-
-Return only valid JSON with these exact keys.`;
-
-                const responseText = await callGeminiAPI(prompt, apiKey);
-                
-                // Clean the response to get only the JSON part
-                const jsonMatch = responseText.match(/```json\n([\s\S]*?)\n```/);
-                if (!jsonMatch || !jsonMatch[1]) {
-                    // Fallback for cases where the AI doesn't return the markdown block
-                    try {
-                        const parsed = JSON.parse(responseText);
-                        jsonMatch = [null, JSON.stringify(parsed)];
-                    } catch (e) {
-                         throw new Error('Invalid JSON response from AI. Could not parse: ' + responseText);
-                    }
-                }
-                const aiResult = JSON.parse(jsonMatch[1]);
-
-                const processedRow = {
-                    ...row,
-                    ...aiResult,
-                    ticket: row['Issue key'] || '',
-                    po: row['Custom field (PO Number(s))'] || '',
-                    suid: extractSUID(row['Custom field (Supplier)'] || ''),
-                    su_name: extractSupplierName(row['Custom field (Supplier)'] || ''),
-                    order_number: row['Custom field (Order ID(s))'] || '',
-                    po_nocs: extractPODigits(row['Custom field (PO Number(s))'] || ''),
-                    customer: extractCustomerName(row['Custom field (Customer Name)'] || ''),
-                    customer_contact: row['Custom field (Customer Contact(s))'] || '',
-                    issue_id: row['Issue id'] || '',
-                    agent_account: row['Assignee'] || '',
-                    issue_type: row['Customer Request Type'] || ''
-                };
-
-                return processedRow;
-
-            } catch (error) {
-                console.error(`Error processing row with AI (${row['Issue key']}):`, error);
-
-                // Handle quota exceeded error specifically
-                if (error.message.startsWith('QUOTA_EXCEEDED:')) {
-                    const retryDelay = error.message.split(':')[1];
-                    showStatus(`⚠️ Gemini API quota exceeded. Please wait ${retryDelay} before processing more data. Using fallback processing for row ${row['Issue key']}.`, 'warning');
-                } else {
-                    showStatus(`Warning: Failed to process row ${row['Issue key']} with AI. Using original data.`, 'warning');
-                }
-
-                return {
-                    ...row,
-                    description_eng: row['Description'] || '',
-                    description_vie: row['Description'] || '',
-                    supplier_agent_need: false,
-                    supplier_agent: '',
-                    ticket: row['Issue key'] || '',
-                    po: row['Custom field (PO Number(s))'] || '',
-                    suid: extractSUID(row['Custom field (Supplier)'] || ''),
-                    su_name: extractSupplierName(row['Custom field (Supplier)'] || ''),
-                    order_number: row['Custom field (Order ID(s))'] || '',
-                    po_nocs: extractPODigits(row['Custom field (PO Number(s))'] || ''),
-                    customer: extractCustomerName(row['Custom field (Customer Name)'] || ''),
-                    customer_contact: row['Custom field (Customer Contact(s))'] || '',
-                    issue_id: row['Issue id'] || '',
-                    agent_account: row['Assignee'] || '',
-                    issue_type: row['Customer Request Type'] || ''
-                };
-            }
-        }
-
-        async function callGeminiAPI(prompt, apiKey) {
-            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
-            });
-
-            if (!response.ok) {
-                const errorBody = await response.text();
-
-                // Handle quota exceeded error specifically
-                if (response.status === 429) {
-                    const errorData = JSON.parse(errorBody);
-                    const retryDelay = errorData.error?.details?.find(d => d['@type']?.includes('RetryInfo'))?.retryDelay;
-                    throw new Error(`QUOTA_EXCEEDED:${retryDelay || '60s'}`);
-                }
-
-                throw new Error(`Gemini API error: ${response.status} ${response.statusText}. ${errorBody}`);
-            }
-
-            const data = await response.json();
-            if (!data.candidates || !data.candidates[0].content.parts[0].text) {
-                throw new Error('Invalid response structure from Gemini API');
-            }
-            return data.candidates[0].content.parts[0].text;
-        }
+        // AI processing functions removed - no longer needed
 
         // Helper functions for data extraction
         function extractSUID(supplierField) {
@@ -846,16 +707,17 @@ Return only valid JSON with these exact keys.`;
             dataPreview.classList.remove('hidden');
 
             const headers = Object.keys(data[0]);
-            previewHeader.innerHTML = headers.map(header =>
-                `<th class="px-6 py-3 text-left text-xs font-medium text-secondary uppercase tracking-wider">${header}</th>`
+            // Filter out description columns to save space
+            const visibleHeaders = headers.filter(h => h !== 'description_eng' && h !== 'description_vie');
+
+            previewHeader.innerHTML = visibleHeaders.map(header =>
+                `<th class="px-3 py-2 text-left text-xs font-medium text-secondary uppercase tracking-wider">${header}</th>`
             ).join('');
 
             const previewRows = data.slice(0, 10);
             previewBody.innerHTML = previewRows.map(row =>
-                `<tr>${headers.map(header => {
-                    const isDescription = header === 'description_eng' || header === 'description_vie';
-                    // For description columns, use 'pre-wrap' to preserve formatting. For others, use 'nowrap'.
-                    const cellClass = `px-6 py-4 text-sm text-main ${isDescription ? 'whitespace-pre-wrap' : 'whitespace-nowrap'}`;
+                `<tr class="hover:bg-gray-50 dark:hover:bg-gray-700">${visibleHeaders.map(header => {
+                    const cellClass = `px-3 py-2 text-xs text-main whitespace-nowrap`;
                     const cellContent = row[header] || '';
                     return `<td class="${cellClass}">${cellContent}</td>`;
                 }).join('')}</tr>`
@@ -876,54 +738,42 @@ Return only valid JSON with these exact keys.`;
                 return;
             }
 
-            if (!confirm(`Are you sure you want to import ${processedData.length} records to the tickets table?`)) {
+            const strategy = document.getElementById('import-strategy').value;
+            const strategyNames = {
+                'replace-all': 'Replace All (Delete entire table)',
+                'smart-update': 'Smart Update (Update existing, add new)',
+                'replace-non-special': 'Replace Non-Special (Delete non-special rows)',
+                'new-only': 'New Only (Import only new tickets)'
+            };
+
+            if (!confirm(`Are you sure you want to import ${processedData.length} records using strategy: ${strategyNames[strategy]}?`)) {
                 return;
             }
 
             try {
-                showStatus('Importing data to tickets table...', 'info');
+                showStatus(`Importing data using ${strategyNames[strategy]}...`, 'info');
                 setProcessing(true);
 
-                const ticketData = processedData.map(row => ({
-                    ticket: row.ticket,
-                    po: row.po,
-                    suid: row.suid,
-                    su_name: row.su_name,
-                    supplier_agent_need: row.supplier_agent_need,
-                    supplier_agent: row.supplier_agent,
-                    order_number: row.order_number,
-                    po_nocs: row.po_nocs,
-                    customer: row.customer,
-                    customer_contact: row.customer_contact,
-                    issue_type: row.issue_type,
-                    issue_id: row.issue_id,
-                    description_eng: row.description_eng,
-                    description_vie: row.description_vie,
-                    assignee_account: row.agent_account, // CSV Assignee data goes here
-                    time_start: null,
-                    time_end: null,
-                    agent_handle_ticket: row.agent_account, // Also populate this field
-                    ticket_status_id: null // Corrected field
-                }));
-
-                const { error } = await supabaseClient
-                    .from('tickets')
-                    .insert(ticketData);
-
-                if (error) {
-                    if (error.code === 'PGRST301' || error.message.includes('401')) {
-                        throw new Error('Authentication failed. Please check database permissions and ensure you have access to the tickets table.');
-                    }
-                    throw error;
+                switch (strategy) {
+                    case 'replace-all':
+                        await importReplaceAll();
+                        break;
+                    case 'smart-update':
+                        await importSmartUpdate();
+                        break;
+                    case 'replace-non-special':
+                        await importReplaceNonSpecial();
+                        break;
+                    case 'new-only':
+                        await importNewOnly();
+                        break;
                 }
 
-                showStatus(`✅ Successfully imported ${processedData.length} records to tickets table`, 'success');
                 if (importBtn) {
                     importBtn.disabled = true;
                     importBtn.textContent = 'Import Complete';
                 }
                 if (duplicateSection) duplicateSection.classList.add('hidden');
-
 
             } catch (error) {
                 console.error('Import error:', error);
@@ -931,6 +781,186 @@ Return only valid JSON with these exact keys.`;
             } finally {
                 setProcessing(false);
             }
+        }
+
+        // Strategy 1: Replace All - Delete entire table and import new data
+        async function importReplaceAll() {
+            showStatus('Deleting all existing tickets...', 'info');
+
+            // Delete all tickets
+            const { error: deleteError } = await supabaseClient
+                .from('tickets')
+                .delete()
+                .neq('id', 0); // Delete all rows
+
+            if (deleteError) throw deleteError;
+
+            showStatus('Inserting new data...', 'info');
+
+            const ticketData = prepareTicketData(processedData);
+            const { error: insertError } = await supabaseClient
+                .from('tickets')
+                .insert(ticketData);
+
+            if (insertError) throw insertError;
+
+            showStatus(`✅ Successfully replaced all data with ${processedData.length} new records`, 'success');
+        }
+
+        // Strategy 2: Smart Update - Update existing, add new (skip special cases)
+        async function importSmartUpdate() {
+            const issueIds = processedData.map(row => row.issue_id).filter(id => id);
+
+            // Get existing tickets
+            const { data: existingTickets, error: fetchError } = await supabaseClient
+                .from('tickets')
+                .select('*')
+                .in('issue_id', issueIds);
+
+            if (fetchError) throw fetchError;
+
+            const existingMap = new Map(existingTickets.map(t => [t.issue_id, t]));
+            const toInsert = [];
+            const toUpdate = [];
+
+            for (const row of processedData) {
+                const existing = existingMap.get(row.issue_id);
+
+                if (!existing) {
+                    // New ticket - add to insert list
+                    toInsert.push(row);
+                } else {
+                    // Check if it's a special case
+                    const isSpecial = existing.needMos != null || existing.ticket_status_id != null || existing.need_leader_support === true;
+
+                    if (!isSpecial) {
+                        // Not special - update it (keep only ticket number, update rest)
+                        toUpdate.push({ id: existing.id, issue_id: row.issue_id, data: row });
+                    }
+                }
+            }
+
+            // Insert new tickets
+            if (toInsert.length > 0) {
+                showStatus(`Inserting ${toInsert.length} new tickets...`, 'info');
+                const ticketData = prepareTicketData(toInsert);
+                const { error: insertError } = await supabaseClient
+                    .from('tickets')
+                    .insert(ticketData);
+
+                if (insertError) throw insertError;
+            }
+
+            // Update existing tickets
+            if (toUpdate.length > 0) {
+                showStatus(`Updating ${toUpdate.length} existing tickets...`, 'info');
+                for (const item of toUpdate) {
+                    const updateData = prepareTicketData([item.data])[0];
+                    const { error: updateError } = await supabaseClient
+                        .from('tickets')
+                        .update(updateData)
+                        .eq('id', item.id);
+
+                    if (updateError) {
+                        console.error(`Error updating ticket ${item.issue_id}:`, updateError);
+                    }
+                }
+            }
+
+            showStatus(`✅ Smart update complete: ${toInsert.length} inserted, ${toUpdate.length} updated`, 'success');
+        }
+
+        // Strategy 3: Replace Non-Special - Delete non-special rows, replace with CSV data
+        async function importReplaceNonSpecial() {
+            // Get all existing tickets
+            const { data: allTickets, error: fetchError } = await supabaseClient
+                .from('tickets')
+                .select('*');
+
+            if (fetchError) throw fetchError;
+
+            // Find non-special tickets to delete
+            const toDelete = allTickets.filter(t =>
+                t.needMos == null && t.ticket_status_id == null && t.need_leader_support !== true
+            );
+
+            if (toDelete.length > 0) {
+                showStatus(`Deleting ${toDelete.length} non-special tickets...`, 'info');
+                const idsToDelete = toDelete.map(t => t.id);
+                const { error: deleteError } = await supabaseClient
+                    .from('tickets')
+                    .delete()
+                    .in('id', idsToDelete);
+
+                if (deleteError) throw deleteError;
+            }
+
+            // Insert all CSV data
+            showStatus(`Inserting ${processedData.length} tickets from CSV...`, 'info');
+            const ticketData = prepareTicketData(processedData);
+            const { error: insertError } = await supabaseClient
+                .from('tickets')
+                .insert(ticketData);
+
+            if (insertError) throw insertError;
+
+            showStatus(`✅ Replaced ${toDelete.length} non-special tickets with ${processedData.length} new records`, 'success');
+        }
+
+        // Strategy 4: New Only - Import only new tickets (skip existing)
+        async function importNewOnly() {
+            const issueIds = processedData.map(row => row.issue_id).filter(id => id);
+
+            // Get existing issue IDs
+            const { data: existingTickets, error: fetchError } = await supabaseClient
+                .from('tickets')
+                .select('issue_id')
+                .in('issue_id', issueIds);
+
+            if (fetchError) throw fetchError;
+
+            const existingIds = new Set(existingTickets.map(t => t.issue_id));
+            const newTickets = processedData.filter(row => !existingIds.has(row.issue_id));
+
+            if (newTickets.length === 0) {
+                showStatus('⚠️ No new tickets to import. All tickets already exist in database.', 'warning');
+                return;
+            }
+
+            showStatus(`Inserting ${newTickets.length} new tickets...`, 'info');
+            const ticketData = prepareTicketData(newTickets);
+            const { error: insertError } = await supabaseClient
+                .from('tickets')
+                .insert(ticketData);
+
+            if (insertError) throw insertError;
+
+            showStatus(`✅ Successfully imported ${newTickets.length} new tickets (skipped ${processedData.length - newTickets.length} existing)`, 'success');
+        }
+
+        // Helper function to prepare ticket data for insert/update
+        function prepareTicketData(dataArray) {
+            return dataArray.map(row => ({
+                ticket: row.ticket,
+                po: row.po,
+                suid: row.suid,
+                su_name: row.su_name,
+                supplier_agent_need: row.supplier_agent_need,
+                supplier_agent: row.supplier_agent,
+                order_number: row.order_number,
+                po_nocs: row.po_nocs,
+                customer: row.customer,
+                customer_contact: row.customer_contact,
+                issue_type: row.issue_type,
+                issue_id: row.issue_id,
+                description_eng: row.description_eng,
+                description_vie: row.description_vie,
+                assignee_account: row.agent_account,
+                time_start: null,
+                time_end: null,
+                agent_handle_ticket: null,
+                ticket_status_id: null
+            }));
         }
 
         function downloadProcessedCSV() {
@@ -1111,28 +1141,118 @@ Return only valid JSON with these exact keys.`;
             `;
 
             document.querySelectorAll('.duplicate-checkbox').forEach(checkbox => {
-                checkbox.addEventListener('change', updateRemoveButton);
+                checkbox.addEventListener('change', updateDuplicateButtons);
             });
 
+            // Enable the select/deselect/replace/remove buttons
+            if (selectAllDuplicatesBtn) selectAllDuplicatesBtn.disabled = false;
+            if (deselectAllDuplicatesBtn) deselectAllDuplicatesBtn.disabled = false;
             if (removeSelectedBtn) removeSelectedBtn.disabled = true;
+            if (replaceDuplicatesBtn) replaceDuplicatesBtn.disabled = true;
         }
 
-        function updateRemoveButton() {
-            if (!removeSelectedBtn) return;
+        function updateDuplicateButtons() {
             const checkedBoxes = document.querySelectorAll('.duplicate-checkbox:checked');
-            removeSelectedBtn.disabled = checkedBoxes.length === 0;
-            
-            // If any duplicate is selected for removal, disable the main import button
-            // The user must either deselect them or confirm removal.
+            const totalBoxes = document.querySelectorAll('.duplicate-checkbox');
+            const hasChecked = checkedBoxes.length > 0;
+
+            // Enable/disable action buttons based on selection
+            if (removeSelectedBtn) removeSelectedBtn.disabled = !hasChecked;
+            if (replaceDuplicatesBtn) replaceDuplicatesBtn.disabled = !hasChecked;
+
+            // Disable import if there are duplicates that haven't been handled
             if (importBtn) {
-                const anyChecked = checkedBoxes.length > 0;
-                const allChecked = document.querySelectorAll('.duplicate-checkbox').length === checkedBoxes.length;
-                
-                // Disable import if there are duplicates and none are selected for removal
-                // Or if there are duplicates and some are selected.
-                // Basically, force user to make a choice about duplicates.
-                const hasDuplicates = document.querySelectorAll('.duplicate-checkbox').length > 0;
+                const hasDuplicates = totalBoxes.length > 0;
                 importBtn.disabled = hasDuplicates;
+            }
+        }
+
+        function selectAllDuplicates() {
+            document.querySelectorAll('.duplicate-checkbox').forEach(checkbox => {
+                checkbox.checked = true;
+            });
+            updateDuplicateButtons();
+        }
+
+        function deselectAllDuplicates() {
+            document.querySelectorAll('.duplicate-checkbox').forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updateDuplicateButtons();
+        }
+
+        async function replaceDuplicatesWithNewData() {
+            const checkedBoxes = document.querySelectorAll('.duplicate-checkbox:checked');
+
+            if (checkedBoxes.length === 0) {
+                showStatus('No duplicates selected for replacement', 'warning');
+                return;
+            }
+
+            if (!confirm(`Are you sure you want to REPLACE ${checkedBoxes.length} existing record(s) in the database with the new data from your CSV? This will UPDATE the database records.`)) {
+                return;
+            }
+
+            try {
+                showStatus('Replacing duplicates with new data...', 'info');
+                setProcessing(true);
+
+                const issueIdsToReplace = new Set(Array.from(checkedBoxes).map(cb => cb.dataset.issueId));
+                const recordsToUpdate = processedData.filter(row => issueIdsToReplace.has(String(row.issue_id)));
+
+                // Update each record in the database
+                let successCount = 0;
+                for (const row of recordsToUpdate) {
+                    const updateData = {
+                        ticket: row.ticket,
+                        po: row.po,
+                        suid: row.suid,
+                        su_name: row.su_name,
+                        supplier_agent_need: row.supplier_agent_need,
+                        supplier_agent: row.supplier_agent,
+                        order_number: row.order_number,
+                        po_nocs: row.po_nocs,
+                        customer: row.customer,
+                        customer_contact: row.customer_contact,
+                        issue_type: row.issue_type,
+                        description_eng: row.description_eng,
+                        description_vie: row.description_vie,
+                        assignee_account: row.agent_account
+                    };
+
+                    const { error } = await supabaseClient
+                        .from('tickets')
+                        .update(updateData)
+                        .eq('issue_id', row.issue_id);
+
+                    if (error) {
+                        console.error(`Error updating issue_id ${row.issue_id}:`, error);
+                        showStatus(`Error updating ticket ${row.ticket}: ${error.message}`, 'error');
+                    } else {
+                        successCount++;
+                    }
+                }
+
+                showStatus(`✅ Successfully replaced ${successCount} of ${recordsToUpdate.length} duplicate record(s) in the database`, 'success');
+
+                // Remove the replaced items from processedData
+                processedData = processedData.filter(row => !issueIdsToReplace.has(String(row.issue_id)));
+
+                // Update preview and re-check for duplicates
+                showDataPreview(processedData);
+                if (processedData.length > 0) {
+                    checkForDuplicates();
+                } else {
+                    if (duplicateSection) duplicateSection.classList.add('hidden');
+                    if (importBtn) importBtn.disabled = true;
+                    showStatus('All records have been processed. No more data to import.', 'info');
+                }
+
+            } catch (error) {
+                console.error('Replace duplicates error:', error);
+                showStatus(`Error replacing duplicates: ${error.message}`, 'error');
+            } finally {
+                setProcessing(false);
             }
         }
 
@@ -1144,7 +1264,7 @@ Return only valid JSON with these exact keys.`;
                 return;
             }
 
-            if (!confirm(`Are you sure you want to remove ${checkedBoxes.length} item(s) from the import list? This will not delete them from the database.`)) {
+            if (!confirm(`Are you sure you want to remove ${checkedBoxes.length} item(s) from the import list? This will NOT delete them from the database, just skip importing them.`)) {
                 return;
             }
 
@@ -1164,11 +1284,12 @@ Return only valid JSON with these exact keys.`;
                 if (duplicateSection) duplicateSection.classList.add('hidden');
                 if (importBtn) importBtn.disabled = true;
             }
-           
+
             if (document.querySelectorAll('.duplicate-checkbox:not(:checked)').length === 0) {
                  if (importBtn) importBtn.disabled = false;
                  if (duplicateList) duplicateList.innerHTML = '<p class="text-green-600">✅ No duplicates detected</p>';
                  if (removeSelectedBtn) removeSelectedBtn.disabled = true;
+                 if (replaceDuplicatesBtn) replaceDuplicatesBtn.disabled = true;
             }
         }
 
@@ -1206,13 +1327,13 @@ Return only valid JSON with these exact keys.`;
             // Update current theme name display
             const currentThemeName = document.getElementById('current-theme-name');
             const themeNames = {
-                'dark': '🌙 Dark',
-                'daylight': '☀️ Daylight',
-                'sunset': '🌅 Sunset',
-                'twilight': '🌆 Twilight',
-                'blossom-dawn': '🌸 Blossom Dawn',
-                'blue-sky': '🌤️ Blue Sky',
-                'fresh-mint': '🌿 Fresh Mint'
+                'dark': '🌙 Tối',
+                'daylight': '☀️ Ban ngày',
+                'sunset': '🌅 Hoàng hôn',
+                'twilight': '🌆 Chạng vạng',
+                'blossom-dawn': '🌸 Bình minh',
+                'blue-sky': '🌤️ Trời xanh',
+                'fresh-mint': '🌿 Bạc hà'
             };
             if (currentThemeName) {
                 currentThemeName.textContent = themeNames[theme] || theme;

@@ -226,11 +226,12 @@
                 const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
                 const today = new Date().toISOString().split('T')[0];
 
+                // Check for assignment in the new schedule_assignments table
                 const { data: assignment, error } = await supabase
-                    .from('manual_reschedule_assignments')
+                    .from('schedule_assignments')
                     .select('*')
-                    .eq('member_id', currentUser.stt)
-                    .eq('assigned_date', today)
+                    .eq('agent_id', currentUser.stt)
+                    .eq('assignment_date', today)
                     .single();
 
                 if (error && error.code !== 'PGRST116') {
@@ -239,12 +240,12 @@
 
                 if (assignment) {
                     currentAssignment = assignment;
-                    document.getElementById('assigned-account').textContent = assignment.account_id;
-                    document.getElementById('assignment-info').textContent = `Assigned: ${assignment.account_id}`;
-                    
+                    document.getElementById('assigned-account').textContent = assignment.account_export_name;
+                    document.getElementById('assignment-info').textContent = `Assigned: ${assignment.account_export_name}`;
+
                     // Update status based on assignment status
                     updateTaskStatus(assignment.status);
-                    
+
                     // If task was already started, resume timer
                     if (assignment.status === 'started' && assignment.started_at) {
                         startTime = new Date(assignment.started_at);
@@ -253,8 +254,11 @@
                         document.getElementById('end-btn').classList.remove('hidden');
                     }
                 } else {
-                    document.getElementById('assigned-account').textContent = 'No assignment for today';
-                    document.getElementById('assignment-info').textContent = 'No assignment found';
+                    // Allow agent to work even without assignment
+                    document.getElementById('assigned-account').textContent = 'No assignment for today (You can still work)';
+                    document.getElementById('assignment-info').textContent = 'Working without assignment';
+                    // Enable the start button anyway
+                    document.getElementById('start-btn').disabled = false;
                 }
             } catch (error) {
                 console.error('Error loading assignment:', error);
@@ -271,28 +275,25 @@
         }
 
         async function startTask() {
-            if (!currentAssignment) {
-                alert('No assignment found for today. Please contact your supervisor.');
-                return;
-            }
-
             try {
                 startTime = new Date();
-                
-                // Update assignment status in database
-                const { error } = await supabase
-                    .from('manual_reschedule_assignments')
-                    .update({
-                        status: 'started',
-                        started_at: startTime.toISOString()
-                    })
-                    .eq('id', currentAssignment.id);
 
-                if (error) throw error;
+                // Update assignment status in database if assignment exists
+                if (currentAssignment) {
+                    const { error } = await supabase
+                        .from('schedule_assignments')
+                        .update({
+                            status: 'started',
+                            started_at: startTime.toISOString()
+                        })
+                        .eq('id', currentAssignment.id);
+
+                    if (error) throw error;
+                }
 
                 startTimer();
                 updateTaskStatus('started');
-                
+
                 document.getElementById('start-btn').classList.add('hidden');
                 document.getElementById('end-btn').classList.remove('hidden');
             } catch (error) {
@@ -306,17 +307,19 @@
 
             try {
                 const endTime = new Date();
-                
-                // Update assignment status in database
-                const { error } = await supabase
-                    .from('manual_reschedule_assignments')
-                    .update({
-                        status: 'completed',
-                        completed_at: endTime.toISOString()
-                    })
-                    .eq('id', currentAssignment.id);
 
-                if (error) throw error;
+                // Update assignment status in database if assignment exists
+                if (currentAssignment) {
+                    const { error } = await supabase
+                        .from('schedule_assignments')
+                        .update({
+                            status: 'completed',
+                            completed_at: endTime.toISOString()
+                        })
+                        .eq('id', currentAssignment.id);
+
+                    if (error) throw error;
+                }
 
                 stopTimer();
                 updateTaskStatus('completed');

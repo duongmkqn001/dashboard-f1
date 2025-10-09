@@ -454,6 +454,10 @@
         }
 
         async function fetchAndRenderTickets() {
+            // ALWAYS save scroll position before refreshing
+            const scrollContainer = document.getElementById('ticket-scroll-container');
+            const scrollPosition = scrollContainer ? scrollContainer.scrollTop : 0;
+
             loaderContainer.classList.remove('hidden');
             const currentData = ticketTableBody.innerHTML;
             ticketTableBody.innerHTML = '';
@@ -486,6 +490,8 @@
                 data.forEach(ticket => ticketsMap.set(ticket.id, ticket));
                 if (data.length === 0) {
                    showMessage(selectedAssignee ? `Không tìm thấy ticket.` : 'Không có ticket nào.', 'info', 1500);
+                   // Check if user completed all their tickets
+                   checkAllTicketsCompleted();
                 } else {
                     renderTable(data);
                 }
@@ -495,6 +501,13 @@
                 ticketTableBody.innerHTML = currentData; // Restore old data on error
             } finally {
                 loaderContainer.classList.add('hidden');
+
+                // ALWAYS restore scroll position after rendering
+                requestAnimationFrame(() => {
+                    if (scrollContainer) {
+                        scrollContainer.scrollTop = scrollPosition;
+                    }
+                });
             }
         }
 
@@ -520,12 +533,14 @@
 
                     if (index === 0) {
                         html += `
+                            ${currentViewMode !== 'mos' ? `
                             <td class="px-4 py-4 align-middle text-center border-b border-main" rowspan="${rowCount}">
                                 ${renderStartButton(firstItem)}
                             </td>
                             <td class="px-4 py-4 align-middle text-center border-b border-main" rowspan="${rowCount}">
                                 ${renderEndButton(firstItem)}
                             </td>
+                            ` : ''}
                             <td class="px-6 py-4 align-middle font-medium text-headings border-b border-main" rowspan="${rowCount}">
                                 <a href="https://supporthub.service.csnzoo.com/browse/${firstItem.ticket}" target="_blank" class="text-blue-400 hover:text-blue-300 underline">
                                     ${firstItem.ticket || ''}
@@ -540,9 +555,6 @@
                             <td class="px-6 py-4 align-middle border-b border-main" rowspan="${rowCount}">${firstItem.issue_type || ''}</td>
                             <td class="px-6 py-4 text-center align-middle border-b border-main" rowspan="${rowCount}">${renderActionButtons(firstItem)}</td>
                             <td class="px-6 py-4 align-middle border-b border-main" rowspan="${rowCount}">${firstItem.po || ''}</td>
-                            <td class="px-6 py-4 align-middle border-b border-main" rowspan="${rowCount}">
-                                ${renderDescriptionColumn(firstItem)}
-                            </td>
                             <td class="px-6 py-4 text-center align-middle border-b border-main" rowspan="${rowCount}">
                                 ${renderLastUpdateColumn(firstItem)}
                             </td>
@@ -552,6 +564,9 @@
                             ${currentViewMode === 'mos' ? `
                             <td class="px-6 py-4 text-center align-middle border-b border-main" rowspan="${rowCount}">
                                 ${renderMosActionsColumn(firstItem)}
+                            </td>
+                            <td class="px-6 py-4 align-middle border-b border-main" rowspan="${rowCount}">
+                                ${renderMosRequestDetailsColumn(firstItem)}
                             </td>
                             ` : ''}
                         `;
@@ -567,6 +582,12 @@
                 mosActionsHeader.style.display = currentViewMode === 'mos' ? 'table-cell' : 'none';
             }
 
+            // Show/hide MoS details header based on view mode
+            const mosDetailsHeader = document.getElementById('mos-details-header');
+            if (mosDetailsHeader) {
+                mosDetailsHeader.style.display = currentViewMode === 'mos' ? 'table-cell' : 'none';
+            }
+
              // Add hover effect
             document.querySelectorAll('tr[data-po-group]').forEach(row => {
                 row.addEventListener('mouseenter', (e) => {
@@ -578,6 +599,43 @@
                     document.querySelectorAll(`tr[data-po-group="${poGroup}"]`).forEach(groupRow => groupRow.classList.remove('group-hover'));
                 });
             });
+
+            // Load MOS request details if in MOS view
+            if (currentViewMode === 'mos') {
+                loadMosRequestDetails();
+            }
+        }
+
+        async function loadMosRequestDetails() {
+            // Get all ticket IDs currently displayed
+            const ticketIds = Array.from(ticketsMap.keys());
+
+            if (ticketIds.length === 0) return;
+
+            try {
+                // Fetch MOS request details for all displayed tickets
+                const { data: mosRequests, error } = await supabaseClient
+                    .from('mos_requests')
+                    .select('ticket_id, description')
+                    .in('ticket_id', ticketIds)
+                    .eq('status', 'request');
+
+                if (error) throw error;
+
+                // Update the details in the table
+                mosRequests.forEach(mosRequest => {
+                    const detailsElement = document.getElementById(`mos-details-${mosRequest.ticket_id}`);
+                    if (detailsElement) {
+                        if (mosRequest.description) {
+                            detailsElement.innerHTML = `<span class="text-sm">${mosRequest.description}</span>`;
+                        } else {
+                            detailsElement.innerHTML = `<span class="text-gray-400 italic">No details provided</span>`;
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error loading MOS request details:', error);
+            }
         }
 
         function renderStartButton(item) {
@@ -669,48 +727,6 @@
                     </div>`;
         }
 
-        function renderDescriptionColumn(item) {
-            const isLeaderView = localStorage.getItem('leaderViewMode') === 'true';
-
-            if (isLeaderView) {
-                // In leader view, show assignee name
-                const assigneeName = allAgentsMap.get(item.assignee_account) || item.assignee_account;
-                return `<span class="text-sm font-medium">${assigneeName}</span>`;
-            } else {
-                // Regular view - show description with language toggle
-                if (item.description_vie && item.description_eng) {
-                    const description = item.description_eng || '';
-                    return `
-                        <div class="max-w-xs">
-                            <div id="desc-${item.id}" class="text-sm text-gray-700 truncate" title="${description}">
-                                ${description}
-                            </div>
-                            <div class="flex gap-1 mt-1">
-                                <button onclick="toggleDescriptionExpand(${item.id})" class="text-xs text-green-500 hover:text-green-700 px-1 py-0.5 rounded border border-green-300 hover:bg-green-50">
-                                    📖 Expand
-                                </button>
-                                <button onclick="toggleDescription(${item.id})" class="text-xs text-blue-500 hover:text-blue-700 px-1 py-0.5 rounded border border-blue-300 hover:bg-blue-50">
-                                    🔄 Switch to VIE
-                                </button>
-                            </div>
-                        </div>
-                    `;
-                } else {
-                    const description = item.description_eng || item.description_vie || 'No description';
-                    return `
-                        <div class="max-w-xs">
-                            <div id="desc-${item.id}" class="text-sm text-gray-700 truncate" title="${description}">
-                                ${description}
-                            </div>
-                            <button onclick="toggleDescriptionExpand(${item.id})" class="text-xs text-green-500 hover:text-green-700 mt-1 px-1 py-0.5 rounded border border-green-300 hover:bg-green-50">
-                                📖 Expand
-                            </button>
-                        </div>
-                    `;
-                }
-            }
-        }
-
         function renderNeedHelpColumn(item) {
             const isLeaderView = localStorage.getItem('leaderViewMode') === 'true';
             const isMosView = localStorage.getItem('mosViewMode') === 'true';
@@ -756,6 +772,18 @@
                     <button onclick="rejectMos(${item.id})" class="px-3 py-1 bg-red-500 hover:bg-red-600 text-white text-xs font-medium rounded transition-colors">
                         ❌ Reject
                     </button>
+                </div>
+            `;
+        }
+
+        function renderMosRequestDetailsColumn(item) {
+            // In MoS view, show the request details from the member
+            // This will be fetched from mos_requests table
+            return `
+                <div class="max-w-xs">
+                    <div id="mos-details-${item.id}" class="text-sm text-gray-700" data-ticket-id="${item.id}">
+                        <span class="text-gray-400 italic">Loading...</span>
+                    </div>
                 </div>
             `;
         }
@@ -878,8 +906,10 @@
                 } else if (action === 'end') {
                     // Handle KPI update for end action
                     await handleEndTicket(firstTicketId);
-                    const poGroup = ticketsMap.get(firstTicketId).po || `NO_PO_${firstTicketId}`;
-                    document.querySelectorAll(`tr[data-po-group="${poGroup}"]`).forEach(row => row.remove());
+
+                    // Refresh data from database
+                    // Scroll position is automatically preserved by fetchAndRenderTickets()
+                    await fetchAndRenderTickets();
                 }
             } catch(error) {
                 console.error(`Lỗi khi ${action} nhóm:`, error);
@@ -1396,17 +1426,19 @@
                     .single();
 
                 // If a child record is found, use its parentSuid.
-                if (childData) {
+                // Ignore errors from children table (table might not exist or no matching record)
+                if (!childError && childData) {
                     parentSuid = childData.parentSuid;
                 }
-                
+                // Silently ignore 406 errors or PGRST116 (no rows found) from children table
+
                 // Step 2: Now, use the determined parentSuid to find the supplier name.
                 const { data: supplierData, error: supplierError } = await supabaseClient
                     .from('suppliers')
                     .select('suname')
                     .eq('suid', parentSuid)
                     .single();
-                
+
                 if (supplierError && supplierError.code !== 'PGRST116') { // Ignore "exact one row" error if no parent found
                     console.error('Error fetching supplier name for suid:', parentSuid, supplierError);
                     return null;
@@ -1415,7 +1447,7 @@
                 return supplierData ? cleanSupplierName(supplierData.suname) : null;
 
             } catch (error) {
-                console.error('An unexpected error occurred in findSupplierName for suid:', suid, error);
+                // Silently handle errors - this is not critical functionality
                 return null;
             }
         }
@@ -1453,10 +1485,10 @@
                 output.innerHTML = '';
                 guideData.forEach(step => {
                     output.innerHTML += `
-                        <div class="p-3 rounded-lg border bg-gray-50">
-                            <h3 class="font-bold text-lg">${step.title}</h3>
-                            <div class="pl-4 text-sm whitespace-pre-wrap mt-2">
-                                ${(step.action || 'N/A').replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-blue-500 hover:underline">$1</a>')}
+                        <div class="p-3 rounded-lg border border-border bg-section-secondary">
+                            <h3 class="font-bold text-lg text-main">${step.title}</h3>
+                            <div class="pl-4 text-sm whitespace-pre-wrap mt-2 text-secondary">
+                                ${(step.action || 'N/A').replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-accent hover:underline">$1</a>')}
                             </div>
                         </div>
                     `;
@@ -1725,6 +1757,14 @@
         }
 
         async function requestMos(ticketId) {
+            // Show popup to ask for request details
+            const requestDetails = prompt('Please provide details for your MoS request:');
+
+            // If user cancels, don't proceed
+            if (requestDetails === null) {
+                return;
+            }
+
             try {
                 const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
 
@@ -1736,13 +1776,14 @@
 
                 if (ticketError) throw ticketError;
 
-                // Create MoS request record
+                // Create MoS request record with description
                 const { error: mosError } = await supabaseClient
                     .from('mos_requests')
                     .insert({
                         ticket_id: ticketId,
                         requester_id: currentUser.stt,
-                        status: 'request'
+                        status: 'request',
+                        description: requestDetails || ''
                     });
 
                 if (mosError) throw mosError;
@@ -1890,45 +1931,6 @@
             }
         }
 
-        function toggleDescriptionExpand(ticketId) {
-            const descElement = document.getElementById(`desc-${ticketId}`);
-            const container = descElement.parentElement;
-            const expandButton = container.querySelector('button[onclick*="toggleDescriptionExpand"]');
-
-            if (descElement.classList.contains('truncate')) {
-                // Expand
-                descElement.classList.remove('truncate');
-                descElement.classList.add('whitespace-normal', 'break-words');
-                container.classList.remove('max-w-xs');
-                container.classList.add('max-w-md');
-                expandButton.innerHTML = '📖 Collapse';
-            } else {
-                // Collapse
-                descElement.classList.add('truncate');
-                descElement.classList.remove('whitespace-normal', 'break-words');
-                container.classList.add('max-w-xs');
-                container.classList.remove('max-w-md');
-                expandButton.innerHTML = '📖 Expand';
-            }
-        }
-
-        function toggleDescription(ticketId) {
-            const descElement = document.getElementById(`desc-${ticketId}`);
-            const container = descElement.parentElement;
-            const langButton = container.querySelector('button[onclick*="toggleDescription"]');
-            const ticket = ticketsMap.get(ticketId);
-
-            if (langButton.textContent.includes('VIE')) {
-                descElement.textContent = ticket.description_vie || 'No Vietnamese description';
-                descElement.title = ticket.description_vie || 'No Vietnamese description';
-                langButton.innerHTML = '🔄 Switch to ENG';
-            } else {
-                descElement.textContent = ticket.description_eng || 'No English description';
-                descElement.title = ticket.description_eng || 'No English description';
-                langButton.innerHTML = '🔄 Switch to VIE';
-            }
-        }
-
         async function handleEndTicket(ticketId) {
             const ticket = ticketsMap.get(ticketId);
             const statusSelect = document.querySelector(`select[data-action="status-change"][data-ticket-id="${ticketId}"]`);
@@ -1956,7 +1958,7 @@
                 // Get KPI ID from kpi_per_task table
                 const { data: kpiData, error: kpiError } = await supabaseClient
                     .from('kpi_per_task')
-                    .select('id')
+                    .select('id, task_name')
                     .eq('team', agentData.team)
                     .eq('task_name', status.status_name)
                     .single();
@@ -1977,9 +1979,52 @@
 
                 if (updateError) throw updateError;
 
+                // Send ticket ID to Google Sheets tracker in background (don't wait)
+                // The Apps Script will fetch data from tickets_export_v view
+                sendTicketToGoogleSheets(ticketId); // No await - runs in background
+
             } catch (error) {
                 console.error('Error handling end ticket:', error);
                 showMessage('Lỗi khi xử lý kết thúc ticket', 'error');
+            }
+        }
+
+        // Send ticket ID to Google Sheets - Apps Script will fetch data from tickets_export_v
+        // Runs in background, doesn't block UI
+        function sendTicketToGoogleSheets(ticketId) {
+            try {
+                // Send to Google Sheets Web App using image beacon (fire-and-forget)
+                const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzDXf9HPZi9NiJy-f8Enw9ZINljy2njMSWcZFXnrKCDzRPpAwwipIsTTMjP3lTtPZM07A/exec';
+                const SECRET_TOKEN = '14092000';
+
+                // Encode data as URL parameters - just send ticket ID
+                const params = new URLSearchParams({
+                    secret: SECRET_TOKEN,
+                    ticketId: ticketId
+                });
+
+                // Use image beacon for fire-and-forget request (no CORS, no waiting)
+                const img = new Image();
+                img.style.display = 'none';
+
+                img.onload = () => {
+                    console.log('✅ Ticket export request sent to Google Sheets:', ticketId);
+                    document.body.removeChild(img);
+                };
+
+                img.onerror = () => {
+                    // This is expected - Google Apps Script returns HTML, not an image
+                    // But the request was sent successfully
+                    console.log('✅ Ticket export request sent to Google Sheets:', ticketId);
+                    document.body.removeChild(img);
+                };
+
+                img.src = `${GOOGLE_SHEETS_URL}?${params.toString()}`;
+                document.body.appendChild(img);
+
+            } catch (error) {
+                console.error('Error sending ticket to Google Sheets:', error);
+                // Don't show error to user - this is a background operation
             }
         }
 
@@ -2144,26 +2189,76 @@
                 const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
                 const today = new Date().toISOString().split('T')[0];
 
-                // Check if user has an assignment for today
+                // Check if user has an assignment for today in the new schedule_assignments table
                 const { data: assignment, error } = await supabaseClient
-                    .from('manual_reschedule_assignments')
+                    .from('schedule_assignments')
                     .select('*')
-                    .eq('member_id', currentUser.stt)
-                    .eq('assigned_date', today)
+                    .eq('agent_id', currentUser.stt)
+                    .eq('assignment_date', today)
+                    .eq('status', 'assigned')
                     .single();
 
                 if (error && error.code !== 'PGRST116') {
                     throw error;
                 }
 
-                if (assignment && assignment.status === 'assigned') {
-                    // Show a prominent notification banner for Manual Reschedule POs assignment
-                    showManualRescheduleBanner(assignment);
+                if (assignment) {
+                    // Check current time in Vietnam timezone (UTC+7)
+                    const now = new Date();
+                    const vietnamTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
+                    const hours = vietnamTime.getHours();
+                    const minutes = vietnamTime.getMinutes();
+
+                    // Check if it's exactly 8:28 AM (within a 1-minute window)
+                    const isTargetTime = hours === 8 && minutes === 28;
+
+                    // Check if we've already shown the popup today
+                    const popupShownKey = `manual_schedule_popup_shown_${today}`;
+                    const popupAlreadyShown = localStorage.getItem(popupShownKey) === 'true';
+
+                    if (isTargetTime && !popupAlreadyShown) {
+                        // Show full-screen popup at 8:28 AM
+                        showManualSchedulePopup(assignment);
+                        localStorage.setItem(popupShownKey, 'true');
+                    } else {
+                        // Show banner notification at other times
+                        showManualRescheduleBanner(assignment);
+                    }
                 }
             } catch (error) {
                 console.error('Error checking Manual Reschedule assignment:', error);
             }
         }
+
+        function showManualSchedulePopup(assignment) {
+            // Create full-screen popup overlay
+            const popup = document.createElement('div');
+            popup.id = 'manual-schedule-popup';
+            popup.className = 'fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-[10000]';
+            popup.innerHTML = `
+                <div class="bg-gradient-to-br from-orange-500 to-red-600 p-12 rounded-3xl shadow-2xl max-w-2xl text-center transform scale-100 animate-pulse">
+                    <div class="text-8xl mb-6">📋</div>
+                    <h1 class="text-5xl font-bold text-white mb-4">Manual Schedule Assignment</h1>
+                    <p class="text-2xl text-orange-100 mb-6">You have been assigned to work on:</p>
+                    <div class="bg-white bg-opacity-20 rounded-xl p-6 mb-8">
+                        <p class="text-4xl font-bold text-white">${assignment.account_export_name}</p>
+                    </div>
+                    <p class="text-xl text-orange-200 mb-8">Please start your work for today!</p>
+                    <button onclick="closeManualSchedulePopup()"
+                            class="bg-white text-orange-600 px-8 py-4 rounded-full text-xl font-bold hover:bg-orange-50 transition-all transform hover:scale-105 shadow-lg">
+                        Got it! Let's start 🚀
+                    </button>
+                </div>
+            `;
+            document.body.appendChild(popup);
+        }
+
+        window.closeManualSchedulePopup = function() {
+            const popup = document.getElementById('manual-schedule-popup');
+            if (popup) {
+                popup.remove();
+            }
+        };
 
         function showManualRescheduleBanner(assignment) {
             // Check if banner already exists
@@ -2179,9 +2274,9 @@
                     <div class="flex items-center gap-3">
                         <div class="text-2xl">📋</div>
                         <div>
-                            <h3 class="font-bold text-lg">Manual Reschedule POs Assignment</h3>
-                            <p class="text-orange-100">You have been assigned to perform the Manual Reschedule POs task today.</p>
-                            <p class="text-sm text-orange-200">Account: <span class="font-semibold">${assignment.account_id}</span></p>
+                            <h3 class="font-bold text-lg">Manual Schedule Assignment</h3>
+                            <p class="text-orange-100">You have been assigned to work on manual schedule today.</p>
+                            <p class="text-sm text-orange-200">Account: <span class="font-semibold">${assignment.account_export_name}</span></p>
                         </div>
                     </div>
                     <div class="flex gap-2">
@@ -2211,6 +2306,88 @@
             }
         }
 
+        // Fireworks effect
+        function createFireworks() {
+            const container = document.getElementById('fireworks-container');
+            if (!container) return;
+
+            const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffa500'];
+
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    const x = Math.random() * window.innerWidth;
+                    const y = Math.random() * (window.innerHeight * 0.5);
+
+                    for (let j = 0; j < 30; j++) {
+                        const firework = document.createElement('div');
+                        firework.className = 'firework';
+                        firework.style.left = x + 'px';
+                        firework.style.top = y + 'px';
+                        firework.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+
+                        const angle = (Math.PI * 2 * j) / 30;
+                        const velocity = 50 + Math.random() * 100;
+                        firework.style.setProperty('--x', Math.cos(angle) * velocity + 'px');
+                        firework.style.setProperty('--y', Math.sin(angle) * velocity + 'px');
+
+                        container.appendChild(firework);
+
+                        setTimeout(() => firework.remove(), 1000);
+                    }
+                }, i * 300);
+            }
+        }
+
+        function showCongratulations(message) {
+            const overlay = document.getElementById('congrats-overlay');
+            const messageEl = document.getElementById('congrats-message');
+            const closeBtn = document.getElementById('congrats-close-btn');
+
+            if (!overlay || !messageEl || !closeBtn) return;
+
+            messageEl.textContent = message;
+            overlay.classList.remove('hidden');
+
+            createFireworks();
+
+            closeBtn.onclick = () => {
+                overlay.classList.add('hidden');
+            };
+
+            // Auto close after 5 seconds
+            setTimeout(() => {
+                overlay.classList.add('hidden');
+            }, 5000);
+        }
+
+        function checkAllTicketsCompleted() {
+            const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+            const selectedAssignee = assigneeSelect.value;
+
+            // Only check if user is viewing their own tickets
+            if (!selectedAssignee || selectedAssignee !== currentUser.agent_account) {
+                return;
+            }
+
+            const isLeaderView = localStorage.getItem('leaderViewMode') === 'true';
+            const isMosView = localStorage.getItem('mosViewMode') === 'true';
+
+            // Check if there are any tickets in the current view
+            const hasTickets = ticketsMap.size > 0;
+
+            if (!hasTickets) {
+                let message = "Congratulations on completing all tickets!";
+
+                if (isLeaderView) {
+                    message = "Congratulations on completing all AOPS tickets!";
+                } else if (isMosView) {
+                    message = "Congratulations on completing all FMOP tickets!";
+                }
+
+                showCongratulations(message);
+            }
+        }
+
         // Make functions globally available
         window.sendToLeader = sendToLeader;
         window.requestMos = requestMos;
@@ -2219,6 +2396,5 @@
         window.loadNotificationsDropdown = loadNotificationsDropdown;
         window.markAllNotificationsAsRead = markAllNotificationsAsRead;
         window.markAsRead = markAsRead;
-        window.toggleDescription = toggleDescription;
         window.openManualRescheduleTask = openManualRescheduleTask;
         window.dismissManualRescheduleBanner = dismissManualRescheduleBanner;

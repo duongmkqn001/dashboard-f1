@@ -127,7 +127,7 @@
                 <span class="text-secondary font-medium">Đang tải...</span>
             </div>
 
-            <div class="flex-grow overflow-auto bg-section rounded-lg border border-main">
+            <div id="ticket-scroll-container" class="flex-grow overflow-auto bg-section rounded-lg border border-main">
                 <table class="w-full text-sm text-left text-main">
                     <thead class="text-xs text-secondary uppercase bg-header-footer">
                         <tr>
@@ -144,10 +144,10 @@
                             <th scope="col" class="px-6 py-3">Issue Type</th>
                             <th scope="col" class="px-6 py-3 text-center">Actions</th>
                             <th scope="col" class="px-6 py-3">PO</th>
-                            <th scope="col" class="px-6 py-3" style="min-width: 200px;">Description</th>
                             <th scope="col" class="px-6 py-3 text-center">Last Update</th>
                             <th scope="col" class="px-6 py-3 text-center">Need Help</th>
                             <th scope="col" class="px-6 py-3 text-center" id="mos-actions-header" style="display: none;">MoS Actions</th>
+                            <th scope="col" class="px-6 py-3 text-center" id="mos-details-header" style="display: none;">Request Details</th>
                         </tr>
                     </thead>
                     <tbody id="ticket-table-body" class="divide-y-0"></tbody>
@@ -449,6 +449,18 @@
             };
         });
     </script>
+
+    <!-- Congratulations Modal -->
+    <div id="congrats-overlay" class="congrats-overlay hidden">
+        <div class="congrats-modal">
+            <h2>🎉 Congratulations! 🎉</h2>
+            <p id="congrats-message">You've completed all your tickets!</p>
+            <button id="congrats-close-btn">Awesome!</button>
+        </div>
+    </div>
+
+    <!-- Fireworks Container -->
+    <div id="fireworks-container" class="fireworks-container"></div>
 
     <script src="./js/dashboard-v2.js"></script>
 </body>

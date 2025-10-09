@@ -87,6 +87,7 @@
                 formTitle: document.getElementById('form-title'), templateIdInput: document.getElementById('template-id'),
                 mainIssueInput: document.getElementById('main-issue'), existingIssuesDatalist: document.getElementById('existing-issues'),
                 templateNameInput: document.getElementById('template-name'), templateDescriptionInput: document.getElementById('template-description'),
+                sopLinkField: document.getElementById('sop-link-field'), sopLinkInput: document.getElementById('sop-link'),
                 templateContentTextarea: document.getElementById('template-content-textarea'), componentSource: document.getElementById('component-source'),
                 sendToCustomerCheckbox: document.getElementById('send-to-customer'),
                 includeFooterCheckbox: document.getElementById('include-footer'), addLabelReminderCheckbox: document.getElementById('add-label-reminder'),
@@ -296,6 +297,7 @@
                     dom.mainIssueInput.value = template.issue;
                     dom.templateNameInput.value = template.name;
                     dom.templateDescriptionInput.value = template.description || '';
+                    dom.sopLinkInput.value = template.sop_link || '';
                     dom.sendToCustomerCheckbox.checked = template.sendToCustomer;
                     dom.includeFooterCheckbox.checked = template.includeFooter;
                     dom.addLabelReminderCheckbox.checked = template.addLabelReminder;
@@ -751,6 +753,7 @@ function createGuideStepEditor(type, stepData = {}) {
                     const templateData = {
                         project: currentProject, issue, name, content,
                         description: dom.templateDescriptionInput.value.trim(),
+                        sop_link: dom.sopLinkInput.value.trim() || null,
                         updated_at: new Date().toISOString(),
                         sendToCustomer: dom.sendToCustomerCheckbox.checked, includeFooter: dom.includeFooterCheckbox.checked,
                         addLabelReminder: dom.addLabelReminderCheckbox.checked, addInternalComment: dom.addInternalCommentCheckbox.checked,
@@ -1505,6 +1508,10 @@ function createGuideStepEditor(type, stepData = {}) {
             function serializeEditorContent() { return dom.templateContentTextarea.value; }
             function updateFormVisibility() {
                 const isMovement = dom.mainIssueInput.value.trim().toLowerCase() === 'movement';
+                // Check if current project is POS
+                const currentProjectData = getFromCache(CACHE_KEYS.PROJECTS).find(p => p.id === currentProject);
+                const isPosProject = currentProjectData?.name?.toLowerCase().includes('pos') || false;
+
                 dom.customerTemplateFields.classList.toggle('hidden', !dom.sendToCustomerCheckbox.checked);
                 dom.carrierEmailFields.classList.toggle('hidden', !dom.emailCarrierCheckbox.checked);
                 dom.labelNameInput.classList.toggle('hidden', !dom.addLabelReminderCheckbox.checked);
@@ -1513,6 +1520,7 @@ function createGuideStepEditor(type, stepData = {}) {
                 dom.internalCommentInputContainer.classList.toggle('hidden', !dom.addInternalCommentCheckbox.checked || !isMovement);
                 dom.movementGuideEditor.classList.toggle('hidden', !isMovement);
                 dom.followUpGuideEditor.classList.toggle('hidden', !dom.addFollowUpCheckbox.checked);
+                dom.sopLinkField.classList.toggle('hidden', !isPosProject);
             }
 
             // --- Template Update Functions ---
@@ -1624,18 +1632,40 @@ function createGuideStepEditor(type, stepData = {}) {
                         return;
                     }
 
+                    if (!name) {
+                        showNotification('Vui lòng nhập tên hiển thị', 'error');
+                        return;
+                    }
+
                     try {
-                        const { error } = await supabase
+                        // First, get the highest stt value to generate the next one
+                        const { data: maxData, error: maxError } = await supabase
+                            .from('vcn_agent')
+                            .select('stt')
+                            .order('stt', { ascending: false })
+                            .limit(1);
+
+                        if (maxError) throw maxError;
+
+                        const nextStt = maxData && maxData.length > 0 ? maxData[0].stt + 1 : 1;
+
+                        // Insert the new user with all required fields
+                        const { data, error } = await supabase
                             .from('vcn_agent')
                             .insert({
+                                stt: nextStt,
                                 account_name: accountName,
                                 account_password: password,
                                 name: name,
-                                level: level === 'member' ? 'user' : level, // Store as 'user' in DB for compatibility
+                                level: level === 'member' ? 'user' : level,
                                 status: status
-                            });
+                            })
+                            .select();
 
-                        if (error) throw error;
+                        if (error) {
+                            console.error('Insert error details:', error);
+                            throw error;
+                        }
 
                         showNotification('Tạo tài khoản thành công', 'success');
 
@@ -1648,7 +1678,7 @@ function createGuideStepEditor(type, stepData = {}) {
                         await loadUsersData();
                     } catch (error) {
                         console.error('Error creating user:', error);
-                        showNotification('Lỗi khi tạo tài khoản: ' + error.message, 'error');
+                        showNotification('Lỗi khi tạo tài khoản: ' + (error.message || error.hint || 'Unknown error'), 'error');
                     }
                 });
 
@@ -2430,7 +2460,8 @@ function createGuideStepEditor(type, stepData = {}) {
             loadMembersForSchedule();
             loadAccountsForSchedule();
             loadCurrentAssignments();
-            loadRotationSchedule();
+            loadAgentRotationList();
+            loadAccountRotationList();
             initializeCalendar();
         }
 
@@ -2483,10 +2514,14 @@ function createGuideStepEditor(type, stepData = {}) {
                 autoCheckbox.addEventListener('change', toggleAutoAssignment);
             }
 
-            // Add to schedule button
-            const addToScheduleBtn = document.getElementById('add-to-schedule-btn');
-            if (addToScheduleBtn) {
-                addToScheduleBtn.addEventListener('click', addToRotationSchedule);
+            // Add agent and account buttons
+            const addAgentBtn = document.getElementById('add-agent-btn');
+            const addAccountBtn = document.getElementById('add-account-btn');
+            if (addAgentBtn) {
+                addAgentBtn.addEventListener('click', addAgentToRotation);
+            }
+            if (addAccountBtn) {
+                addAccountBtn.addEventListener('click', addAccountToRotation);
             }
 
             // Auto assignment preview buttons
@@ -2516,7 +2551,7 @@ function createGuideStepEditor(type, stepData = {}) {
                 if (error) throw error;
 
                 const selectMember = document.getElementById('select-member');
-                const scheduleMember = document.getElementById('schedule-member');
+                const agentSelect = document.getElementById('agent-select');
                 const registeredMembersList = document.getElementById('registered-members-list');
 
                 const memberOptions = '<option value="">Choose a member...</option>' +
@@ -2526,8 +2561,9 @@ function createGuideStepEditor(type, stepData = {}) {
                     selectMember.innerHTML = memberOptions;
                 }
 
-                if (scheduleMember) {
-                    scheduleMember.innerHTML = memberOptions;
+                if (agentSelect) {
+                    agentSelect.innerHTML = '<option value="">Select an agent...</option>' +
+                        members.map(member => `<option value="${member.stt}">${member.name}</option>`).join('');
                 }
 
                 if (registeredMembersList) {
@@ -2555,42 +2591,20 @@ function createGuideStepEditor(type, stepData = {}) {
 
         async function loadAccountsForSchedule() {
             try {
-                // Load accounts from the agent table with agent names
+                // Load accounts from the agent table using Export_name column
                 const { data: agentData, error: agentError } = await supabase
                     .from('agent')
-                    .select('agent_account, agent_name, team')
-                    .not('agent_account', 'is', null)
-                    .order('agent_account');
+                    .select('Export_name')
+                    .not('Export_name', 'is', null)
+                    .order('Export_name');
 
-                if (agentError) {
-                    console.warn('Could not load from agent table, using vcn_agent table:', agentError);
+                if (agentError) throw agentError;
 
-                    // Fallback to vcn_agent table
-                    const { data: vcnAgentData, error: vcnError } = await supabase
-                        .from('vcn_agent')
-                        .select('account_name, name')
-                        .eq('status', 'active')
-                        .order('account_name');
-
-                    if (vcnError) throw vcnError;
-
-                    const accounts = vcnAgentData.map(agent => ({
-                        id: agent.account_name,
-                        name: `${agent.account_name} (${agent.name})`,
-                        agent_name: agent.name,
-                        team: null
-                    }));
-
-                    populateAccountDropdowns(accounts);
-                    return;
-                }
-
-                // Use agent table data with enhanced display
-                const accounts = agentData.map(agent => ({
-                    id: agent.agent_account,
-                    name: `${agent.agent_account} (${agent.agent_name}${agent.team ? ` - ${agent.team}` : ''})`,
-                    agent_name: agent.agent_name,
-                    team: agent.team
+                // Remove duplicates and create account list
+                const uniqueAccounts = [...new Set(agentData.map(a => a.Export_name))];
+                const accounts = uniqueAccounts.map(exportName => ({
+                    id: exportName,
+                    name: exportName
                 }));
 
                 // If no accounts found, show message
@@ -2613,13 +2627,13 @@ function createGuideStepEditor(type, stepData = {}) {
 
         function populateAccountDropdowns(accounts) {
             const selectAccount = document.getElementById('select-account');
-            const scheduleAccount = document.getElementById('schedule-account');
+            const accountSelect = document.getElementById('account-select');
             const availableAccountsList = document.getElementById('available-accounts-list');
 
             if (accounts.length === 0) {
                 const noAccountsOption = '<option value="">No accounts available</option>';
                 if (selectAccount) selectAccount.innerHTML = noAccountsOption;
-                if (scheduleAccount) scheduleAccount.innerHTML = noAccountsOption;
+                if (accountSelect) accountSelect.innerHTML = noAccountsOption;
                 if (availableAccountsList) {
                     availableAccountsList.innerHTML = '<div class="p-2 text-gray-500 text-center">No accounts found in agent table</div>';
                 }
@@ -2627,22 +2641,21 @@ function createGuideStepEditor(type, stepData = {}) {
             }
 
             const accountOptions = '<option value="">Choose an account...</option>' +
-                accounts.map(account => `<option value="${account.id}" title="${account.agent_name}${account.team ? ` (${account.team})` : ''}">${account.name}</option>`).join('');
+                accounts.map(account => `<option value="${account.id}">${account.name}</option>`).join('');
 
             if (selectAccount) {
                 selectAccount.innerHTML = accountOptions;
             }
 
-            if (scheduleAccount) {
-                scheduleAccount.innerHTML = accountOptions;
+            if (accountSelect) {
+                accountSelect.innerHTML = '<option value="">Select an account...</option>' +
+                    accounts.map(account => `<option value="${account.id}">${account.name}</option>`).join('');
             }
 
             if (availableAccountsList) {
                 availableAccountsList.innerHTML = accounts.map(account => `
                     <div class="p-3 border border-gray-200 rounded-lg hover:bg-gray-50">
-                        <div class="font-medium text-blue-600">${account.id}</div>
-                        <div class="text-sm text-gray-600">${account.agent_name}</div>
-                        ${account.team ? `<div class="text-xs text-gray-500 mt-1">Team: ${account.team}</div>` : ''}
+                        <div class="font-medium text-green-600">${account.id}</div>
                     </div>
                 `).join('');
             }
@@ -2701,11 +2714,12 @@ function createGuideStepEditor(type, stepData = {}) {
                 const updates = [];
 
                 for (const date of dates) {
-                    // Check if assignment already exists for this date
+                    // Check if assignment already exists for this date and agent
                     const { data: existingAssignment, error: checkError } = await supabase
-                        .from('manual_reschedule_assignments')
+                        .from('schedule_assignments')
                         .select('*')
-                        .eq('assigned_date', date)
+                        .eq('assignment_date', date)
+                        .eq('agent_id', memberId)
                         .single();
 
                     if (checkError && checkError.code !== 'PGRST116') {
@@ -2716,20 +2730,20 @@ function createGuideStepEditor(type, stepData = {}) {
                         // Prepare update
                         updates.push({
                             id: existingAssignment.id,
-                            member_id: memberId,
-                            account_id: accountId,
+                            agent_id: memberId,
+                            account_export_name: accountId,
                             assignment_type: 'manual',
-                            assigned_by: currentUser.stt,
+                            created_by: currentUser.stt,
                             status: 'assigned'
                         });
                     } else {
                         // Prepare insert
                         assignments.push({
-                            assigned_date: date,
-                            member_id: memberId,
-                            account_id: accountId,
+                            assignment_date: date,
+                            agent_id: memberId,
+                            account_export_name: accountId,
                             assignment_type: 'manual',
-                            assigned_by: currentUser.stt,
+                            created_by: currentUser.stt,
                             status: 'assigned'
                         });
                     }
@@ -2738,7 +2752,7 @@ function createGuideStepEditor(type, stepData = {}) {
                 // Perform batch operations
                 if (assignments.length > 0) {
                     const { error: insertError } = await supabase
-                        .from('manual_reschedule_assignments')
+                        .from('schedule_assignments')
                         .insert(assignments);
 
                     if (insertError) throw insertError;
@@ -2748,7 +2762,7 @@ function createGuideStepEditor(type, stepData = {}) {
                 for (const update of updates) {
                     const { id, ...updateData } = update;
                     const { error: updateError } = await supabase
-                        .from('manual_reschedule_assignments')
+                        .from('schedule_assignments')
                         .update(updateData)
                         .eq('id', id);
 
@@ -2777,13 +2791,13 @@ function createGuideStepEditor(type, stepData = {}) {
                 const today = new Date().toISOString().split('T')[0];
 
                 const { data: assignments, error } = await supabase
-                    .from('manual_reschedule_assignments')
+                    .from('schedule_assignments')
                     .select(`
                         *,
-                        vcn_agent!manual_reschedule_assignments_member_id_fkey(name)
+                        vcn_agent!schedule_assignments_agent_id_fkey(name)
                     `)
-                    .eq('assigned_date', today)
-                    .order('assigned_at', { ascending: false });
+                    .eq('assignment_date', today)
+                    .order('created_at', { ascending: false });
 
                 if (error) throw error;
 
@@ -2795,10 +2809,10 @@ function createGuideStepEditor(type, stepData = {}) {
                                 'assigned': 'bg-blue-100 text-blue-800',
                                 'started': 'bg-yellow-100 text-yellow-800',
                                 'completed': 'bg-green-100 text-green-800',
-                                'skipped': 'bg-red-100 text-red-800'
+                                'cancelled': 'bg-red-100 text-red-800'
                             };
 
-                            const assignedTime = new Date(assignment.assigned_at).toLocaleTimeString('en-US', {
+                            const assignedTime = new Date(assignment.created_at).toLocaleTimeString('en-US', {
                                 hour: '2-digit',
                                 minute: '2-digit'
                             });
@@ -2808,7 +2822,7 @@ function createGuideStepEditor(type, stepData = {}) {
                                     <div class="flex justify-between items-center">
                                         <div>
                                             <div class="font-semibold">${assignment.vcn_agent?.name || 'Unknown'}</div>
-                                            <div class="text-sm text-gray-600">Account: ${assignment.account_id}</div>
+                                            <div class="text-sm text-gray-600">Account: ${assignment.account_export_name}</div>
                                             <div class="text-xs text-gray-500">Assigned at ${assignedTime}</div>
                                             <div class="text-xs text-gray-500">Type: ${assignment.assignment_type}</div>
                                         </div>
@@ -2868,7 +2882,7 @@ function createGuideStepEditor(type, stepData = {}) {
         async function createManualRescheduleNotification(memberId, accountId) {
             try {
                 const { data: settings, error: settingsError } = await supabase
-                    .from('manual_reschedule_settings')
+                    .from('auto_assignment_settings')
                     .select('setting_value')
                     .eq('setting_key', 'notification_message')
                     .single();
@@ -2896,12 +2910,12 @@ function createGuideStepEditor(type, stepData = {}) {
         async function loadAssignmentHistory() {
             try {
                 const { data: history, error } = await supabase
-                    .from('manual_reschedule_assignments')
+                    .from('schedule_assignments')
                     .select(`
                         *,
-                        vcn_agent!manual_reschedule_assignments_member_id_fkey(name)
+                        vcn_agent!schedule_assignments_agent_id_fkey(name)
                     `)
-                    .order('assigned_date', { ascending: false })
+                    .order('assignment_date', { ascending: false })
                     .limit(10);
 
                 if (error) throw error;
@@ -2910,12 +2924,12 @@ function createGuideStepEditor(type, stepData = {}) {
                 if (assignmentHistory) {
                     if (history && history.length > 0) {
                         assignmentHistory.innerHTML = history.map(assignment => {
-                            const assignedDate = new Date(assignment.assigned_date).toLocaleDateString();
+                            const assignedDate = new Date(assignment.assignment_date).toLocaleDateString();
                             const statusColors = {
                                 'assigned': 'bg-blue-100 text-blue-800',
                                 'started': 'bg-yellow-100 text-yellow-800',
                                 'completed': 'bg-green-100 text-green-800',
-                                'skipped': 'bg-red-100 text-red-800'
+                                'cancelled': 'bg-red-100 text-red-800'
                             };
 
                             return `
@@ -2923,7 +2937,7 @@ function createGuideStepEditor(type, stepData = {}) {
                                     <div class="flex justify-between items-center">
                                         <div>
                                             <span class="font-medium">${assignment.vcn_agent?.name || 'Unknown'}</span>
-                                            <span class="text-gray-600">- ${assignment.account_id}</span>
+                                            <span class="text-gray-600">- ${assignment.account_export_name}</span>
                                         </div>
                                         <div class="text-right">
                                             <div class="text-xs text-gray-500">${assignedDate}</div>
@@ -2951,7 +2965,7 @@ function createGuideStepEditor(type, stepData = {}) {
         async function updateManualRescheduleSettings(key, value) {
             try {
                 const { error } = await supabase
-                    .from('manual_reschedule_settings')
+                    .from('auto_assignment_settings')
                     .upsert({
                         setting_key: key,
                         setting_value: value
@@ -2970,7 +2984,7 @@ function createGuideStepEditor(type, stepData = {}) {
             try {
                 // Check if auto assignment is enabled
                 const { data: settings, error } = await supabase
-                    .from('manual_reschedule_settings')
+                    .from('auto_assignment_settings')
                     .select('setting_value')
                     .eq('setting_key', 'auto_assignment_enabled')
                     .single();
@@ -3105,7 +3119,7 @@ function createGuideStepEditor(type, stepData = {}) {
                 if (assignmentType === 'daily') {
                     const nextAssignment = await getNextAutoAssignment();
                     if (!nextAssignment) {
-                        showNotification('No active agents or accounts found', 'error');
+                        showNotification('No active rotation schedule found', 'error');
                         return;
                     }
 
@@ -3115,20 +3129,20 @@ function createGuideStepEditor(type, stepData = {}) {
                     previewContent.innerHTML = `
                         <div class="bg-blue-50 border border-blue-200 rounded p-2 mb-2">
                             <strong>Next Auto Assignment (Daily):</strong><br>
-                            👤 <strong>Agent:</strong> ${nextAssignment.memberName} (${nextAssignment.agentIndex}/${nextAssignment.totalAgents})<br>
-                            🏢 <strong>Account:</strong> ${nextAssignment.account_id} (${nextAssignment.accountIndex}/${nextAssignment.totalAccounts})<br>
+                            👤 <strong>Agent:</strong> ${nextAssignment.agentName}<br>
+                            🏢 <strong>Account:</strong> ${nextAssignment.account_export_name}<br>
                             📅 <strong>Date:</strong> ${new Date().toLocaleDateString()}<br>
-                            🔄 <strong>Sequential Pairing #${nextAssignment.pairingIndex}:</strong> Account ${nextAssignment.accountIndex} → Agent ${nextAssignment.agentIndex}
+                            🔄 <strong>Rotation Order:</strong> #${nextAssignment.rotation_order}
                         </div>
                         <div class="text-xs text-gray-600 mt-1">
-                            <strong>Logic:</strong> Sequential pairing - Account 1→Agent 1, Account 2→Agent 2, etc. When reaching the end of either list, it wraps around while continuing the sequence.
+                            <strong>Logic:</strong> Continuous rotation through the schedule list. Assignments rotate in order without resetting.
                         </div>
                     `;
-                } else {
+                } else if (assignmentType === 'weekly') {
                     // Weekly assignment preview
                     const weeklyAssignments = await getNext5DayAssignments();
                     if (!weeklyAssignments || weeklyAssignments.length === 0) {
-                        showNotification('No active agents or accounts found', 'error');
+                        showNotification('No active rotation schedule found', 'error');
                         return;
                     }
 
@@ -3140,12 +3154,36 @@ function createGuideStepEditor(type, stepData = {}) {
                             <strong>Next Auto Assignment (5 Days):</strong><br>
                             ${weeklyAssignments.map((assignment) => `
                                 <div class="text-sm mt-1">
-                                    📅 <strong>${assignment.date}:</strong> Account ${assignment.accountIndex} (${assignment.account_id}) → Agent ${assignment.agentIndex} (${assignment.memberName})
+                                    📅 <strong>${assignment.date}:</strong> ${assignment.agentName} → ${assignment.account_export_name}
                                 </div>
                             `).join('')}
                         </div>
                         <div class="text-xs text-gray-600 mt-1">
-                            <strong>Logic:</strong> Sequential pairing across 5 weekdays. Each day continues from where the previous assignment left off.
+                            <strong>Note:</strong> Weekdays only (Monday-Friday). Continuous rotation.
+                        </div>
+                    `;
+                } else if (assignmentType === 'monthly') {
+                    // Monthly assignment preview
+                    const monthlyAssignments = await getNext30DayAssignments();
+                    if (!monthlyAssignments || monthlyAssignments.length === 0) {
+                        showNotification('No active rotation schedule found', 'error');
+                        return;
+                    }
+
+                    const previewDiv = document.getElementById('auto-assignment-preview');
+                    const previewContent = document.getElementById('preview-content');
+
+                    previewContent.innerHTML = `
+                        <div class="bg-blue-50 border border-blue-200 rounded p-2 mb-2 max-h-96 overflow-y-auto">
+                            <strong>Next Auto Assignment (30 Weekdays):</strong><br>
+                            ${monthlyAssignments.map((assignment) => `
+                                <div class="text-xs mt-1">
+                                    📅 <strong>${assignment.date}:</strong> ${assignment.agentName} → ${assignment.account_export_name}
+                                </div>
+                            `).join('')}
+                        </div>
+                        <div class="text-xs text-gray-600 mt-1">
+                            <strong>Note:</strong> Weekdays only (Monday-Friday). Continuous rotation.
                         </div>
                     `;
                 }
@@ -3168,14 +3206,30 @@ function createGuideStepEditor(type, stepData = {}) {
         function getNext5Weekdays(startDate) {
             const dates = [];
             let currentDate = new Date(startDate);
-            let weekdaysAdded = 0;
 
-            while (weekdaysAdded < 5) {
+            // Get next 5 weekdays (Monday-Friday only)
+            while (dates.length < 5) {
                 const dayOfWeek = currentDate.getDay();
-                // Skip weekends (0 = Sunday, 6 = Saturday)
+                // Only include weekdays (Monday = 1, Friday = 5)
                 if (dayOfWeek >= 1 && dayOfWeek <= 5) {
                     dates.push(currentDate.toISOString().split('T')[0]);
-                    weekdaysAdded++;
+                }
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+
+            return dates;
+        }
+
+        function getNext30Days(startDate) {
+            const dates = [];
+            let currentDate = new Date(startDate);
+
+            // Get next 30 weekdays (Monday-Friday only)
+            while (dates.length < 30) {
+                const dayOfWeek = currentDate.getDay();
+                // Only include weekdays (Monday = 1, Friday = 5)
+                if (dayOfWeek >= 1 && dayOfWeek <= 5) {
+                    dates.push(currentDate.toISOString().split('T')[0]);
                 }
                 currentDate.setDate(currentDate.getDate() + 1);
             }
@@ -3221,6 +3275,28 @@ function createGuideStepEditor(type, stepData = {}) {
             }
         }
 
+        async function getNext30DayAssignments() {
+            try {
+                const assignments = [];
+                const dates = getNext30Days(new Date());
+
+                for (let i = 0; i < dates.length; i++) {
+                    const assignment = await getNextAutoAssignment(i);
+                    if (assignment) {
+                        assignments.push({
+                            ...assignment,
+                            date: new Date(dates[i]).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+                        });
+                    }
+                }
+
+                return assignments;
+            } catch (error) {
+                console.error('Error getting 30-day assignments:', error);
+                return [];
+            }
+        }
+
         async function confirmAutoAssignment() {
             try {
                 const assignmentType = document.querySelector('input[name="auto-assignment-type"]:checked').value;
@@ -3228,9 +3304,12 @@ function createGuideStepEditor(type, stepData = {}) {
                 if (assignmentType === 'daily') {
                     await performAutoAssignment();
                     showNotification('Daily auto assignment completed successfully', 'success');
-                } else {
+                } else if (assignmentType === 'weekly') {
                     await perform5DayAutoAssignment();
                     showNotification('5-day auto assignment completed successfully', 'success');
+                } else if (assignmentType === 'monthly') {
+                    await perform30DayAutoAssignment();
+                    showNotification('30-day auto assignment completed successfully', 'success');
                 }
 
                 hideAutoAssignmentPreview();
@@ -3250,9 +3329,9 @@ function createGuideStepEditor(type, stepData = {}) {
                     const assignment = await getNextAutoAssignment(i);
                     if (assignment) {
                         assignments.push({
-                            assigned_date: dates[i],
-                            member_id: assignment.member_id,
-                            account_id: assignment.account_id,
+                            assignment_date: dates[i],
+                            agent_id: assignment.agent_id,
+                            account_export_name: assignment.account_export_name,
                             assignment_type: 'auto',
                             status: 'assigned'
                         });
@@ -3261,14 +3340,14 @@ function createGuideStepEditor(type, stepData = {}) {
 
                 if (assignments.length > 0) {
                     const { error: insertError } = await supabase
-                        .from('manual_reschedule_assignments')
+                        .from('schedule_assignments')
                         .insert(assignments);
 
                     if (insertError) throw insertError;
 
                     // Create notifications for each assignment
                     for (const assignment of assignments) {
-                        await createManualRescheduleNotification(assignment.member_id, assignment.account_id);
+                        await createManualRescheduleNotification(assignment.agent_id, assignment.account_export_name);
                     }
                 }
 
@@ -3279,92 +3358,131 @@ function createGuideStepEditor(type, stepData = {}) {
             }
         }
 
-        async function getNextAutoAssignment(dayOffset = 0) {
+        async function perform30DayAutoAssignment() {
             try {
-                // Get all active agents (members)
-                const { data: agents, error: agentsError } = await supabase
-                    .from('vcn_agent')
-                    .select('stt, name, account_name')
-                    .eq('status', 'active')
-                    .order('stt');
+                const dates = getNext30Days(new Date());
+                const assignments = [];
 
-                if (agentsError) throw agentsError;
-
-                // Get all available accounts from the agent table
-                const { data: accounts, error: accountsError } = await supabase
-                    .from('agent')
-                    .select('agent_account')
-                    .order('agent_account');
-
-                if (accountsError) throw accountsError;
-
-                if (!agents || agents.length === 0) {
-                    console.log('No active agents found');
-                    return null;
-                }
-
-                if (!accounts || accounts.length === 0) {
-                    console.log('No accounts found');
-                    return null;
-                }
-
-                // Get the last assignment to determine the next pairing
-                const { data: lastAssignment, error: lastError } = await supabase
-                    .from('manual_reschedule_assignments')
-                    .select('member_id, account_id')
-                    .order('assigned_date', { ascending: false })
-                    .limit(1)
-                    .single();
-
-                if (lastError && lastError.code !== 'PGRST116') {
-                    throw lastError;
-                }
-
-                // Calculate the next pairing index
-                let pairingIndex = dayOffset; // Start with day offset for multi-day assignments
-
-                if (lastAssignment) {
-                    // Find the last agent and account indices
-                    const lastAgentIndex = agents.findIndex(agent => agent.stt === lastAssignment.member_id);
-                    const lastAccountIndex = accounts.findIndex(account => account.agent_account === lastAssignment.account_id);
-
-                    if (lastAgentIndex !== -1 && lastAccountIndex !== -1) {
-                        // Calculate the last pairing index based on the sequential logic
-                        // We need to find which pairing number this was
-                        let lastPairingIndex = 0;
-
-                        // Try to reconstruct the pairing index from the last assignment
-                        // This is a simplified approach - in a real system, you might want to store this
-                        for (let i = 0; i < Math.max(agents.length, accounts.length) * 10; i++) {
-                            const testAgentIndex = i % agents.length;
-                            const testAccountIndex = i % accounts.length;
-
-                            if (testAgentIndex === lastAgentIndex && testAccountIndex === lastAccountIndex) {
-                                lastPairingIndex = i;
-                                break;
-                            }
-                        }
-
-                        pairingIndex = lastPairingIndex + 1 + dayOffset;
+                for (let i = 0; i < dates.length; i++) {
+                    const assignment = await getNextAutoAssignment(i);
+                    if (assignment) {
+                        assignments.push({
+                            assignment_date: dates[i],
+                            agent_id: assignment.agent_id,
+                            account_export_name: assignment.account_export_name,
+                            assignment_type: 'auto',
+                            status: 'assigned'
+                        });
                     }
                 }
 
-                // Calculate agent and account indices based on sequential pairing
-                const nextAgentIndex = pairingIndex % agents.length;
-                const nextAccountIndex = pairingIndex % accounts.length;
+                if (assignments.length > 0) {
+                    const { error: insertError } = await supabase
+                        .from('schedule_assignments')
+                        .insert(assignments);
 
-                const nextAgent = agents[nextAgentIndex];
-                const nextAccount = accounts[nextAccountIndex];
+                    if (insertError) throw insertError;
+
+                    // Create notifications for each assignment
+                    for (const assignment of assignments) {
+                        await createManualRescheduleNotification(assignment.agent_id, assignment.account_export_name);
+                    }
+                }
+
+                console.log('30-day auto assignment completed successfully');
+            } catch (error) {
+                console.error('Error performing 30-day auto assignment:', error);
+                throw error;
+            }
+        }
+
+        async function getNextAutoAssignment(dayOffset = 0) {
+            try {
+                // Get the agent rotation list
+                const { data: agentList, error: agentError } = await supabase
+                    .from('agent_rotation_list')
+                    .select(`
+                        *,
+                        vcn_agent!agent_rotation_list_agent_id_fkey(name)
+                    `)
+                    .eq('is_active', true)
+                    .order('rotation_order');
+
+                if (agentError) throw agentError;
+
+                // Get the account rotation list
+                const { data: accountList, error: accountError } = await supabase
+                    .from('account_rotation_list')
+                    .select('*')
+                    .eq('is_active', true)
+                    .order('rotation_order');
+
+                if (accountError) throw accountError;
+
+                if (!agentList || agentList.length === 0) {
+                    console.log('No active agents in rotation list');
+                    return null;
+                }
+
+                if (!accountList || accountList.length === 0) {
+                    console.log('No active accounts in rotation list');
+                    return null;
+                }
+
+                // Get the current rotation state
+                const { data: rotationState, error: stateError } = await supabase
+                    .from('rotation_state')
+                    .select('*')
+                    .eq('id', 1)
+                    .single();
+
+                if (stateError && stateError.code !== 'PGRST116') {
+                    throw stateError;
+                }
+
+                // Calculate the next indices (agents and accounts cycle independently)
+                let agentCurrentIndex = rotationState?.agent_current_index || 0;
+                let accountCurrentIndex = rotationState?.account_current_index || 0;
+
+                let agentNextIndex = (agentCurrentIndex + dayOffset) % agentList.length;
+                let accountNextIndex = (accountCurrentIndex + dayOffset) % accountList.length;
+
+                const nextAgent = agentList[agentNextIndex];
+                const nextAccount = accountList[accountNextIndex];
+
+                // Update the rotation state (only if dayOffset is 0, meaning this is the actual assignment)
+                if (dayOffset === 0) {
+                    const newAgentIndex = (agentCurrentIndex + 1) % agentList.length;
+                    const newAccountIndex = (accountCurrentIndex + 1) % accountList.length;
+
+                    if (rotationState) {
+                        // Update existing state
+                        await supabase
+                            .from('rotation_state')
+                            .update({
+                                agent_current_index: newAgentIndex,
+                                account_current_index: newAccountIndex,
+                                last_assignment_date: new Date().toISOString().split('T')[0],
+                                updated_at: new Date().toISOString()
+                            })
+                            .eq('id', 1);
+                    } else {
+                        // Create initial state
+                        await supabase
+                            .from('rotation_state')
+                            .insert({
+                                id: 1,
+                                agent_current_index: newAgentIndex,
+                                account_current_index: newAccountIndex,
+                                last_assignment_date: new Date().toISOString().split('T')[0]
+                            });
+                    }
+                }
 
                 return {
-                    member_id: nextAgent.stt,
-                    account_id: nextAccount.agent_account,
-                    memberName: nextAgent.name,
-                    agentIndex: nextAgentIndex + 1, // 1-based for display
-                    accountIndex: nextAccountIndex + 1, // 1-based for display
-                    totalAgents: agents.length,
-                    totalAccounts: accounts.length,
-                    pairingIndex: pairingIndex + 1 // 1-based for display
+                    agent_id: nextAgent.agent_id,
+                    account_export_name: nextAccount.account_export_name,
+                    agentName: nextAgent.vcn_agent?.name || 'Unknown'
                 };
             } catch (error) {
                 console.error('Error getting next assignment:', error);
@@ -3375,27 +3493,17 @@ function createGuideStepEditor(type, stepData = {}) {
         async function performAutoAssignment() {
             try {
                 const today = new Date();
-                const dayOfWeek = today.getDay(); // 0 = Sunday, 1 = Monday, etc.
-
-                // Only assign on weekdays (Monday = 1, Friday = 5)
-                if (dayOfWeek < 1 || dayOfWeek > 5) {
-                    return;
-                }
-
                 const todayString = today.toISOString().split('T')[0];
 
                 // Check if assignment already exists for today
-                const { data: existingAssignment, error: checkError } = await supabase
-                    .from('manual_reschedule_assignments')
+                const { data: existingAssignments, error: checkError } = await supabase
+                    .from('schedule_assignments')
                     .select('*')
-                    .eq('assigned_date', todayString)
-                    .single();
+                    .eq('assignment_date', todayString);
 
-                if (checkError && checkError.code !== 'PGRST116') {
-                    throw checkError;
-                }
+                if (checkError) throw checkError;
 
-                if (existingAssignment) {
+                if (existingAssignments && existingAssignments.length > 0) {
                     console.log('Assignment already exists for today');
                     return;
                 }
@@ -3410,11 +3518,11 @@ function createGuideStepEditor(type, stepData = {}) {
 
                 // Create the assignment
                 const { error: insertError } = await supabase
-                    .from('manual_reschedule_assignments')
+                    .from('schedule_assignments')
                     .insert({
-                        assigned_date: todayString,
-                        member_id: nextAssignment.member_id,
-                        account_id: nextAssignment.account_id,
+                        assignment_date: todayString,
+                        agent_id: nextAssignment.agent_id,
+                        account_export_name: nextAssignment.account_export_name,
                         assignment_type: 'auto',
                         status: 'assigned'
                     });
@@ -3422,7 +3530,7 @@ function createGuideStepEditor(type, stepData = {}) {
                 if (insertError) throw insertError;
 
                 // Create notification
-                await createManualRescheduleNotification(nextAssignment.member_id, nextAssignment.account_id);
+                await createManualRescheduleNotification(nextAssignment.agent_id, nextAssignment.account_export_name);
 
                 // Refresh the UI
                 loadCurrentAssignments(); // This will also refresh the calendar
@@ -3446,10 +3554,10 @@ function createGuideStepEditor(type, stepData = {}) {
             try {
                 // Check if this combination already exists
                 const { data: existing, error: checkError } = await supabase
-                    .from('manual_reschedule_schedule')
+                    .from('schedule_rotation_list')
                     .select('*')
-                    .eq('member_id', memberId)
-                    .eq('account_id', accountId)
+                    .eq('agent_id', memberId)
+                    .eq('account_export_name', accountId)
                     .eq('is_active', true)
                     .single();
 
@@ -3458,13 +3566,13 @@ function createGuideStepEditor(type, stepData = {}) {
                 }
 
                 if (existing) {
-                    showNotification('This member-account combination already exists in the schedule', 'error');
+                    showNotification('This agent-account combination already exists in the schedule', 'error');
                     return;
                 }
 
                 // Get the next rotation order
                 const { data: maxOrder, error: maxError } = await supabase
-                    .from('manual_reschedule_schedule')
+                    .from('schedule_rotation_list')
                     .select('rotation_order')
                     .eq('is_active', true)
                     .order('rotation_order', { ascending: false })
@@ -3479,10 +3587,10 @@ function createGuideStepEditor(type, stepData = {}) {
 
                 // Add to schedule
                 const { error: insertError } = await supabase
-                    .from('manual_reschedule_schedule')
+                    .from('schedule_rotation_list')
                     .insert({
-                        member_id: memberId,
-                        account_id: accountId,
+                        agent_id: memberId,
+                        account_export_name: accountId,
                         rotation_order: nextOrder,
                         is_active: true
                     });
@@ -3504,10 +3612,10 @@ function createGuideStepEditor(type, stepData = {}) {
         async function loadRotationSchedule() {
             try {
                 const { data: schedule, error } = await supabase
-                    .from('manual_reschedule_schedule')
+                    .from('schedule_rotation_list')
                     .select(`
                         *,
-                        vcn_agent!manual_reschedule_schedule_member_id_fkey(name)
+                        vcn_agent!schedule_rotation_list_agent_id_fkey(name)
                     `)
                     .eq('is_active', true)
                     .order('rotation_order');
@@ -3521,7 +3629,7 @@ function createGuideStepEditor(type, stepData = {}) {
                             <div class="p-2 border border-gray-200 rounded flex justify-between items-center">
                                 <div>
                                     <span class="font-medium">${item.vcn_agent?.name || 'Unknown'}</span>
-                                    <span class="text-gray-600">- ${item.account_id}</span>
+                                    <span class="text-gray-600">- ${item.account_export_name}</span>
                                     <span class="text-xs text-gray-500">(Order: ${item.rotation_order})</span>
                                 </div>
                                 <button onclick="removeFromSchedule(${item.id})"
@@ -3550,7 +3658,7 @@ function createGuideStepEditor(type, stepData = {}) {
 
             try {
                 const { error } = await supabase
-                    .from('manual_reschedule_schedule')
+                    .from('schedule_rotation_list')
                     .update({ is_active: false })
                     .eq('id', scheduleId);
 
@@ -3564,35 +3672,272 @@ function createGuideStepEditor(type, stepData = {}) {
             }
         }
 
+        // --- Separate Agent and Account Rotation Lists ---
+        async function addAgentToRotation() {
+            const agentId = document.getElementById('agent-select').value;
+
+            if (!agentId) {
+                showNotification('Please select an agent', 'error');
+                return;
+            }
+
+            try {
+                // Check if agent already exists in rotation list
+                const { data: existing, error: checkError } = await supabase
+                    .from('agent_rotation_list')
+                    .select('*')
+                    .eq('agent_id', agentId)
+                    .eq('is_active', true)
+                    .single();
+
+                if (checkError && checkError.code !== 'PGRST116') {
+                    throw checkError;
+                }
+
+                if (existing) {
+                    showNotification('This agent is already in the rotation list', 'error');
+                    return;
+                }
+
+                // Get the next rotation order
+                const { data: maxOrder, error: maxError } = await supabase
+                    .from('agent_rotation_list')
+                    .select('rotation_order')
+                    .eq('is_active', true)
+                    .order('rotation_order', { ascending: false })
+                    .limit(1)
+                    .single();
+
+                if (maxError && maxError.code !== 'PGRST116') {
+                    throw maxError;
+                }
+
+                const nextOrder = (maxOrder?.rotation_order || 0) + 1;
+
+                // Add to rotation list
+                const { error: insertError } = await supabase
+                    .from('agent_rotation_list')
+                    .insert({
+                        agent_id: agentId,
+                        rotation_order: nextOrder,
+                        is_active: true
+                    });
+
+                if (insertError) throw insertError;
+
+                showNotification('Agent added to rotation list', 'success');
+                loadAgentRotationList();
+
+                // Reset dropdown
+                document.getElementById('agent-select').value = '';
+            } catch (error) {
+                console.error('Error adding agent to rotation:', error);
+                showNotification('Error adding agent to rotation list', 'error');
+            }
+        }
+
+        async function addAccountToRotation() {
+            const accountId = document.getElementById('account-select').value;
+
+            if (!accountId) {
+                showNotification('Please select an account', 'error');
+                return;
+            }
+
+            try {
+                // Check if account already exists in rotation list
+                const { data: existing, error: checkError } = await supabase
+                    .from('account_rotation_list')
+                    .select('*')
+                    .eq('account_export_name', accountId)
+                    .eq('is_active', true)
+                    .single();
+
+                if (checkError && checkError.code !== 'PGRST116') {
+                    throw checkError;
+                }
+
+                if (existing) {
+                    showNotification('This account is already in the rotation list', 'error');
+                    return;
+                }
+
+                // Get the next rotation order
+                const { data: maxOrder, error: maxError } = await supabase
+                    .from('account_rotation_list')
+                    .select('rotation_order')
+                    .eq('is_active', true)
+                    .order('rotation_order', { ascending: false })
+                    .limit(1)
+                    .single();
+
+                if (maxError && maxError.code !== 'PGRST116') {
+                    throw maxError;
+                }
+
+                const nextOrder = (maxOrder?.rotation_order || 0) + 1;
+
+                // Add to rotation list
+                const { error: insertError } = await supabase
+                    .from('account_rotation_list')
+                    .insert({
+                        account_export_name: accountId,
+                        rotation_order: nextOrder,
+                        is_active: true
+                    });
+
+                if (insertError) throw insertError;
+
+                showNotification('Account added to rotation list', 'success');
+                loadAccountRotationList();
+
+                // Reset dropdown
+                document.getElementById('account-select').value = '';
+            } catch (error) {
+                console.error('Error adding account to rotation:', error);
+                showNotification('Error adding account to rotation list', 'error');
+            }
+        }
+
+        async function loadAgentRotationList() {
+            try {
+                const { data: agents, error } = await supabase
+                    .from('agent_rotation_list')
+                    .select(`
+                        *,
+                        vcn_agent!agent_rotation_list_agent_id_fkey(name)
+                    `)
+                    .eq('is_active', true)
+                    .order('rotation_order');
+
+                if (error) throw error;
+
+                const agentList = document.getElementById('agent-rotation-list');
+                if (agentList) {
+                    if (agents && agents.length > 0) {
+                        agentList.innerHTML = agents.map((item, index) => `
+                            <div class="p-2 bg-white border border-blue-200 rounded flex justify-between items-center">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-bold text-blue-600">#${index + 1}</span>
+                                    <span class="font-medium">${item.vcn_agent?.name || 'Unknown'}</span>
+                                </div>
+                                <button onclick="removeAgentFromRotation(${item.id})"
+                                        class="text-red-500 hover:text-red-700 text-sm font-bold">
+                                    ✕
+                                </button>
+                            </div>
+                        `).join('');
+                    } else {
+                        agentList.innerHTML = '<p class="text-xs text-gray-500 text-center py-4">No agents in rotation list</p>';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading agent rotation list:', error);
+            }
+        }
+
+        async function loadAccountRotationList() {
+            try {
+                const { data: accounts, error } = await supabase
+                    .from('account_rotation_list')
+                    .select('*')
+                    .eq('is_active', true)
+                    .order('rotation_order');
+
+                if (error) throw error;
+
+                const accountList = document.getElementById('account-rotation-list');
+                if (accountList) {
+                    if (accounts && accounts.length > 0) {
+                        accountList.innerHTML = accounts.map((item, index) => `
+                            <div class="p-2 bg-white border border-green-200 rounded flex justify-between items-center">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-bold text-green-600">#${index + 1}</span>
+                                    <span class="font-medium">${item.account_export_name}</span>
+                                </div>
+                                <button onclick="removeAccountFromRotation(${item.id})"
+                                        class="text-red-500 hover:text-red-700 text-sm font-bold">
+                                    ✕
+                                </button>
+                            </div>
+                        `).join('');
+                    } else {
+                        accountList.innerHTML = '<p class="text-xs text-gray-500 text-center py-4">No accounts in rotation list</p>';
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading account rotation list:', error);
+            }
+        }
+
+        window.removeAgentFromRotation = async function(agentRotationId) {
+            if (!confirm('Remove this agent from the rotation list?')) {
+                return;
+            }
+
+            try {
+                const { error } = await supabase
+                    .from('agent_rotation_list')
+                    .update({ is_active: false })
+                    .eq('id', agentRotationId);
+
+                if (error) throw error;
+
+                showNotification('Agent removed from rotation list', 'success');
+                loadAgentRotationList();
+            } catch (error) {
+                console.error('Error removing agent:', error);
+                showNotification('Error removing agent from rotation list', 'error');
+            }
+        };
+
+        window.removeAccountFromRotation = async function(accountRotationId) {
+            if (!confirm('Remove this account from the rotation list?')) {
+                return;
+            }
+
+            try {
+                const { error } = await supabase
+                    .from('account_rotation_list')
+                    .update({ is_active: false })
+                    .eq('id', accountRotationId);
+
+                if (error) throw error;
+
+                showNotification('Account removed from rotation list', 'success');
+                loadAccountRotationList();
+            } catch (error) {
+                console.error('Error removing account:', error);
+                showNotification('Error removing account from rotation list', 'error');
+            }
+        };
+
         // --- Calendar Functions ---
-        let currentWeekStart = new Date();
+        let currentMonth = new Date();
 
         function initializeCalendar() {
-            // Set to start of current week (Monday)
+            // Set to start of current month
             const today = new Date();
-            const dayOfWeek = today.getDay();
-            const daysToMonday = dayOfWeek === 0 ? -6 : 1 - dayOfWeek;
-            currentWeekStart = new Date(today);
-            currentWeekStart.setDate(today.getDate() + daysToMonday);
+            currentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
             setupCalendarHandlers();
             renderCalendar();
         }
 
         function setupCalendarHandlers() {
-            const prevWeekBtn = document.getElementById('prev-week-btn');
-            const nextWeekBtn = document.getElementById('next-week-btn');
+            const prevMonthBtn = document.getElementById('prev-month-btn');
+            const nextMonthBtn = document.getElementById('next-month-btn');
 
-            if (prevWeekBtn) {
-                prevWeekBtn.addEventListener('click', () => {
-                    currentWeekStart.setDate(currentWeekStart.getDate() - 7);
+            if (prevMonthBtn) {
+                prevMonthBtn.addEventListener('click', () => {
+                    currentMonth.setMonth(currentMonth.getMonth() - 1);
                     renderCalendar();
                 });
             }
 
-            if (nextWeekBtn) {
-                nextWeekBtn.addEventListener('click', () => {
-                    currentWeekStart.setDate(currentWeekStart.getDate() + 7);
+            if (nextMonthBtn) {
+                nextMonthBtn.addEventListener('click', () => {
+                    currentMonth.setMonth(currentMonth.getMonth() + 1);
                     renderCalendar();
                 });
             }
@@ -3600,113 +3945,133 @@ function createGuideStepEditor(type, stepData = {}) {
 
         async function renderCalendar() {
             const calendarContainer = document.getElementById('assignment-calendar');
-            const weekTitle = document.getElementById('calendar-week-title');
+            const monthTitle = document.getElementById('calendar-month-title');
 
-            if (!calendarContainer || !weekTitle) return;
+            if (!calendarContainer || !monthTitle) return;
 
-            // Update week title
-            const weekEnd = new Date(currentWeekStart);
-            weekEnd.setDate(currentWeekStart.getDate() + 4); // Friday
-            weekTitle.textContent = `${formatDate(currentWeekStart)} - ${formatDate(weekEnd)}`;
+            // Update month title
+            const monthName = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            monthTitle.textContent = monthName;
 
-            // Generate weekdays (Monday to Friday)
-            const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+            // Get first and last day of the month
+            const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+            const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 0);
+
+            // Get the day of week for the first day (0 = Sunday, 1 = Monday, etc.)
+            const firstDayOfWeek = firstDay.getDay();
+
+            // Calculate how many days to show from previous month
+            const daysFromPrevMonth = firstDayOfWeek === 0 ? 6 : firstDayOfWeek - 1; // Start week on Monday
+
+            // Generate all dates to display
             const dates = [];
 
-            for (let i = 0; i < 5; i++) {
-                const date = new Date(currentWeekStart);
-                date.setDate(currentWeekStart.getDate() + i);
-                dates.push(date);
+            // Add days from previous month
+            for (let i = daysFromPrevMonth; i > 0; i--) {
+                const date = new Date(firstDay);
+                date.setDate(date.getDate() - i);
+                dates.push({ date, isCurrentMonth: false });
             }
 
-            // Load assignments for this week
-            const startDate = dates[0].toISOString().split('T')[0];
-            const endDate = dates[4].toISOString().split('T')[0];
+            // Add days from current month
+            for (let i = 1; i <= lastDay.getDate(); i++) {
+                const date = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), i);
+                dates.push({ date, isCurrentMonth: true });
+            }
+
+            // Add days from next month to complete the grid
+            const remainingDays = 7 - (dates.length % 7);
+            if (remainingDays < 7) {
+                for (let i = 1; i <= remainingDays; i++) {
+                    const date = new Date(lastDay);
+                    date.setDate(date.getDate() + i);
+                    dates.push({ date, isCurrentMonth: false });
+                }
+            }
+
+            // Load assignments for this month (including buffer days)
+            const startDate = dates[0].date.toISOString().split('T')[0];
+            const endDate = dates[dates.length - 1].date.toISOString().split('T')[0];
 
             try {
                 const { data: assignments, error } = await supabase
-                    .from('manual_reschedule_assignments')
+                    .from('schedule_assignments')
                     .select(`
                         *,
-                        vcn_agent!manual_reschedule_assignments_member_id_fkey(name)
+                        vcn_agent!schedule_assignments_agent_id_fkey(name)
                     `)
-                    .gte('assigned_date', startDate)
-                    .lte('assigned_date', endDate)
-                    .order('assigned_date');
+                    .gte('assignment_date', startDate)
+                    .lte('assignment_date', endDate)
+                    .order('assignment_date');
 
                 if (error) throw error;
-
-                // Also get agent account information for better display
-                const { data: agentAccounts, error: agentError } = await supabase
-                    .from('agent')
-                    .select('agent_account, agent_name, team');
-
-                // Create agent account lookup map
-                const agentAccountMap = new Map();
-                if (!agentError && agentAccounts) {
-                    agentAccounts.forEach(agent => {
-                        agentAccountMap.set(agent.agent_account, agent);
-                    });
-                }
 
                 // Create assignment map
                 const assignmentMap = new Map();
                 assignments?.forEach(assignment => {
-                    assignmentMap.set(assignment.assigned_date, assignment);
+                    assignmentMap.set(assignment.assignment_date, assignment);
                 });
 
+                // Day names header
+                const dayNames = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+                const headerHtml = dayNames.map(day => `
+                    <div class="text-center font-semibold text-sm text-gray-600 py-2">
+                        ${day}
+                    </div>
+                `).join('');
+
                 // Render calendar
-                calendarContainer.innerHTML = dates.map((date, index) => {
+                const datesHtml = dates.map(({ date, isCurrentMonth }) => {
                     const dateStr = date.toISOString().split('T')[0];
                     const assignment = assignmentMap.get(dateStr);
                     const isToday = dateStr === new Date().toISOString().split('T')[0];
-
-                    // Get agent account info for better display
-                    let accountInfo = null;
-                    if (assignment && assignment.account_id) {
-                        accountInfo = agentAccountMap.get(assignment.account_id);
-                    }
+                    const dayOfWeek = date.getDay();
+                    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
                     return `
-                        <div class="border rounded-lg p-3 ${isToday ? 'bg-blue-50 border-blue-300' : 'bg-white'} min-h-[140px]">
-                            <div class="font-semibold text-sm mb-2 ${isToday ? 'text-blue-800' : 'text-gray-700'}">
-                                ${weekdays[index]}
-                            </div>
-                            <div class="text-xs text-gray-500 mb-2">
-                                ${date.getDate()}/${date.getMonth() + 1}
+                        <div class="border rounded-lg p-2 ${isToday ? 'bg-blue-50 border-blue-300' : 'bg-white'} ${!isCurrentMonth ? 'opacity-40' : ''} min-h-[120px] relative">
+                            <div class="text-xs ${isWeekend ? 'text-red-500 font-semibold' : 'text-gray-500'} mb-1">
+                                ${date.getDate()}
                             </div>
                             ${assignment ? `
-                                <div class="bg-green-100 border border-green-300 rounded p-2 text-xs">
-                                    <div class="font-semibold text-green-800">${assignment.vcn_agent?.name || 'Unknown Member'}</div>
-                                    <div class="text-green-600 font-medium">${assignment.account_id}</div>
-                                    ${accountInfo ? `
-                                        <div class="text-green-600 text-xs">${accountInfo.agent_name}</div>
-                                        ${accountInfo.team ? `<div class="text-green-500 text-xs">Team: ${accountInfo.team}</div>` : ''}
-                                    ` : ''}
-                                    <div class="text-green-500 mt-1">
+                                <div class="bg-green-100 border border-green-300 rounded p-1.5 text-xs">
+                                    <div class="font-semibold text-green-800 truncate" title="${assignment.vcn_agent?.name || 'Unknown'}">${assignment.vcn_agent?.name || 'Unknown'}</div>
+                                    <div class="text-green-600 font-medium truncate" title="${assignment.account_export_name}">${assignment.account_export_name}</div>
+                                    <div class="flex items-center justify-between mt-1">
                                         <span class="px-1 py-0.5 bg-green-200 rounded text-xs">
                                             ${assignment.status}
                                         </span>
+                                        <button onclick="deleteAssignment(${assignment.id})"
+                                                class="text-red-500 hover:text-red-700 font-bold text-sm"
+                                                title="Delete assignment">
+                                            ✕
+                                        </button>
                                     </div>
                                     ${assignment.assignment_type === 'manual' ? `
                                         <div class="text-xs text-blue-600 mt-1">
-                                            📝 Manual Assignment
+                                            📝 Manual
                                         </div>
-                                    ` : ''}
+                                    ` : `
+                                        <div class="text-xs text-purple-600 mt-1">
+                                            🤖 Auto
+                                        </div>
+                                    `}
                                 </div>
                             ` : `
                                 <div class="text-gray-400 text-xs italic">
-                                    No assignment
+                                    -
                                 </div>
                             `}
                         </div>
                     `;
                 }).join('');
 
+                calendarContainer.innerHTML = headerHtml + datesHtml;
+
             } catch (error) {
                 console.error('Error loading calendar assignments:', error);
                 calendarContainer.innerHTML = `
-                    <div class="col-span-5 text-center text-red-500 p-4">
+                    <div class="col-span-7 text-center text-red-500 p-4">
                         Error loading calendar data
                     </div>
                 `;
@@ -3732,7 +4097,7 @@ function createGuideStepEditor(type, stepData = {}) {
 
             try {
                 const { error } = await supabase
-                    .from('manual_reschedule_assignments')
+                    .from('schedule_assignments')
                     .delete()
                     .eq('id', assignmentId);
 
