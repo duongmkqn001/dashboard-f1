@@ -576,6 +576,16 @@
             }
             ticketTableBody.innerHTML = html;
 
+            // Show/hide Start and End headers based on view mode
+            const startHeader = document.getElementById('start-header');
+            const endHeader = document.getElementById('end-header');
+            if (startHeader) {
+                startHeader.style.display = currentViewMode === 'mos' ? 'none' : 'table-cell';
+            }
+            if (endHeader) {
+                endHeader.style.display = currentViewMode === 'mos' ? 'none' : 'table-cell';
+            }
+
             // Show/hide MoS actions header based on view mode
             const mosActionsHeader = document.getElementById('mos-actions-header');
             if (mosActionsHeader) {
