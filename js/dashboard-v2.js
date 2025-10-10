@@ -36,6 +36,11 @@
         let allProjects = [];
         let messageTimeout;
 
+        // Realtime subscriptions
+        let notificationsChannel = null;
+        let mosRequestsChannel = null;
+        let scheduleAssignmentsChannel = null;
+
         // Popup State
         let popupCurrentTicket = null;
         let popupCurrentProject = null;
@@ -163,6 +168,9 @@
 
                 // Initialize notifications
                 await updateNotificationCounts();
+
+                // Setup realtime subscriptions for notifications
+                setupRealtimeSubscriptions();
 
                 // Check for Manual Reschedule POs assignment
                 await checkManualRescheduleAssignment();
@@ -2315,6 +2323,149 @@
                 banner.remove();
             }
         }
+
+        // =================================================================================
+        // == REALTIME SUBSCRIPTIONS =====================================================
+        // =================================================================================
+
+        function setupRealtimeSubscriptions() {
+            try {
+                const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+
+                // Clean up existing subscriptions if any
+                if (notificationsChannel) {
+                    supabaseClient.removeChannel(notificationsChannel);
+                }
+                if (mosRequestsChannel) {
+                    supabaseClient.removeChannel(mosRequestsChannel);
+                }
+                if (scheduleAssignmentsChannel) {
+                    supabaseClient.removeChannel(scheduleAssignmentsChannel);
+                }
+
+                // Subscribe to notifications table for current user
+                notificationsChannel = supabaseClient
+                    .channel('notifications-changes')
+                    .on(
+                        'postgres_changes',
+                        {
+                            event: 'INSERT',
+                            schema: 'public',
+                            table: 'notifications',
+                            filter: `recipient_id=eq.${currentUser.stt}`
+                        },
+                        (payload) => {
+                            console.log('New notification received:', payload);
+                            // Update notification counts
+                            updateNotificationCounts();
+                            // Show a toast notification
+                            showMessage('🔔 New notification received', 'info');
+                        }
+                    )
+                    .on(
+                        'postgres_changes',
+                        {
+                            event: 'UPDATE',
+                            schema: 'public',
+                            table: 'notifications',
+                            filter: `recipient_id=eq.${currentUser.stt}`
+                        },
+                        (payload) => {
+                            console.log('Notification updated:', payload);
+                            // Update notification counts
+                            updateNotificationCounts();
+                        }
+                    )
+                    .subscribe();
+
+                // Subscribe to MoS requests for leaders/keys
+                if (currentUser.level === 'leader' || currentUser.level === 'key') {
+                    mosRequestsChannel = supabaseClient
+                        .channel('mos-requests-changes')
+                        .on(
+                            'postgres_changes',
+                            {
+                                event: 'INSERT',
+                                schema: 'public',
+                                table: 'mos_requests'
+                            },
+                            (payload) => {
+                                console.log('New MoS request received:', payload);
+                                // Update notification counts
+                                updateNotificationCounts();
+                                // Show a toast notification
+                                showMessage('🔔 New MoS request received', 'info');
+                            }
+                        )
+                        .on(
+                            'postgres_changes',
+                            {
+                                event: 'UPDATE',
+                                schema: 'public',
+                                table: 'mos_requests'
+                            },
+                            (payload) => {
+                                console.log('MoS request updated:', payload);
+                                // Update notification counts
+                                updateNotificationCounts();
+                            }
+                        )
+                        .subscribe();
+                }
+
+                // Subscribe to schedule assignments for current user
+                scheduleAssignmentsChannel = supabaseClient
+                    .channel('schedule-assignments-changes')
+                    .on(
+                        'postgres_changes',
+                        {
+                            event: 'INSERT',
+                            schema: 'public',
+                            table: 'schedule_assignments',
+                            filter: `agent_id=eq.${currentUser.stt}`
+                        },
+                        (payload) => {
+                            console.log('New schedule assignment received:', payload);
+                            // Check for new manual reschedule assignment
+                            checkManualRescheduleAssignment();
+                            // Show a toast notification
+                            showMessage('🔔 New schedule assignment received', 'info');
+                        }
+                    )
+                    .on(
+                        'postgres_changes',
+                        {
+                            event: 'UPDATE',
+                            schema: 'public',
+                            table: 'schedule_assignments',
+                            filter: `agent_id=eq.${currentUser.stt}`
+                        },
+                        (payload) => {
+                            console.log('Schedule assignment updated:', payload);
+                            // Check for updated manual reschedule assignment
+                            checkManualRescheduleAssignment();
+                        }
+                    )
+                    .subscribe();
+
+                console.log('✅ Realtime subscriptions setup complete');
+            } catch (error) {
+                console.error('Error setting up realtime subscriptions:', error);
+            }
+        }
+
+        // Cleanup subscriptions when page unloads
+        window.addEventListener('beforeunload', () => {
+            if (notificationsChannel) {
+                supabaseClient.removeChannel(notificationsChannel);
+            }
+            if (mosRequestsChannel) {
+                supabaseClient.removeChannel(mosRequestsChannel);
+            }
+            if (scheduleAssignmentsChannel) {
+                supabaseClient.removeChannel(scheduleAssignmentsChannel);
+            }
+        });
 
         // Fireworks effect
         function createFireworks() {

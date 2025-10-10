@@ -1238,10 +1238,14 @@
                 // Remove the replaced items from processedData
                 processedData = processedData.filter(row => !issueIdsToReplace.has(String(row.issue_id)));
 
-                // Update preview and re-check for duplicates
+                // Update preview - do NOT re-check for duplicates as we just replaced them
                 showDataPreview(processedData);
                 if (processedData.length > 0) {
-                    checkForDuplicates();
+                    // Hide duplicate section and enable import button
+                    if (duplicateSection) duplicateSection.classList.add('hidden');
+                    if (importBtn) importBtn.disabled = false;
+                    if (duplicateList) duplicateList.innerHTML = '<p class="text-green-600">✅ Replaced items removed from import list</p>';
+                    showStatus('✅ Ready to import remaining records. Click "Check for Duplicates" if you want to verify again.', 'success');
                 } else {
                     if (duplicateSection) duplicateSection.classList.add('hidden');
                     if (importBtn) importBtn.disabled = true;
@@ -1276,20 +1280,17 @@
             const removedCount = originalLength - processedData.length;
             showStatus(`Removed ${removedCount} item(s) from the import list.`, 'success');
 
-            // Update preview and duplicate list
+            // Update preview - do NOT re-check for duplicates as we just removed them
             showDataPreview(processedData);
             if (processedData.length > 0) {
-                 checkForDuplicates(); // Re-run check on the filtered list
+                // Hide duplicate section and enable import button
+                if (duplicateSection) duplicateSection.classList.add('hidden');
+                if (importBtn) importBtn.disabled = false;
+                if (duplicateList) duplicateList.innerHTML = '<p class="text-green-600">✅ Removed items skipped from import list</p>';
+                showStatus('✅ Ready to import remaining records. Click "Check for Duplicates" if you want to verify again.', 'success');
             } else {
                 if (duplicateSection) duplicateSection.classList.add('hidden');
                 if (importBtn) importBtn.disabled = true;
-            }
-
-            if (document.querySelectorAll('.duplicate-checkbox:not(:checked)').length === 0) {
-                 if (importBtn) importBtn.disabled = false;
-                 if (duplicateList) duplicateList.innerHTML = '<p class="text-green-600">✅ No duplicates detected</p>';
-                 if (removeSelectedBtn) removeSelectedBtn.disabled = true;
-                 if (replaceDuplicatesBtn) replaceDuplicatesBtn.disabled = true;
             }
         }
 
