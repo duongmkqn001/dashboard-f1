@@ -2007,43 +2007,96 @@
             }
         }
 
-        // Send ticket ID to Google Sheets - Apps Script will fetch data from tickets_export_v
-        // Runs in background, doesn't block UI
-        function sendTicketToGoogleSheets(ticketId) {
-            try {
-                // Send to Google Sheets Web App using image beacon (fire-and-forget)
-                const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzDXf9HPZi9NiJy-f8Enw9ZINljy2njMSWcZFXnrKCDzRPpAwwipIsTTMjP3lTtPZM07A/exec';
-                const SECRET_TOKEN = '14092000';
+        // Queue system for Google Sheets requests to prevent concurrent conflicts
+        const googleSheetsQueue = {
+            queue: [],
+            processing: false,
 
-                // Encode data as URL parameters - just send ticket ID
-                const params = new URLSearchParams({
-                    secret: SECRET_TOKEN,
-                    ticketId: ticketId
+            add(ticketId) {
+                this.queue.push(ticketId);
+                console.log(`📋 Added ticket ${ticketId} to Google Sheets queue. Queue length: ${this.queue.length}`);
+                this.processNext();
+            },
+
+            async processNext() {
+                if (this.processing || this.queue.length === 0) {
+                    return;
+                }
+
+                this.processing = true;
+                const ticketId = this.queue.shift();
+
+                try {
+                    console.log(`🔄 Processing ticket ${ticketId} from queue. Remaining: ${this.queue.length}`);
+                    await this.sendSingleTicket(ticketId);
+                    console.log(`✅ Successfully processed ticket ${ticketId}`);
+                } catch (error) {
+                    console.error(`❌ Failed to process ticket ${ticketId}:`, error);
+                    // Add back to queue for retry (at the end)
+                    this.queue.push(ticketId);
+                    console.log(`🔄 Retrying ticket ${ticketId} - added back to queue`);
+                } finally {
+                    this.processing = false;
+
+                    // Add delay between requests to prevent conflicts
+                    if (this.queue.length > 0) {
+                        setTimeout(() => this.processNext(), 1000); // 1 second delay
+                    }
+                }
+            },
+
+            sendSingleTicket(ticketId) {
+                return new Promise((resolve, reject) => {
+                    try {
+                        const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzDXf9HPZi9NiJy-f8Enw9ZINljy2njMSWcZFXnrKCDzRPpAwwipIsTTMjP3lTtPZM07A/exec';
+                        const SECRET_TOKEN = '14092000';
+
+                        // Encode data as URL parameters - just send ticket ID
+                        const params = new URLSearchParams({
+                            secret: SECRET_TOKEN,
+                            ticketId: ticketId
+                        });
+
+                        // Use image beacon for fire-and-forget request (no CORS, no waiting)
+                        const img = new Image();
+                        img.style.display = 'none';
+
+                        const timeout = setTimeout(() => {
+                            document.body.removeChild(img);
+                            resolve(); // Consider timeout as success since it's fire-and-forget
+                        }, 5000); // 5 second timeout
+
+                        img.onload = () => {
+                            clearTimeout(timeout);
+                            console.log('✅ Ticket export request sent to Google Sheets:', ticketId);
+                            document.body.removeChild(img);
+                            resolve();
+                        };
+
+                        img.onerror = () => {
+                            clearTimeout(timeout);
+                            // This is expected - Google Apps Script returns HTML, not an image
+                            // But the request was sent successfully
+                            console.log('✅ Ticket export request sent to Google Sheets:', ticketId);
+                            document.body.removeChild(img);
+                            resolve();
+                        };
+
+                        img.src = `${GOOGLE_SHEETS_URL}?${params.toString()}`;
+                        document.body.appendChild(img);
+
+                    } catch (error) {
+                        console.error('Error sending ticket to Google Sheets:', error);
+                        reject(error);
+                    }
                 });
-
-                // Use image beacon for fire-and-forget request (no CORS, no waiting)
-                const img = new Image();
-                img.style.display = 'none';
-
-                img.onload = () => {
-                    console.log('✅ Ticket export request sent to Google Sheets:', ticketId);
-                    document.body.removeChild(img);
-                };
-
-                img.onerror = () => {
-                    // This is expected - Google Apps Script returns HTML, not an image
-                    // But the request was sent successfully
-                    console.log('✅ Ticket export request sent to Google Sheets:', ticketId);
-                    document.body.removeChild(img);
-                };
-
-                img.src = `${GOOGLE_SHEETS_URL}?${params.toString()}`;
-                document.body.appendChild(img);
-
-            } catch (error) {
-                console.error('Error sending ticket to Google Sheets:', error);
-                // Don't show error to user - this is a background operation
             }
+        };
+
+        // Send ticket ID to Google Sheets - Apps Script will fetch data from tickets_export_v
+        // Uses queue system to prevent concurrent conflicts
+        function sendTicketToGoogleSheets(ticketId) {
+            googleSheetsQueue.add(ticketId);
         }
 
         async function updateNotificationCounts() {
