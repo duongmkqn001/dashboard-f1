@@ -1,0 +1,4 @@
+ticket,po,suid,su_name,supplier_agent_need,supplier_agent,order_number,po_nocs,customer,customer_contact,issue_type,description_eng,description_vie,agent_account
+TEST001,PO001,SUP001,Test Supplier 1,Yes,Agent1,ORD001,NOC001,Customer 1,customer1@test.com,Delivery Issue,Test delivery issue,Vấn đề giao hàng test,agent1
+TEST002,PO002,SUP002,Test Supplier 2,No,Agent2,ORD002,NOC002,Customer 2,customer2@test.com,Quality Issue,Test quality issue,Vấn đề chất lượng test,agent2
+TEST003,PO003,SUP003,Test Supplier 3,Yes,Agent3,ORD003,NOC003,Customer 3,customer3@test.com,Payment Issue,Test payment issue,Vấn đề thanh toán test,agent3

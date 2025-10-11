@@ -198,27 +198,9 @@
                             </table>
                         </div>
 
-                        <!-- Duplicate Detection -->
-                        <div id="duplicate-section" class="mt-6 hidden">
-                            <h4 class="text-lg font-medium mb-3 text-yellow-400">⚠️ Phát hiện trùng lặp</h4>
-                            <div id="duplicate-list" class="space-y-2 mb-4"></div>
-                            <div class="flex flex-wrap gap-2 mb-4">
-                                <button id="check-duplicates-btn" class="px-4 py-2 bg-yellow-600 hover:bg-yellow-700 text-white font-semibold rounded-lg">
-                                    🔍 Kiểm tra trùng lặp
-                                </button>
-                                <button id="select-all-duplicates-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg" disabled>
-                                    ☑️ Chọn tất cả
-                                </button>
-                                <button id="deselect-all-duplicates-btn" class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-semibold rounded-lg" disabled>
-                                    ☐ Bỏ chọn tất cả
-                                </button>
-                                <button id="replace-duplicates-btn" class="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg" disabled>
-                                    🔄 Thay thế dữ liệu đã chọn
-                                </button>
-                                <button id="remove-selected-btn" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-lg" disabled>
-                                    🗑️ Xóa khỏi danh sách nhập
-                                </button>
-                            </div>
+                        <!-- Automatic Duplicate Detection Status -->
+                        <div id="duplicate-status" class="mt-6 hidden">
+                            <div id="duplicate-info" class="p-4 rounded-lg border"></div>
                         </div>
                     </div>
 
@@ -288,24 +270,14 @@
         const previewBody = document.getElementById('preview-body');
         const importBtn = document.getElementById('import-btn');
         const downloadBtn = document.getElementById('download-btn');
-        const duplicateSection = document.getElementById('duplicate-section');
-        const duplicateList = document.getElementById('duplicate-list');
-        const checkDuplicatesBtn = document.getElementById('check-duplicates-btn');
-        const removeSelectedBtn = document.getElementById('remove-selected-btn');
-        const selectAllDuplicatesBtn = document.getElementById('select-all-duplicates-btn');
-        const deselectAllDuplicatesBtn = document.getElementById('deselect-all-duplicates-btn');
-        const replaceDuplicatesBtn = document.getElementById('replace-duplicates-btn');
+        const duplicateStatus = document.getElementById('duplicate-status');
+        const duplicateInfo = document.getElementById('duplicate-info');
 
         // Event listeners
         if (csvFileInput) csvFileInput.addEventListener('change', handleFileSelect);
         if (processBtn) processBtn.addEventListener('click', processCSV);
         if (importBtn) importBtn.addEventListener('click', importToDatabase);
         if (downloadBtn) downloadBtn.addEventListener('click', downloadProcessedCSV);
-        if (checkDuplicatesBtn) checkDuplicatesBtn.addEventListener('click', checkForDuplicates);
-        if (removeSelectedBtn) removeSelectedBtn.addEventListener('click', removeSelectedDuplicates);
-        if (selectAllDuplicatesBtn) selectAllDuplicatesBtn.addEventListener('click', selectAllDuplicates);
-        if (deselectAllDuplicatesBtn) deselectAllDuplicatesBtn.addEventListener('click', deselectAllDuplicates);
-        if (replaceDuplicatesBtn) replaceDuplicatesBtn.addEventListener('click', replaceDuplicatesWithNewData);
 
         // Test database connection on page load
         window.addEventListener('load', async () => {
@@ -410,17 +382,21 @@
                 updateStep(2, 'complete', 'Xử lý dữ liệu hoàn tất');
                 showStatus(`Đã xử lý ${processedRows.length} dòng`, 'success');
 
-                // Step 3: Prepare for import
-                updateStep(3, 'processing', 'Đang chuẩn bị dữ liệu...');
-                processedData = await prepareForImport(processedRows);
+                // Step 3: Prepare for import and automatically check for duplicates
+                updateStep(3, 'processing', 'Đang chuẩn bị dữ liệu và kiểm tra trùng lặp...');
+                const preparedData = await prepareForImport(processedRows);
+
+                // Automatically check for duplicates and filter them out
+                const { cleanData, duplicateCount } = await automaticDuplicateFilter(preparedData);
+                processedData = cleanData;
+
                 updateStep(3, 'complete', 'Chuẩn bị dữ liệu hoàn tất');
                 showStatus(`Đã chuẩn bị ${processedData.length} dòng để nhập`, 'success');
 
-                // Show preview and enable duplicate checking
+                // Show duplicate status and preview
+                showDuplicateStatus(duplicateCount, preparedData.length);
                 showDataPreview(processedData);
-                if (duplicateSection) duplicateSection.classList.remove('hidden');
                 if (importBtn) importBtn.disabled = false;
-                if (checkDuplicatesBtn) checkDuplicatesBtn.disabled = false;
 
             } catch (error) {
                 console.error('Processing error:', error);
@@ -429,6 +405,78 @@
             } finally {
                 setProcessing(false);
             }
+        }
+
+        // Automatic duplicate filtering function
+        async function automaticDuplicateFilter(data) {
+            if (!supabaseClient) {
+                console.warn('Supabase client not initialized, skipping duplicate check');
+                return { cleanData: data, duplicateCount: 0 };
+            }
+
+            try {
+                const issueIds = data.map(row => row.issue_id).filter(id => id);
+                if (issueIds.length === 0) {
+                    return { cleanData: data, duplicateCount: 0 };
+                }
+
+                // Check for existing tickets in database
+                const { data: existingTickets, error } = await supabaseClient
+                    .from('tickets')
+                    .select('issue_id')
+                    .in('issue_id', issueIds);
+
+                if (error) {
+                    console.error('Error checking for duplicates:', error);
+                    showStatus('⚠️ Không thể kiểm tra trùng lặp, tiếp tục với tất cả dữ liệu', 'warning');
+                    return { cleanData: data, duplicateCount: 0 };
+                }
+
+                const existingIssueIds = new Set(existingTickets.map(t => String(t.issue_id)));
+                const cleanData = data.filter(row => !existingIssueIds.has(String(row.issue_id)));
+                const duplicateCount = data.length - cleanData.length;
+
+                return { cleanData, duplicateCount };
+
+            } catch (error) {
+                console.error('Error in automatic duplicate filter:', error);
+                showStatus('⚠️ Lỗi khi kiểm tra trùng lặp, tiếp tục với tất cả dữ liệu', 'warning');
+                return { cleanData: data, duplicateCount: 0 };
+            }
+        }
+
+        // Show duplicate status function
+        function showDuplicateStatus(duplicateCount, totalCount) {
+            if (!duplicateStatus || !duplicateInfo) return;
+
+            if (duplicateCount === 0) {
+                duplicateInfo.className = 'p-4 rounded-lg border bg-green-50 border-green-200';
+                duplicateInfo.innerHTML = `
+                    <div class="flex items-center">
+                        <svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        <span class="text-green-800 font-medium">✅ Không có dữ liệu trùng lặp</span>
+                    </div>
+                    <p class="text-green-700 text-sm mt-1">Tất cả ${totalCount} bản ghi đều là dữ liệu mới và sẵn sàng để nhập.</p>
+                `;
+            } else {
+                duplicateInfo.className = 'p-4 rounded-lg border bg-blue-50 border-blue-200';
+                duplicateInfo.innerHTML = `
+                    <div class="flex items-center">
+                        <svg class="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span class="text-blue-800 font-medium">🔄 Đã lọc dữ liệu trùng lặp tự động</span>
+                    </div>
+                    <p class="text-blue-700 text-sm mt-1">
+                        Đã tự động loại bỏ ${duplicateCount} bản ghi trùng lặp.
+                        Còn lại ${totalCount - duplicateCount} bản ghi mới sẽ được nhập vào database.
+                    </p>
+                `;
+            }
+
+            duplicateStatus.classList.remove('hidden');
         }
 
         // CSV parsing function
@@ -773,7 +821,6 @@
                     importBtn.disabled = true;
                     importBtn.textContent = 'Import Complete';
                 }
-                if (duplicateSection) duplicateSection.classList.add('hidden');
 
             } catch (error) {
                 console.error('Import error:', error);
@@ -1057,242 +1104,15 @@
             return 1;
         }
 
-        // Duplicate detection functions
-        async function checkForDuplicates() {
-            if (!supabaseClient) {
-                showStatus('Supabase client not initialized.', 'error');
-                return;
-            }
-            if (processedData.length === 0) {
-                showStatus('No data to check for duplicates', 'error');
-                return;
-            }
 
-            try {
-                showStatus('Checking for duplicates in database...', 'info');
-                if (checkDuplicatesBtn) checkDuplicatesBtn.disabled = true;
 
-                const issueIds = processedData.map(row => row.issue_id).filter(id => id);
-                if (issueIds.length === 0) {
-                    showStatus('No issue IDs found in the processed data to check for duplicates.', 'warning');
-                    if (importBtn) importBtn.disabled = false;
-                    return;
-                }
 
-                const { data: existingTickets, error } = await supabaseClient
-                    .from('tickets')
-                    .select('issue_id, ticket')
-                    .in('issue_id', issueIds);
 
-                if (error) {
-                    if (error.code === 'PGRST301' || error.message.includes('401')) {
-                        throw new Error('Authentication failed. Please check database permissions and ensure you have access to the tickets table.');
-                    }
-                    throw error;
-                }
 
-                const existingIssueIds = new Set(existingTickets.map(t => String(t.issue_id)));
-                const duplicates = processedData.filter(row => existingIssueIds.has(String(row.issue_id)));
 
-                if (duplicates.length === 0) {
-                    showStatus('No duplicates found. Ready to import!', 'success');
-                    if (importBtn) importBtn.disabled = false;
-                    if (duplicateList) duplicateList.innerHTML = '<p class="text-green-600">✅ No duplicates detected</p>';
-                } else {
-                    showStatus(`Found ${duplicates.length} potential duplicates`, 'warning');
-                    displayDuplicates(duplicates);
-                    if (importBtn) importBtn.disabled = true; // Disable import until user resolves duplicates
-                }
 
-            } catch (error) {
-                console.error('Duplicate check error:', error);
-                showStatus(`Error checking duplicates: ${error.message}`, 'error');
-            } finally {
-                if (checkDuplicatesBtn) checkDuplicatesBtn.disabled = false;
-            }
-        }
 
-        function displayDuplicates(duplicates) {
-            if (!duplicateList) return;
-            duplicateList.innerHTML = `
-                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                    <h5 class="font-medium text-yellow-800 mb-2">⚠️ Potential Duplicates Found</h5>
-                    <p class="text-sm text-yellow-700 mb-3">
-                        These tickets may already exist in the database. Please review carefully and select which ones to remove from the current import batch.
-                        <br><strong>Note:</strong> Do not delete if this is a ticket re-opened by the supplier.
-                    </p>
-                </div>
-                <div class="space-y-2">
-                    ${duplicates.map((duplicate, index) => `
-                        <div class="flex items-center p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                            <input type="checkbox" id="duplicate-${index}" class="duplicate-checkbox h-4 w-4 text-red-600 border-gray-300 rounded focus:ring-red-500"
-                                   data-issue-id="${duplicate.issue_id}">
-                            <label for="duplicate-${index}" class="ml-3 flex-1">
-                                <div class="font-medium text-gray-900">
-                                    Ticket: ${duplicate.ticket} (ID: ${duplicate.issue_id})
-                                </div>
-                                <div class="text-sm text-gray-600">
-                                    Customer: ${duplicate.customer || 'N/A'} | Supplier: ${duplicate.su_name || 'N/A'}
-                                </div>
-                            </label>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
 
-            document.querySelectorAll('.duplicate-checkbox').forEach(checkbox => {
-                checkbox.addEventListener('change', updateDuplicateButtons);
-            });
-
-            // Enable the select/deselect/replace/remove buttons
-            if (selectAllDuplicatesBtn) selectAllDuplicatesBtn.disabled = false;
-            if (deselectAllDuplicatesBtn) deselectAllDuplicatesBtn.disabled = false;
-            if (removeSelectedBtn) removeSelectedBtn.disabled = true;
-            if (replaceDuplicatesBtn) replaceDuplicatesBtn.disabled = true;
-        }
-
-        function updateDuplicateButtons() {
-            const checkedBoxes = document.querySelectorAll('.duplicate-checkbox:checked');
-            const totalBoxes = document.querySelectorAll('.duplicate-checkbox');
-            const hasChecked = checkedBoxes.length > 0;
-
-            // Enable/disable action buttons based on selection
-            if (removeSelectedBtn) removeSelectedBtn.disabled = !hasChecked;
-            if (replaceDuplicatesBtn) replaceDuplicatesBtn.disabled = !hasChecked;
-
-            // Disable import if there are duplicates that haven't been handled
-            if (importBtn) {
-                const hasDuplicates = totalBoxes.length > 0;
-                importBtn.disabled = hasDuplicates;
-            }
-        }
-
-        function selectAllDuplicates() {
-            document.querySelectorAll('.duplicate-checkbox').forEach(checkbox => {
-                checkbox.checked = true;
-            });
-            updateDuplicateButtons();
-        }
-
-        function deselectAllDuplicates() {
-            document.querySelectorAll('.duplicate-checkbox').forEach(checkbox => {
-                checkbox.checked = false;
-            });
-            updateDuplicateButtons();
-        }
-
-        async function replaceDuplicatesWithNewData() {
-            const checkedBoxes = document.querySelectorAll('.duplicate-checkbox:checked');
-
-            if (checkedBoxes.length === 0) {
-                showStatus('No duplicates selected for replacement', 'warning');
-                return;
-            }
-
-            if (!confirm(`Are you sure you want to REPLACE ${checkedBoxes.length} existing record(s) in the database with the new data from your CSV? This will UPDATE the database records.`)) {
-                return;
-            }
-
-            try {
-                showStatus('Replacing duplicates with new data...', 'info');
-                setProcessing(true);
-
-                const issueIdsToReplace = new Set(Array.from(checkedBoxes).map(cb => cb.dataset.issueId));
-                const recordsToUpdate = processedData.filter(row => issueIdsToReplace.has(String(row.issue_id)));
-
-                // Update each record in the database
-                let successCount = 0;
-                for (const row of recordsToUpdate) {
-                    const updateData = {
-                        ticket: row.ticket,
-                        po: row.po,
-                        suid: row.suid,
-                        su_name: row.su_name,
-                        supplier_agent_need: row.supplier_agent_need,
-                        supplier_agent: row.supplier_agent,
-                        order_number: row.order_number,
-                        po_nocs: row.po_nocs,
-                        customer: row.customer,
-                        customer_contact: row.customer_contact,
-                        issue_type: row.issue_type,
-                        description_eng: row.description_eng,
-                        description_vie: row.description_vie,
-                        assignee_account: row.agent_account
-                    };
-
-                    const { error } = await supabaseClient
-                        .from('tickets')
-                        .update(updateData)
-                        .eq('issue_id', row.issue_id);
-
-                    if (error) {
-                        console.error(`Error updating issue_id ${row.issue_id}:`, error);
-                        showStatus(`Error updating ticket ${row.ticket}: ${error.message}`, 'error');
-                    } else {
-                        successCount++;
-                    }
-                }
-
-                showStatus(`✅ Successfully replaced ${successCount} of ${recordsToUpdate.length} duplicate record(s) in the database`, 'success');
-
-                // Remove the replaced items from processedData
-                processedData = processedData.filter(row => !issueIdsToReplace.has(String(row.issue_id)));
-
-                // Update preview - do NOT re-check for duplicates as we just replaced them
-                showDataPreview(processedData);
-                if (processedData.length > 0) {
-                    // Hide duplicate section and enable import button
-                    if (duplicateSection) duplicateSection.classList.add('hidden');
-                    if (importBtn) importBtn.disabled = false;
-                    if (duplicateList) duplicateList.innerHTML = '<p class="text-green-600">✅ Replaced items removed from import list</p>';
-                    showStatus('✅ Ready to import remaining records. Click "Check for Duplicates" if you want to verify again.', 'success');
-                } else {
-                    if (duplicateSection) duplicateSection.classList.add('hidden');
-                    if (importBtn) importBtn.disabled = true;
-                    showStatus('All records have been processed. No more data to import.', 'info');
-                }
-
-            } catch (error) {
-                console.error('Replace duplicates error:', error);
-                showStatus(`Error replacing duplicates: ${error.message}`, 'error');
-            } finally {
-                setProcessing(false);
-            }
-        }
-
-        function removeSelectedDuplicates() {
-            const checkedBoxes = document.querySelectorAll('.duplicate-checkbox:checked');
-
-            if (checkedBoxes.length === 0) {
-                showStatus('No duplicates selected for removal', 'warning');
-                return;
-            }
-
-            if (!confirm(`Are you sure you want to remove ${checkedBoxes.length} item(s) from the import list? This will NOT delete them from the database, just skip importing them.`)) {
-                return;
-            }
-
-            const issueIdsToRemove = new Set(Array.from(checkedBoxes).map(cb => cb.dataset.issueId));
-
-            const originalLength = processedData.length;
-            processedData = processedData.filter(row => !issueIdsToRemove.has(String(row.issue_id)));
-
-            const removedCount = originalLength - processedData.length;
-            showStatus(`Removed ${removedCount} item(s) from the import list.`, 'success');
-
-            // Update preview - do NOT re-check for duplicates as we just removed them
-            showDataPreview(processedData);
-            if (processedData.length > 0) {
-                // Hide duplicate section and enable import button
-                if (duplicateSection) duplicateSection.classList.add('hidden');
-                if (importBtn) importBtn.disabled = false;
-                if (duplicateList) duplicateList.innerHTML = '<p class="text-green-600">✅ Removed items skipped from import list</p>';
-                showStatus('✅ Ready to import remaining records. Click "Check for Duplicates" if you want to verify again.', 'success');
-            } else {
-                if (duplicateSection) duplicateSection.classList.add('hidden');
-                if (importBtn) importBtn.disabled = true;
-            }
-        }
 
         // Theme switcher logic
         function toggleThemeDropdown() {
