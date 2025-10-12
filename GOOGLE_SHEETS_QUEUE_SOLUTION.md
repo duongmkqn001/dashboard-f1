@@ -21,8 +21,24 @@ Implemented a **two-layer solution** to handle concurrent requests:
 ### 2. Server-Side Locking (Google Apps Script)
 - **Script Lock**: Uses `LockService.getScriptLock()` to prevent concurrent sheet access
 - **Atomic Operations**: Each ticket insertion is atomic and thread-safe
-- **Append-Only Strategy**: Always appends to end instead of finding blank rows
+- **Smart Row Finding**: Finds nearest blank row in Date column (preserves original logic)
+- **Proper Column Mapping**: Fixed ticket number and Date Completed column filling
 - **Enhanced Logging**: Detailed logging for debugging and monitoring
+
+## Recent Fixes Applied
+
+### Issues Identified and Fixed:
+1. **❌ Script was appending to bottom instead of finding blank rows**
+   - **✅ Fixed**: Restored original logic to find nearest blank row in Date column
+
+2. **❌ Ticket number was not being added correctly**
+   - **✅ Fixed**: Corrected column mapping to use `TRACKER_COLUMNS.TICKET_NUMBER`
+
+3. **❌ Date Completed column was not being filled**
+   - **✅ Fixed**: Added logic to fill Date Completed in position after Ticket Status column
+
+4. **❌ Missing column constants**
+   - **✅ Fixed**: Added complete `TRACKER_COLUMNS` constants definition
 
 ## Implementation Details
 
@@ -69,14 +85,21 @@ function addSingleTicketToSheet(ticket) {
     const lock = LockService.getScriptLock();
     try {
         lock.waitLock(30000); // Wait up to 30 seconds
-        
-        // Always append to end (safer than finding blank rows)
-        const targetRow = sheet.getLastRow() + 1;
-        
+
+        // Find nearest blank row in Date column (preserves original logic)
+        const dateColIndex = colIndex(TRACKER_COLUMNS.DATE);
+        let targetRow = findNearestBlankRow(sheet, dateColIndex);
+
+        // Proper column mapping with Date Completed
+        const dataToMap = {
+          [TRACKER_COLUMNS.TICKET_NUMBER]: ticket['Ticket'],
+          // ... other mappings
+        };
+
         // Insert data atomically
         const range = sheet.getRange(targetRow, 1, 1, newRowData.length);
         range.setValues([newRowData]);
-        
+
     } finally {
         lock.releaseLock();
     }
@@ -90,17 +113,22 @@ function addSingleTicketToSheet(ticket) {
 - Queue ensures requests are processed sequentially
 - No more concurrent "blank row" finding conflicts
 
-### 2. **Automatic Error Handling**
+### 2. **Preserves Original Logic**
+- Keeps the original "find nearest blank row" behavior
+- Maintains existing sheet organization
+- Respects existing row structure
+
+### 3. **Fixed Column Mapping Issues**
+- Corrected ticket number mapping to use `TRACKER_COLUMNS.TICKET_NUMBER`
+- Fixed Date Completed column filling (positioned after Ticket Status)
+- Added proper column constants definition
+
+### 4. **Automatic Error Handling**
 - Failed requests are automatically retried
 - Detailed error logging for debugging
 - Graceful degradation if queue system fails
 
-### 3. **Performance Optimization**
-- Append-only strategy is faster than searching for blank rows
-- 1-second delay prevents overwhelming the Google Apps Script
-- Background processing doesn't block the UI
-
-### 4. **Enhanced Monitoring**
+### 5. **Enhanced Monitoring**
 - Detailed console logging for both client and server
 - Processing time tracking
 - Queue status monitoring

@@ -175,27 +175,59 @@ function addSingleTicketToSheet(ticket) {
     const todayStrTracker = Utilities.formatDate(today, Session.getScriptTimeZone(), DATE_FORMAT_FOR_TRACKER);
     const todayMMDDYYYY = Utilities.formatDate(today, Session.getScriptTimeZone(), DATE_COMPLETED_FORMAT);
 
-    // Improved row finding logic - always append to end to avoid conflicts
-    // This is safer than trying to find blank rows which can cause race conditions
-    const targetRow = sheet.getLastRow() + 1;
+    // Find the nearest blank row by checking Date column (keeping old logic)
+    const dateColIndex = colIndex(TRACKER_COLUMNS.DATE);
+    let targetRow = -1;
+
+    if (dateColIndex !== -1) {
+      const lastRow = sheet.getLastRow();
+      if (lastRow > 1) {
+        const dateColumn = sheet.getRange(2, dateColIndex + 1, lastRow - 1, 1).getValues(); // Skip header row
+
+        // Find first blank cell in Date column
+        for (let i = 0; i < dateColumn.length; i++) {
+          if (!dateColumn[i][0] || String(dateColumn[i][0]).trim() === '') {
+            targetRow = i + 2; // +2 because: +1 for 0-index, +1 for header row
+            break;
+          }
+        }
+      }
+
+      // If no blank row found, append to end
+      if (targetRow === -1) {
+        targetRow = lastRow + 1;
+      }
+    } else {
+      // If Date column not found, append to end
+      targetRow = sheet.getLastRow() + 1;
+    }
 
     console.log(`Adding ticket ${ticket['Ticket']} to row ${targetRow} in sheet ${sheetName}`);
 
     // Prepare data for insertion
     const newRowData = new Array(header.length).fill('');
 
-    // Map ticket data to sheet columns
+    // Get index of 'Ticket Status' column to determine 'Date Completed' position
+    const ticketStatusIndex = colIndex(TRACKER_COLUMNS.TICKET_STATUS);
+    let dateCompletedIndex = -1;
+    if (ticketStatusIndex !== -1) {
+      dateCompletedIndex = ticketStatusIndex + 1;
+      // Fill Date Completed in the correct position
+      newRowData[dateCompletedIndex] = todayMMDDYYYY;
+    }
+
+    // Map ticket data to sheet columns (using correct column names)
     const dataToMap = {
       [TRACKER_COLUMNS.DATE]: todayStrTracker,
-      [TRACKER_COLUMNS.TICKET]: ticket['Ticket'] || '',
-      [TRACKER_COLUMNS.TICKET_TYPE]: ticket['Ticket Type'] || '',
-      [TRACKER_COLUMNS.SUPPLIER]: ticket['Supplier'] || '',
+      [TRACKER_COLUMNS.TICKET_NUMBER]: ticket['Ticket'] || '',
       [TRACKER_COLUMNS.START_TIME]: ticket['Start Time'] || '',
       [TRACKER_COLUMNS.END_TIME]: ticket['End Time'] || '',
       [TRACKER_COLUMNS.NAME]: ticket['Name'] || '',
       [TRACKER_COLUMNS.ACCOUNT]: ticket['Account'] || '',
+      [TRACKER_COLUMNS.TICKET_TYPE]: ticket['Ticket Type'] || '',
+      [TRACKER_COLUMNS.SUPPLIER]: ticket['Supplier'] || '',
+      [TRACKER_COLUMNS.PO]: ticket['PO'] || '',
       [TRACKER_COLUMNS.TICKET_STATUS]: ticket['Ticket Status'] || '',
-      [TRACKER_COLUMNS.DATE_COMPLETED]: todayMMDDYYYY
     };
 
     for (const colName in dataToMap) {
@@ -208,7 +240,7 @@ function addSingleTicketToSheet(ticket) {
       }
     }
 
-    // Insert data at the target row (always append to end)
+    // Insert data at the target row (nearest blank row)
     const range = sheet.getRange(targetRow, 1, 1, newRowData.length);
     range.setValues([newRowData]);
 
@@ -221,6 +253,7 @@ function addSingleTicketToSheet(ticket) {
     // Always release the lock
     lock.releaseLock();
   }
+}
 
 /********************** UPDATE SUPABASE - MARK IMPORTED **********************/
 function markTicketAsImported(ticketId) {

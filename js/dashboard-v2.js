@@ -397,10 +397,42 @@
             const theme = localStorage.getItem('theme') || 'dark';
 
             const colorConfig = {
-                success: { daylight: 'bg-green-100 text-green-800 border-green-300', dark: 'bg-green-900/80 text-green-200 border-green-700', sunset: 'bg-green-900/80 text-green-200 border-green-700', twilight: 'bg-green-900/80 text-green-200 border-green-700', 'blossom-dawn': 'bg-green-100 text-green-800 border-green-300', 'blue-sky': 'bg-green-100 text-green-800 border-green-300'},
-                error: { daylight: 'bg-red-100 text-red-800 border-red-300', dark: 'bg-red-900/80 text-red-200 border-red-700', sunset: 'bg-red-900/80 text-red-200 border-red-700', twilight: 'bg-red-900/80 text-red-200 border-red-700', 'blossom-dawn': 'bg-red-100 text-red-800 border-red-300', 'blue-sky': 'bg-red-100 text-red-800 border-red-300' },
-                info: { daylight: 'bg-blue-100 text-blue-800 border-blue-300', dark: 'bg-blue-900/80 text-blue-200 border-blue-700', sunset: 'bg-indigo-900/80 text-indigo-200 border-indigo-700', twilight: 'bg-blue-900/80 text-blue-200 border-blue-700', 'blossom-dawn': 'bg-pink-100 text-pink-800 border-pink-300', 'blue-sky': 'bg-blue-100 text-blue-800 border-blue-300' },
-                warning: { daylight: 'bg-yellow-100 text-yellow-800 border-yellow-300', dark: 'bg-yellow-900/80 text-yellow-200 border-yellow-700', sunset: 'bg-yellow-900/80 text-yellow-200 border-yellow-700', twilight: 'bg-yellow-900/80 text-yellow-200 border-yellow-700', 'blossom-dawn': 'bg-yellow-100 text-yellow-800 border-yellow-300', 'blue-sky': 'bg-yellow-100 text-yellow-800 border-yellow-300' }
+                success: {
+                    daylight: 'bg-green-100 text-green-800 border-green-300',
+                    dark: 'bg-green-900/80 text-green-200 border-green-700',
+                    sunset: 'bg-green-900/80 text-green-200 border-green-700',
+                    twilight: 'bg-green-900/80 text-green-200 border-green-700',
+                    'blossom-dawn': 'bg-green-100 text-green-800 border-green-300',
+                    'blue-sky': 'bg-green-100 text-green-800 border-green-300',
+                    'fresh-mint': 'bg-green-200 text-green-900 border-green-400'
+                },
+                error: {
+                    daylight: 'bg-red-100 text-red-800 border-red-300',
+                    dark: 'bg-red-900/80 text-red-200 border-red-700',
+                    sunset: 'bg-red-900/80 text-red-200 border-red-700',
+                    twilight: 'bg-red-900/80 text-red-200 border-red-700',
+                    'blossom-dawn': 'bg-red-100 text-red-800 border-red-300',
+                    'blue-sky': 'bg-red-100 text-red-800 border-red-300',
+                    'fresh-mint': 'bg-red-200 text-red-900 border-red-400'
+                },
+                info: {
+                    daylight: 'bg-blue-100 text-blue-800 border-blue-300',
+                    dark: 'bg-blue-900/80 text-blue-200 border-blue-700',
+                    sunset: 'bg-indigo-900/80 text-indigo-200 border-indigo-700',
+                    twilight: 'bg-blue-900/80 text-blue-200 border-blue-700',
+                    'blossom-dawn': 'bg-pink-100 text-pink-800 border-pink-300',
+                    'blue-sky': 'bg-blue-100 text-blue-800 border-blue-300',
+                    'fresh-mint': 'bg-blue-200 text-blue-900 border-blue-400'
+                },
+                warning: {
+                    daylight: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+                    dark: 'bg-yellow-900/80 text-yellow-200 border-yellow-700',
+                    sunset: 'bg-yellow-900/80 text-yellow-200 border-yellow-700',
+                    twilight: 'bg-yellow-900/80 text-yellow-200 border-yellow-700',
+                    'blossom-dawn': 'bg-yellow-100 text-yellow-800 border-yellow-300',
+                    'blue-sky': 'bg-yellow-100 text-yellow-800 border-yellow-300',
+                    'fresh-mint': 'bg-yellow-200 text-yellow-900 border-yellow-400'
+                }
             };
 
             const themeColors = (colorConfig[type] || colorConfig.info)[theme];
@@ -622,6 +654,9 @@
             if (currentViewMode === 'mos') {
                 loadMosRequestDetails();
             }
+
+            // Check for completion celebration
+            checkForCompletionCelebration();
         }
 
         async function loadMosRequestDetails() {
@@ -754,8 +789,8 @@
                 const assigneeName = allAgentsMap.get(item.assignee_account) || item.assignee_account;
                 return `<span class="text-sm font-medium text-blue-600">Assigned to: ${assigneeName}</span>`;
             } else if (isMosView) {
-                // In MoS view, show requester name
-                const requesterName = allAgentsMap.get(item.assignee_account) || item.assignee_account;
+                // In MoS view, show requester name (agent who handled the ticket)
+                const requesterName = allAgentsMap.get(item.agent_handle_ticket) || item.agent_handle_ticket;
                 return `<span class="text-sm font-medium text-purple-600">Requested by: ${requesterName}</span>`;
             } else {
                 // Regular view - show buttons and MoS status
@@ -1380,13 +1415,38 @@
         function validatePlaceholders() {
             const missingFields = [];
             const viewer = document.getElementById('popup-template-viewer');
-            
+
+            // Check if either agent name or supplier name is provided
             if (!document.getElementById('viewer-agent-name').value.trim() && !document.getElementById('viewer-manual-supplier-name').value.trim()) {
                 missingFields.push('Tên riêng Người nhận hoặc Tên NCC');
             }
 
+            // Get the current template to check for special placeholders
+            const template = allTemplates.find(t => t.id === popupCurrentTemplateId);
+            const templateContent = template ? template.content || '' : '';
+
+            // Define placeholders that should be ignored in validation (auto-filled or optional)
+            const ignoredPlaceholders = new Set(['signature', 'greeting', 'Customer_Name', 'Order_Number', 'Brand']);
+
             viewer.querySelectorAll('[data-placeholder-key]').forEach(input => {
+                const placeholderKey = input.dataset.placeholderKey;
                 const isVisible = input.offsetParent !== null;
+
+                // Skip validation for ignored placeholders
+                if (ignoredPlaceholders.has(placeholderKey)) {
+                    return;
+                }
+
+                // Skip validation for greeting placeholder if template has {{greeting}} in content
+                if (placeholderKey === 'greeting' && templateContent.includes('{{greeting}}')) {
+                    return;
+                }
+
+                // Skip validation for signature placeholder if template has {{signature}} in content
+                if (placeholderKey === 'signature' && templateContent.includes('{{signature}}')) {
+                    return;
+                }
+
                 if (isVisible && !input.value.trim()) {
                     const label = viewer.querySelector(`label[for="${input.id}"]`);
                     missingFields.push(label ? label.textContent : input.dataset.placeholderKey);
@@ -1441,7 +1501,7 @@
                     .from('children')
                     .select('parentSuid')
                     .eq('suchildid', suid)
-                    .single();
+                    .maybeSingle();
 
                 // If a child record is found, use its parentSuid.
                 // Ignore errors from children table (table might not exist or no matching record)
@@ -1455,7 +1515,7 @@
                     .from('suppliers')
                     .select('suname')
                     .eq('suid', parentSuid)
-                    .single();
+                    .maybeSingle();
 
                 if (supplierError && supplierError.code !== 'PGRST116') { // Ignore "exact one row" error if no parent found
                     console.error('Error fetching supplier name for suid:', parentSuid, supplierError);
@@ -2602,6 +2662,175 @@
             }
         }
 
+        // Fireworks celebration effect
+        function showFireworksEffect() {
+            // Create fireworks container
+            const fireworksContainer = document.createElement('div');
+            fireworksContainer.id = 'fireworks-container';
+            fireworksContainer.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100vw;
+                height: 100vh;
+                z-index: 10000;
+                pointer-events: none;
+                overflow: hidden;
+            `;
+
+            // Vietnamese congratulations messages
+            const messages = [
+                'Chúc mừng bạn đã hoàn thành tất cả ticket! 🎉',
+                'Xuất sắc! Bạn đã xử lý xong toàn bộ công việc! 🌟',
+                'Tuyệt vời! Không còn ticket nào cần xử lý! 🎊',
+                'Hoàn hảo! Bạn đã làm việc rất tốt hôm nay! ✨',
+                'Chúc mừng! Tất cả ticket đã được giải quyết! 🎈'
+            ];
+
+            const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+
+            // Create message overlay
+            const messageOverlay = document.createElement('div');
+            messageOverlay.style.cssText = `
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0, 0, 0, 0.8);
+                color: white;
+                padding: 30px 50px;
+                border-radius: 20px;
+                font-size: 24px;
+                font-weight: bold;
+                text-align: center;
+                backdrop-filter: blur(10px);
+                border: 2px solid #ffd700;
+                box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
+                animation: messageGlow 2s ease-in-out infinite alternate;
+            `;
+            messageOverlay.textContent = randomMessage;
+
+            // Add CSS animation for message glow
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes messageGlow {
+                    from { box-shadow: 0 0 30px rgba(255, 215, 0, 0.5); }
+                    to { box-shadow: 0 0 50px rgba(255, 215, 0, 0.8); }
+                }
+                @keyframes firework {
+                    0% { transform: scale(0) rotate(0deg); opacity: 1; }
+                    50% { transform: scale(1) rotate(180deg); opacity: 1; }
+                    100% { transform: scale(1.5) rotate(360deg); opacity: 0; }
+                }
+                .firework {
+                    position: absolute;
+                    width: 4px;
+                    height: 4px;
+                    border-radius: 50%;
+                    animation: firework 1.5s ease-out forwards;
+                }
+            `;
+            document.head.appendChild(style);
+
+            fireworksContainer.appendChild(messageOverlay);
+
+            // Create fireworks particles
+            function createFirework(x, y) {
+                const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff'];
+                const particleCount = 12;
+
+                for (let i = 0; i < particleCount; i++) {
+                    const particle = document.createElement('div');
+                    particle.className = 'firework';
+                    particle.style.cssText = `
+                        left: ${x}px;
+                        top: ${y}px;
+                        background-color: ${colors[Math.floor(Math.random() * colors.length)]};
+                        animation-delay: ${Math.random() * 0.5}s;
+                        transform-origin: center;
+                    `;
+
+                    // Random direction for particles
+                    const angle = (360 / particleCount) * i;
+                    const distance = 50 + Math.random() * 100;
+                    particle.style.setProperty('--end-x', `${Math.cos(angle * Math.PI / 180) * distance}px`);
+                    particle.style.setProperty('--end-y', `${Math.sin(angle * Math.PI / 180) * distance}px`);
+
+                    fireworksContainer.appendChild(particle);
+
+                    // Remove particle after animation
+                    setTimeout(() => {
+                        if (particle.parentNode) {
+                            particle.parentNode.removeChild(particle);
+                        }
+                    }, 2000);
+                }
+            }
+
+            // Create multiple fireworks at random positions
+            function launchFireworks() {
+                for (let i = 0; i < 5; i++) {
+                    setTimeout(() => {
+                        const x = Math.random() * window.innerWidth;
+                        const y = Math.random() * window.innerHeight;
+                        createFirework(x, y);
+                    }, i * 300);
+                }
+            }
+
+            document.body.appendChild(fireworksContainer);
+
+            // Launch fireworks multiple times
+            launchFireworks();
+            setTimeout(launchFireworks, 1000);
+            setTimeout(launchFireworks, 2000);
+
+            // Remove fireworks after 5 seconds
+            setTimeout(() => {
+                if (fireworksContainer.parentNode) {
+                    fireworksContainer.parentNode.removeChild(fireworksContainer);
+                }
+                if (style.parentNode) {
+                    style.parentNode.removeChild(style);
+                }
+            }, 5000);
+        }
+
+        // Check if all tickets are completed and show fireworks
+        function checkForCompletionCelebration() {
+            const currentFilter = assigneeSelect?.value || 'all';
+            const currentTypeFilter = currentTicketTypeFilter || 'all';
+
+            // Only check when viewing specific assignee's tickets
+            if (currentFilter === 'all') return;
+
+            // Get filtered tickets count
+            const allTicketsArray = Array.from(ticketsMap.values());
+            const filteredTickets = allTicketsArray.filter(ticket => {
+                const matchesAssignee = currentFilter === 'all' || ticket.assignee_account === currentFilter;
+                const matchesType = currentTypeFilter === 'all' ||
+                    (currentTypeFilter === 'aops' && ticket.ticket.startsWith('AOPS')) ||
+                    (currentTypeFilter === 'fmop' && ticket.ticket.startsWith('FMOP'));
+                return matchesAssignee && matchesType;
+            });
+
+            // Check if all tickets are completed (have time_end)
+            const completedTickets = filteredTickets.filter(ticket => ticket.time_end);
+            const hasTickets = filteredTickets.length > 0;
+            const allCompleted = hasTickets && completedTickets.length === filteredTickets.length;
+
+            // Show fireworks if all tickets are completed and we haven't shown it recently
+            const lastFireworksKey = `fireworks_shown_${currentFilter}_${currentTypeFilter}_${new Date().toDateString()}`;
+            const fireworksShown = localStorage.getItem(lastFireworksKey);
+
+            if (allCompleted && !fireworksShown && hasTickets) {
+                setTimeout(() => {
+                    showFireworksEffect();
+                    localStorage.setItem(lastFireworksKey, 'true');
+                }, 1000); // Delay to let the table render first
+            }
+        }
+
         // Make functions globally available
         window.sendToLeader = sendToLeader;
         window.requestMos = requestMos;
@@ -2612,3 +2841,121 @@
         window.markAsRead = markAsRead;
         window.openManualRescheduleTask = openManualRescheduleTask;
         window.dismissManualRescheduleBanner = dismissManualRescheduleBanner;
+        window.showFireworksEffect = showFireworksEffect;
+
+        // AI Chat Functionality
+        let chatOpen = false;
+
+        function toggleChat() {
+            const chatContainer = document.getElementById('chat-container');
+            const chatIcon = document.getElementById('chat-icon');
+
+            chatOpen = !chatOpen;
+
+            if (chatOpen) {
+                chatContainer.style.display = 'flex';
+                chatIcon.style.transform = 'scale(0.9)';
+                document.getElementById('chat-input').focus();
+            } else {
+                chatContainer.style.display = 'none';
+                chatIcon.style.transform = 'scale(1)';
+            }
+        }
+
+        function handleChatKeyPress(event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+
+            if (!message) return;
+
+            // Add user message to chat
+            addMessageToChat(message, 'user');
+            input.value = '';
+
+            // Show typing indicator
+            showTypingIndicator();
+
+            try {
+                // Call AI API (placeholder for now)
+                const response = await callAIAPI(message);
+
+                // Hide typing indicator and add bot response
+                hideTypingIndicator();
+                addMessageToChat(response, 'bot');
+
+            } catch (error) {
+                hideTypingIndicator();
+                addMessageToChat('Sorry, I encountered an error. Please try again later.', 'bot');
+                console.error('AI Chat Error:', error);
+            }
+        }
+
+        function addMessageToChat(message, sender) {
+            const messagesContainer = document.getElementById('chat-messages');
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${sender}`;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.textContent = message;
+
+            messageDiv.appendChild(contentDiv);
+            messagesContainer.appendChild(messageDiv);
+
+            // Scroll to bottom
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            const typingIndicator = document.getElementById('typing-indicator');
+            typingIndicator.style.display = 'block';
+
+            const messagesContainer = document.getElementById('chat-messages');
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+            const typingIndicator = document.getElementById('typing-indicator');
+            typingIndicator.style.display = 'none';
+        }
+
+        // AI API Integration (placeholder implementation)
+        async function callAIAPI(message) {
+            // Simulate API delay
+            await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+
+            // For now, return a mock response based on keywords
+            const lowerMessage = message.toLowerCase();
+
+            if (lowerMessage.includes('ticket') || lowerMessage.includes('dashboard')) {
+                return "I can help you with ticket management! The dashboard allows you to view, start, and complete tickets. You can filter by assignee, use templates for responses, and track progress in real-time. Would you like to know about any specific feature?";
+            } else if (lowerMessage.includes('template') || lowerMessage.includes('email')) {
+                return "Templates are pre-written responses that help you communicate efficiently. You can customize them with placeholders for customer names, order numbers, and other dynamic content. Click the template button on any ticket to get started!";
+            } else if (lowerMessage.includes('start') || lowerMessage.includes('begin')) {
+                return "To start working on tickets: 1) Select your name from the Assignee dropdown, 2) Click the 'Start' button on a ticket, 3) Use templates for responses, 4) Click 'End' when finished. The system tracks your time automatically!";
+            } else if (lowerMessage.includes('filter') || lowerMessage.includes('search')) {
+                return "You can filter tickets by: 1) Assignee (dropdown at top), 2) Ticket type (click on 'Ticket' header), 3) View modes (Leader View, MoS Requests). The system also supports real-time updates and notifications.";
+            } else if (lowerMessage.includes('notification') || lowerMessage.includes('alert')) {
+                return "The notification system keeps you updated on: 1) Manual schedule assignments, 2) MoS requests, 3) System updates. Check the bell icon in the header for recent notifications.";
+            } else if (lowerMessage.includes('theme') || lowerMessage.includes('color')) {
+                return "You can change the dashboard theme using the 🎨 button in the header. Available themes include: Dark, Daylight, Sunset, Twilight, Blossom Dawn, Blue Sky, and Fresh Mint. Each theme is optimized for different lighting conditions!";
+            } else if (lowerMessage.includes('api') || lowerMessage.includes('integration')) {
+                return "For AI integration, you can use:\n\n1. **Hugging Face API**: Use their Inference API with models like GPT-2, BERT, or custom fine-tuned models\n2. **Google Colab**: Host your own model and expose it via ngrok\n3. **OpenAI API**: For advanced conversational AI\n\nReplace the `callAIAPI` function in the code with your chosen solution.";
+            } else if (lowerMessage.includes('help') || lowerMessage.includes('how')) {
+                return "I'm here to help! I can assist with:\n• Ticket management and workflow\n• Template usage and customization\n• Dashboard navigation and features\n• Filtering and search options\n• Notification system\n• Theme customization\n• API integration guidance\n\nWhat specific topic would you like to know more about?";
+            } else {
+                return "That's an interesting question! I can help with dashboard features, ticket management, templates, themes, and system usage. Could you be more specific about what you'd like to know? Try asking about 'tickets', 'templates', 'themes', or 'help' for more information.";
+            }
+        }
+
+        // AI Chat functionality
+        window.toggleChat = toggleChat;
+        window.handleChatKeyPress = handleChatKeyPress;
+        window.sendMessage = sendMessage;

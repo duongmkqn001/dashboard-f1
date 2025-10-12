@@ -462,6 +462,57 @@
     <!-- Fireworks Container -->
     <div id="fireworks-container" class="fireworks-container"></div>
 
+    <!-- AI Chat Interface -->
+    <div class="chat-icon" id="chat-icon" onclick="toggleChat()">
+        <svg width="30" height="30" fill="white" viewBox="0 0 24 24">
+            <path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4l4 4 4-4h4c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
+        </svg>
+    </div>
+
+    <div class="chat-container" id="chat-container">
+        <div class="chat-header">
+            <div>
+                <h3 class="font-semibold">🤖 AI Assistant</h3>
+                <p class="text-sm opacity-90">Ask me anything about the dashboard</p>
+            </div>
+            <button onclick="toggleChat()" class="text-white hover:text-gray-200">
+                <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                </svg>
+            </button>
+        </div>
+
+        <div class="chat-messages" id="chat-messages">
+            <div class="message bot">
+                <div class="message-content">
+                    👋 Hello! I'm your AI assistant. I can help you with questions about tickets, templates, dashboard features, and system usage. What would you like to know?
+                </div>
+            </div>
+        </div>
+
+        <div class="typing-indicator" id="typing-indicator">
+            <div class="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+
+        <div class="chat-input-container">
+            <div class="flex gap-2">
+                <input type="text" id="chat-input" placeholder="Type your message..."
+                       class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       onkeypress="handleChatKeyPress(event)">
+                <button onclick="sendMessage()"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
+                    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script src="./js/dashboard-v2.js"></script>
 </body>
 </html>

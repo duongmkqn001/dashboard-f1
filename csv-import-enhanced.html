@@ -117,6 +117,26 @@
                                class="block w-full text-sm text-main file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-button file:text-main hover:file:brightness-110">
                     </div>
 
+                    <!-- Processing Mode Selection -->
+                    <div id="mode-selection" class="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900 rounded-lg border-2 border-yellow-300 hidden">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-secondary mb-2">
+                                ⚙️ Chọn chế độ xử lý dữ liệu:
+                            </label>
+                            <select id="processing-mode" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+                                <option value="new-only">➕ Chỉ nhập mới - Chỉ nhập ticket mới, bỏ qua trùng lặp</option>
+                                <option value="smart-update">🧠 Cập nhật thông minh - Cập nhật ticket có sẵn, thêm mới (bỏ qua đặc biệt)</option>
+                                <option value="replace-all">🔄 Thay thế toàn bộ - Xóa toàn bộ và nhập lại từ đầu</option>
+                                <option value="replace-non-special">⚡ Thay thế an toàn - Xóa ticket thường, giữ lại đặc biệt</option>
+                            </select>
+                            <div class="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                                <div id="mode-description" class="p-2 bg-gray-100 dark:bg-gray-800 rounded">
+                                    <strong>Thông minh:</strong> Tự động loại bỏ các ticket đã tồn tại, chỉ hiển thị dữ liệu mới để nhập.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Process Button -->
                     <button id="process-btn" disabled
                             class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:text-gray-200 disabled:hover:bg-gray-400 text-white font-semibold rounded-lg transition-colors">
@@ -164,18 +184,14 @@
 
                     <!-- Data Preview -->
                     <div id="data-preview" class="hidden">
-                        <!-- Import Actions - Moved to Top -->
-                        <div class="mb-6 p-4 bg-blue-50 dark:bg-blue-900 rounded-lg border-2 border-blue-300">
+                        <!-- Import Actions -->
+                        <div class="mb-6 p-4 bg-green-50 dark:bg-green-900 rounded-lg border-2 border-green-300">
                             <div class="mb-4">
-                                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Chiến lược nhập dữ liệu:</label>
-                                <select id="import-strategy" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800">
-                                    <option value="replace-all">🔄 Thay thế toàn bộ - Xóa toàn bộ bảng và nhập dữ liệu mới</option>
-                                    <option value="smart-update" selected>🧠 Cập nhật thông minh - Cập nhật có sẵn, thêm mới (bỏ qua trường hợp đặc biệt)</option>
-                                    <option value="replace-non-special">⚡ Thay thế không đặc biệt - Xóa các hàng không đặc biệt, thay thế bằng dữ liệu CSV</option>
-                                    <option value="new-only">➕ Chỉ mới - Chỉ nhập ticket mới (bỏ qua ticket đã có)</option>
-                                </select>
-                                <p class="text-xs text-gray-600 dark:text-gray-400 mt-1">
-                                    <strong>Trường hợp đặc biệt (không bao giờ cập nhật/xóa):</strong> needMos ≠ null, ticket_status_id ≠ null, need_leader_support = true
+                                <p id="selected-mode-info" class="text-sm font-medium text-green-800 dark:text-green-200 mb-2">
+                                    Chế độ đã chọn: <span id="current-mode-name">Chỉ nhập mới</span>
+                                </p>
+                                <p class="text-xs text-gray-600 dark:text-gray-400">
+                                    <strong>Trường hợp đặc biệt (được bảo vệ):</strong> needMos ≠ null, ticket_status_id ≠ null, need_leader_support = true
                                 </p>
                             </div>
                             <div class="flex gap-4">
@@ -225,6 +241,7 @@
 
         let supabaseClient;
         let processedData = [];
+        let selectedImportStrategy = 'new-only';
         
         try {
             supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -272,12 +289,17 @@
         const downloadBtn = document.getElementById('download-btn');
         const duplicateStatus = document.getElementById('duplicate-status');
         const duplicateInfo = document.getElementById('duplicate-info');
+        const modeSelection = document.getElementById('mode-selection');
+        const processingMode = document.getElementById('processing-mode');
+        const modeDescription = document.getElementById('mode-description');
+        const currentModeName = document.getElementById('current-mode-name');
 
         // Event listeners
         if (csvFileInput) csvFileInput.addEventListener('change', handleFileSelect);
         if (processBtn) processBtn.addEventListener('click', processCSV);
         if (importBtn) importBtn.addEventListener('click', importToDatabase);
         if (downloadBtn) downloadBtn.addEventListener('click', downloadProcessedCSV);
+        if (processingMode) processingMode.addEventListener('change', updateModeDescription);
 
         // Test database connection on page load
         window.addEventListener('load', async () => {
@@ -287,9 +309,45 @@
         function handleFileSelect(event) {
             const file = event.target.files[0];
             updateProcessButton();
-            
+
             if (file) {
                 showStatus(`Selected file: ${file.name}`, 'info');
+                // Show mode selection when file is selected
+                if (modeSelection) {
+                    modeSelection.classList.remove('hidden');
+                }
+            } else {
+                // Hide mode selection when no file
+                if (modeSelection) {
+                    modeSelection.classList.add('hidden');
+                }
+            }
+        }
+
+        // Mode description updater
+        function updateModeDescription() {
+            if (!modeDescription || !processingMode) return;
+
+            const mode = processingMode.value;
+            const descriptions = {
+                'new-only': '<strong>Chỉ nhập mới:</strong> Chỉ nhập những ticket chưa có trong database. Ticket trùng lặp sẽ bị bỏ qua hoàn toàn. An toàn và nhanh chóng.',
+                'smart-update': '<strong>Cập nhật thông minh:</strong> Cập nhật ticket đã có (trừ trường hợp đặc biệt), thêm ticket mới. Giữ nguyên ticket có needMos, ticket_status_id, need_leader_support.',
+                'replace-all': '<strong>Thay thế toàn bộ:</strong> Xóa toàn bộ database và nhập lại từ đầu. ⚠️ Cẩn thận - sẽ mất tất cả dữ liệu hiện tại!',
+                'replace-non-special': '<strong>Thay thế an toàn:</strong> Xóa ticket thường, giữ lại ticket đặc biệt (có needMos, status, need_leader_support), sau đó nhập dữ liệu mới.'
+            };
+
+            const modeNames = {
+                'new-only': 'Chỉ nhập mới',
+                'smart-update': 'Cập nhật thông minh',
+                'replace-all': 'Thay thế toàn bộ',
+                'replace-non-special': 'Thay thế an toàn'
+            };
+
+            modeDescription.innerHTML = descriptions[mode] || descriptions['new-only'];
+
+            // Update current mode name in preview
+            if (currentModeName) {
+                currentModeName.textContent = modeNames[mode] || modeNames['new-only'];
             }
         }
 
@@ -382,19 +440,23 @@
                 updateStep(2, 'complete', 'Xử lý dữ liệu hoàn tất');
                 showStatus(`Đã xử lý ${processedRows.length} dòng`, 'success');
 
-                // Step 3: Prepare for import and automatically check for duplicates
-                updateStep(3, 'processing', 'Đang chuẩn bị dữ liệu và kiểm tra trùng lặp...');
+                // Step 3: Prepare for import based on selected mode
+                updateStep(3, 'processing', 'Đang chuẩn bị dữ liệu theo chế độ đã chọn...');
                 const preparedData = await prepareForImport(processedRows);
 
-                // Automatically check for duplicates and filter them out
-                const { cleanData, duplicateCount } = await automaticDuplicateFilter(preparedData);
-                processedData = cleanData;
+                // Get selected processing mode
+                const selectedMode = processingMode ? processingMode.value : 'smart-filter';
+
+                // Process data based on selected mode
+                const { finalData, duplicateCount, totalCount, modeInfo, importStrategy } = await processDataByMode(preparedData, selectedMode);
+                processedData = finalData;
+                selectedImportStrategy = importStrategy || 'new-only';
 
                 updateStep(3, 'complete', 'Chuẩn bị dữ liệu hoàn tất');
-                showStatus(`Đã chuẩn bị ${processedData.length} dòng để nhập`, 'success');
+                showStatus(`Đã chuẩn bị ${processedData.length} dòng để nhập (${modeInfo})`, 'success');
 
                 // Show duplicate status and preview
-                showDuplicateStatus(duplicateCount, preparedData.length);
+                showDuplicateStatus(duplicateCount, totalCount, selectedMode);
                 showDataPreview(processedData);
                 if (importBtn) importBtn.disabled = false;
 
@@ -407,17 +469,27 @@
             }
         }
 
-        // Automatic duplicate filtering function
-        async function automaticDuplicateFilter(data) {
+        // Process data based on selected mode
+        async function processDataByMode(data, mode) {
             if (!supabaseClient) {
-                console.warn('Supabase client not initialized, skipping duplicate check');
-                return { cleanData: data, duplicateCount: 0 };
+                console.warn('Supabase client not initialized, using all data');
+                return {
+                    finalData: data,
+                    duplicateCount: 0,
+                    totalCount: data.length,
+                    modeInfo: 'Không thể kết nối database'
+                };
             }
 
             try {
                 const issueIds = data.map(row => row.issue_id).filter(id => id);
                 if (issueIds.length === 0) {
-                    return { cleanData: data, duplicateCount: 0 };
+                    return {
+                        finalData: data,
+                        duplicateCount: 0,
+                        totalCount: data.length,
+                        modeInfo: 'Không có issue_id để kiểm tra'
+                    };
                 }
 
                 // Check for existing tickets in database
@@ -429,50 +501,142 @@
                 if (error) {
                     console.error('Error checking for duplicates:', error);
                     showStatus('⚠️ Không thể kiểm tra trùng lặp, tiếp tục với tất cả dữ liệu', 'warning');
-                    return { cleanData: data, duplicateCount: 0 };
+                    return {
+                        finalData: data,
+                        duplicateCount: 0,
+                        totalCount: data.length,
+                        modeInfo: 'Lỗi kiểm tra database'
+                    };
                 }
 
                 const existingIssueIds = new Set(existingTickets.map(t => String(t.issue_id)));
-                const cleanData = data.filter(row => !existingIssueIds.has(String(row.issue_id)));
-                const duplicateCount = data.length - cleanData.length;
 
-                return { cleanData, duplicateCount };
+                // Process based on unified mode (mode determines both filtering and import strategy)
+                switch (mode) {
+                    case 'new-only':
+                        // Only new data (filter out duplicates) + new-only import strategy
+                        const newData = data.filter(row => !existingIssueIds.has(String(row.issue_id)));
+                        return {
+                            finalData: newData,
+                            duplicateCount: data.length - newData.length,
+                            totalCount: data.length,
+                            modeInfo: 'chỉ nhập mới',
+                            importStrategy: 'new-only'
+                        };
+
+                    case 'smart-update':
+                        // All data with duplicate marking + smart-update import strategy
+                        const smartData = data.map(row => ({
+                            ...row,
+                            _isDuplicate: existingIssueIds.has(String(row.issue_id))
+                        }));
+                        return {
+                            finalData: smartData,
+                            duplicateCount: data.length - data.filter(row => !existingIssueIds.has(String(row.issue_id))).length,
+                            totalCount: data.length,
+                            modeInfo: 'cập nhật thông minh',
+                            importStrategy: 'smart-update'
+                        };
+
+                    case 'replace-all':
+                        // All data + replace-all import strategy
+                        const replaceAllData = data.map(row => ({
+                            ...row,
+                            _isDuplicate: existingIssueIds.has(String(row.issue_id))
+                        }));
+                        return {
+                            finalData: replaceAllData,
+                            duplicateCount: data.length - data.filter(row => !existingIssueIds.has(String(row.issue_id))).length,
+                            totalCount: data.length,
+                            modeInfo: 'thay thế toàn bộ',
+                            importStrategy: 'replace-all'
+                        };
+
+                    case 'replace-non-special':
+                        // All data + replace-non-special import strategy
+                        const replaceNonSpecialData = data.map(row => ({
+                            ...row,
+                            _isDuplicate: existingIssueIds.has(String(row.issue_id))
+                        }));
+                        return {
+                            finalData: replaceNonSpecialData,
+                            duplicateCount: data.length - data.filter(row => !existingIssueIds.has(String(row.issue_id))).length,
+                            totalCount: data.length,
+                            modeInfo: 'thay thế an toàn',
+                            importStrategy: 'replace-non-special'
+                        };
+
+                    default:
+                        // Default to new-only
+                        const defaultData = data.filter(row => !existingIssueIds.has(String(row.issue_id)));
+                        return {
+                            finalData: defaultData,
+                            duplicateCount: data.length - defaultData.length,
+                            totalCount: data.length,
+                            modeInfo: 'chỉ nhập mới (mặc định)',
+                            importStrategy: 'new-only'
+                        };
+                }
 
             } catch (error) {
-                console.error('Error in automatic duplicate filter:', error);
-                showStatus('⚠️ Lỗi khi kiểm tra trùng lặp, tiếp tục với tất cả dữ liệu', 'warning');
-                return { cleanData: data, duplicateCount: 0 };
+                console.error('Error in processDataByMode:', error);
+                showStatus('⚠️ Lỗi khi xử lý dữ liệu, tiếp tục với tất cả dữ liệu', 'warning');
+                return {
+                    finalData: data,
+                    duplicateCount: 0,
+                    totalCount: data.length,
+                    modeInfo: 'lỗi xử lý'
+                };
             }
         }
 
         // Show duplicate status function
-        function showDuplicateStatus(duplicateCount, totalCount) {
+        function showDuplicateStatus(duplicateCount, totalCount, mode = 'smart-filter') {
             if (!duplicateStatus || !duplicateInfo) return;
 
-            if (duplicateCount === 0) {
+            const modeMessages = {
+                'smart-filter': {
+                    noDuplicates: 'Tất cả bản ghi đều là dữ liệu mới và sẵn sàng để nhập.',
+                    hasDuplicates: `Đã tự động loại bỏ ${duplicateCount} bản ghi trùng lặp. Còn lại ${totalCount - duplicateCount} bản ghi mới sẽ được nhập.`
+                },
+                'include-duplicates': {
+                    noDuplicates: 'Tất cả bản ghi đều là dữ liệu mới.',
+                    hasDuplicates: `Hiển thị tất cả ${totalCount} bản ghi (${duplicateCount} trùng lặp, ${totalCount - duplicateCount} mới). Bạn có thể chọn chiến lược nhập phù hợp.`
+                },
+                'duplicates-only': {
+                    noDuplicates: 'Không có dữ liệu trùng lặp để cập nhật.',
+                    hasDuplicates: `Hiển thị ${duplicateCount} bản ghi trùng lặp để cập nhật.`
+                },
+                'preview-all': {
+                    noDuplicates: 'Tất cả bản ghi đều là dữ liệu mới. Bạn có thể xem trước và lựa chọn.',
+                    hasDuplicates: `Hiển thị tất cả ${totalCount} bản ghi với trạng thái rõ ràng (${duplicateCount} trùng lặp, ${totalCount - duplicateCount} mới).`
+                }
+            };
+
+            const messages = modeMessages[mode] || modeMessages['smart-filter'];
+
+            if (duplicateCount === 0 || (mode === 'duplicates-only' && duplicateCount === 0)) {
                 duplicateInfo.className = 'p-4 rounded-lg border bg-green-50 border-green-200';
                 duplicateInfo.innerHTML = `
                     <div class="flex items-center">
                         <svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                         </svg>
-                        <span class="text-green-800 font-medium">✅ Không có dữ liệu trùng lặp</span>
+                        <span class="text-green-800 font-medium">✅ ${mode === 'duplicates-only' ? 'Không có dữ liệu trùng lặp' : 'Không có dữ liệu trùng lặp'}</span>
                     </div>
-                    <p class="text-green-700 text-sm mt-1">Tất cả ${totalCount} bản ghi đều là dữ liệu mới và sẵn sàng để nhập.</p>
+                    <p class="text-green-700 text-sm mt-1">${messages.noDuplicates}</p>
                 `;
             } else {
-                duplicateInfo.className = 'p-4 rounded-lg border bg-blue-50 border-blue-200';
+                const colorClass = mode === 'duplicates-only' ? 'orange' : 'blue';
+                duplicateInfo.className = `p-4 rounded-lg border bg-${colorClass}-50 border-${colorClass}-200`;
                 duplicateInfo.innerHTML = `
                     <div class="flex items-center">
-                        <svg class="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-5 h-5 text-${colorClass}-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
-                        <span class="text-blue-800 font-medium">🔄 Đã lọc dữ liệu trùng lặp tự động</span>
+                        <span class="text-${colorClass}-800 font-medium">🔄 ${mode === 'smart-filter' ? 'Đã lọc dữ liệu trùng lặp tự động' : 'Thông tin dữ liệu'}</span>
                     </div>
-                    <p class="text-blue-700 text-sm mt-1">
-                        Đã tự động loại bỏ ${duplicateCount} bản ghi trùng lặp.
-                        Còn lại ${totalCount - duplicateCount} bản ghi mới sẽ được nhập vào database.
-                    </p>
+                    <p class="text-${colorClass}-700 text-sm mt-1">${messages.hasDuplicates}</p>
                 `;
             }
 
@@ -755,21 +919,45 @@
             dataPreview.classList.remove('hidden');
 
             const headers = Object.keys(data[0]);
-            // Filter out description columns to save space
-            const visibleHeaders = headers.filter(h => h !== 'description_eng' && h !== 'description_vie');
+            // Filter out description columns and internal flags to save space
+            const visibleHeaders = headers.filter(h =>
+                h !== 'description_eng' &&
+                h !== 'description_vie' &&
+                !h.startsWith('_')
+            );
+
+            // Add status column if we have duplicate info
+            const hasStatusInfo = data.some(row => row._status || row._isDuplicate !== undefined);
+            if (hasStatusInfo) {
+                visibleHeaders.unshift('Trạng thái');
+            }
 
             previewHeader.innerHTML = visibleHeaders.map(header =>
                 `<th class="px-3 py-2 text-left text-xs font-medium text-secondary uppercase tracking-wider">${header}</th>`
             ).join('');
 
             const previewRows = data.slice(0, 10);
-            previewBody.innerHTML = previewRows.map(row =>
-                `<tr class="hover:bg-gray-50 dark:hover:bg-gray-700">${visibleHeaders.map(header => {
-                    const cellClass = `px-3 py-2 text-xs text-main whitespace-nowrap`;
-                    const cellContent = row[header] || '';
+            previewBody.innerHTML = previewRows.map(row => {
+                const rowClass = row._isDuplicate ? 'bg-yellow-50 dark:bg-yellow-900' : '';
+                return `<tr class="hover:bg-gray-50 dark:hover:bg-gray-700 ${rowClass}">${visibleHeaders.map(header => {
+                    let cellContent = '';
+                    let cellClass = `px-3 py-2 text-xs text-main whitespace-nowrap`;
+
+                    if (header === 'Trạng thái') {
+                        if (row._status) {
+                            cellContent = row._status;
+                            cellClass += row._isDuplicate ? ' text-orange-600 font-medium' : ' text-green-600 font-medium';
+                        } else if (row._isDuplicate !== undefined) {
+                            cellContent = row._isDuplicate ? 'Trùng lặp' : 'Mới';
+                            cellClass += row._isDuplicate ? ' text-orange-600 font-medium' : ' text-green-600 font-medium';
+                        }
+                    } else {
+                        cellContent = row[header] || '';
+                    }
+
                     return `<td class="${cellClass}">${cellContent}</td>`;
-                }).join('')}</tr>`
-            ).join('');
+                }).join('')}</tr>`;
+            }).join('');
 
             if (data.length > 10) {
                 showStatus(`Showing first 10 rows of ${data.length} total rows`, 'info');
@@ -786,20 +974,20 @@
                 return;
             }
 
-            const strategy = document.getElementById('import-strategy').value;
+            const strategy = selectedImportStrategy;
             const strategyNames = {
-                'replace-all': 'Replace All (Delete entire table)',
-                'smart-update': 'Smart Update (Update existing, add new)',
-                'replace-non-special': 'Replace Non-Special (Delete non-special rows)',
-                'new-only': 'New Only (Import only new tickets)'
+                'replace-all': 'Thay thế toàn bộ (Xóa toàn bộ bảng)',
+                'smart-update': 'Cập nhật thông minh (Cập nhật có sẵn, thêm mới)',
+                'replace-non-special': 'Thay thế an toàn (Xóa ticket thường)',
+                'new-only': 'Chỉ nhập mới (Bỏ qua ticket đã có)'
             };
 
-            if (!confirm(`Are you sure you want to import ${processedData.length} records using strategy: ${strategyNames[strategy]}?`)) {
+            if (!confirm(`Bạn có chắc chắn muốn nhập ${processedData.length} bản ghi bằng chiến lược: ${strategyNames[strategy]}?`)) {
                 return;
             }
 
             try {
-                showStatus(`Importing data using ${strategyNames[strategy]}...`, 'info');
+                showStatus(`Đang nhập dữ liệu bằng ${strategyNames[strategy]}...`, 'info');
                 setProcessing(true);
 
                 switch (strategy) {

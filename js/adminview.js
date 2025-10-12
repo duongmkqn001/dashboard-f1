@@ -789,10 +789,36 @@ function createGuideStepEditor(type, stepData = {}) {
                     if (!dom.viewerManualSupplierContainer.classList.contains('hidden') && !dom.viewerManualSupplierNameInput.value.trim()) {
                         missing.push("Manual Supplier Name");
                     }
+                    // Get current template to check for special placeholders
+                    const template = getFromCache(CACHE_KEYS.TEMPLATES).find(t => t.id === currentTemplateId);
+                    const templateContent = template ? template.content || '' : '';
+
+                    // Define placeholders that should be ignored in validation (auto-filled or optional)
+                    const ignoredPlaceholders = new Set(['signature', 'greeting', 'Customer_Name', 'Order_Number', 'Brand']);
+
                     document.querySelectorAll('.placeholder-input-wrapper').forEach(wrapper => {
                         if (!wrapper.closest('.nested-placeholders.hidden')) {
                             const input = wrapper.querySelector('[data-placeholder]');
-                            if (input && !input.value.trim()) missing.push(input.dataset.placeholder.replace(/_/g, ' '));
+                            if (input && !input.value.trim()) {
+                                const placeholderKey = input.dataset.placeholder;
+
+                                // Skip validation for ignored placeholders
+                                if (ignoredPlaceholders.has(placeholderKey)) {
+                                    return;
+                                }
+
+                                // Skip validation for greeting placeholder if template has {{greeting}} in content
+                                if (placeholderKey === 'greeting' && templateContent.includes('{{greeting}}')) {
+                                    return;
+                                }
+
+                                // Skip validation for signature placeholder if template has {{signature}} in content
+                                if (placeholderKey === 'signature' && templateContent.includes('{{signature}}')) {
+                                    return;
+                                }
+
+                                missing.push(placeholderKey.replace(/_/g, ' '));
+                            }
                         }
                     });
                      document.querySelectorAll('#dynamic-optional-field-container input[type="checkbox"]:checked').forEach(cb => {
@@ -803,11 +829,11 @@ function createGuideStepEditor(type, stepData = {}) {
                     if (missing.length > 0) return showValidationModal([...new Set(missing)]);
 
                     copyRichTextToClipboard(dom.finalOutput, dom.copyFeedback);
-                    const template = getFromCache(CACHE_KEYS.TEMPLATES).find(t => t.id === currentTemplateId);
-                    if (!template) return;
+                    const currentTemplate = getFromCache(CACHE_KEYS.TEMPLATES).find(t => t.id === currentTemplateId);
+                    if (!currentTemplate) return;
                     
-                    if (template.followUpGuide) await openFollowUpGuideModal(template.followUpGuide);
-                    if (template.addLabelReminder && template.labelName) await openLabelReminderModal(template.labelName);
+                    if (currentTemplate.followUpGuide) await openFollowUpGuideModal(currentTemplate.followUpGuide);
+                    if (currentTemplate.addLabelReminder && currentTemplate.labelName) await openLabelReminderModal(currentTemplate.labelName);
                     if (template.sendToCustomer) await openCustomerModal();
                     // Carrier email modal is now opened immediately when template is selected, not here
                     if (template.issue.toLowerCase() === 'movement' && template.addInternalComment && template.internalComment) {
@@ -1326,10 +1352,10 @@ function createGuideStepEditor(type, stepData = {}) {
             function showCopyFeedback(element) { element.classList.remove('opacity-0'); setTimeout(() => element.classList.add('opacity-0'), 2000); }
             async function searchSupplierName(suid) {
                 if (!suid) return null;
-                let { data: supplier } = await supabase.from('suppliers').select('suname').eq('suid', suid).single();
+                let { data: supplier } = await supabase.from('suppliers').select('suname').eq('suid', suid).maybeSingle();
                 if (supplier) return supplier.suname;
-                let { data: child } = await supabase.from('children').select('parentSuid').eq('suchildid', suid).single();
-                if (child?.parentSuid) { let { data: parent } = await supabase.from('suppliers').select('suname').eq('suid', child.parentSuid).single(); if (parent) return parent.suname; }
+                let { data: child } = await supabase.from('children').select('parentSuid').eq('suchildid', suid).maybeSingle();
+                if (child?.parentSuid) { let { data: parent } = await supabase.from('suppliers').select('suname').eq('suid', child.parentSuid).maybeSingle(); if (parent) return parent.suname; }
                 return null;
             }
             function openGuideModal(modalId, outputId, guideData, buttonId) {
