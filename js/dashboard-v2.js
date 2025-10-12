@@ -530,8 +530,15 @@
                 data.forEach(ticket => ticketsMap.set(ticket.id, ticket));
                 if (data.length === 0) {
                    showMessage(selectedAssignee ? `Không tìm thấy ticket.` : 'Không có ticket nào.', 'info', 1500);
-                   // Check if user completed all their tickets
-                   checkAllTicketsCompleted();
+
+                   // Check if this means everyone has completed their work
+                   if (!selectedAssignee || selectedAssignee === 'all') {
+                       // No tickets at all might mean everyone has completed their work - check properly
+                       await checkAllWorkCompleted();
+                   } else {
+                       // Check if user completed all their tickets
+                       await checkAllTicketsCompleted();
+                   }
                 } else {
                     renderTable(data);
                 }
@@ -2580,36 +2587,125 @@
             }
         });
 
-        // Fireworks effect
-        function createFireworks() {
+        // Optimized Confetti Effect
+        function createConfetti() {
             const container = document.getElementById('fireworks-container');
             if (!container) return;
 
-            const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff', '#ffa500'];
+            const confettiColors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff', '#fd79a8', '#fdcb6e', '#6c5ce7'];
+            const confettiShapes = ['square', 'circle', 'triangle'];
 
+            // Create confetti on both sides - optimized for performance
+            function createConfettiSide(side) {
+                const sideWidth = window.innerWidth * 0.25; // Reduced from 30% to 25%
+                const startX = side === 'left' ? 0 : window.innerWidth - sideWidth;
+
+                // Reduced from 15 to 10 particles per side for better performance
+                for (let i = 0; i < 10; i++) {
+                    setTimeout(() => {
+                        const confetti = document.createElement('div');
+                        confetti.className = `confetti confetti-${confettiShapes[Math.floor(Math.random() * confettiShapes.length)]}`;
+
+                        const x = startX + Math.random() * sideWidth;
+                        const rotation = Math.random() * 360;
+                        const scale = 0.6 + Math.random() * 0.6; // Slightly smaller for performance
+                        const fallDuration = 2.5 + Math.random() * 1.5; // Faster fall
+                        const sway = 40 + Math.random() * 80; // Reduced sway
+
+                        confetti.style.cssText = `
+                            position: absolute;
+                            left: ${x}px;
+                            top: -20px;
+                            width: 6px;
+                            height: 6px;
+                            background-color: ${confettiColors[Math.floor(Math.random() * confettiColors.length)]};
+                            transform: rotate(${rotation}deg) scale(${scale});
+                            animation: confettiFall ${fallDuration}s linear forwards;
+                            --sway: ${Math.random() > 0.5 ? sway : -sway}px;
+                            z-index: 10001;
+                            will-change: transform, opacity;
+                        `;
+
+                        container.appendChild(confetti);
+                        setTimeout(() => {
+                            if (confetti.parentNode) {
+                                confetti.parentNode.removeChild(confetti);
+                            }
+                        }, fallDuration * 1000 + 200);
+                    }, i * 80); // Faster spawn rate
+                }
+            }
+
+            // Create confetti on both sides
+            createConfettiSide('left');
+            createConfettiSide('right');
+
+            // Reduced additional waves for performance
+            setTimeout(() => {
+                createConfettiSide('left');
+                createConfettiSide('right');
+            }, 1200);
+        }
+
+        // Optimized Enhanced Fireworks effect
+        function createEnhancedFireworks() {
+            const container = document.getElementById('fireworks-container');
+            if (!container) return;
+
+            const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff', '#fd79a8', '#fdcb6e', '#6c5ce7'];
+
+            // Reduced from 8 to 5 fireworks for better performance
             for (let i = 0; i < 5; i++) {
                 setTimeout(() => {
-                    const x = Math.random() * window.innerWidth;
-                    const y = Math.random() * (window.innerHeight * 0.5);
+                    const x = 150 + Math.random() * (window.innerWidth - 300); // Keep away from edges
+                    const y = 80 + Math.random() * (window.innerHeight * 0.3); // Upper portion of screen
 
+                    // Reduced from 50 to 30 particles per firework for performance
                     for (let j = 0; j < 30; j++) {
                         const firework = document.createElement('div');
-                        firework.className = 'firework';
-                        firework.style.left = x + 'px';
-                        firework.style.top = y + 'px';
-                        firework.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                        firework.className = 'enhanced-firework';
 
+                        const color = colors[Math.floor(Math.random() * colors.length)];
                         const angle = (Math.PI * 2 * j) / 30;
-                        const velocity = 50 + Math.random() * 100;
-                        firework.style.setProperty('--x', Math.cos(angle) * velocity + 'px');
-                        firework.style.setProperty('--y', Math.sin(angle) * velocity + 'px');
+                        const velocity = 60 + Math.random() * 80; // Reduced velocity for performance
+                        const size = 2 + Math.random() * 3; // Smaller particles for performance
+                        const fallSpeed = 0.3 + Math.random() * 0.7; // Faster fall
+                        const duration = 1.5 + Math.random() * 1; // Shorter duration for performance
+
+                        const endX = Math.cos(angle) * velocity;
+                        const endY = Math.sin(angle) * velocity;
+
+                        firework.style.cssText = `
+                            position: absolute;
+                            left: ${x}px;
+                            top: ${y}px;
+                            width: ${size}px;
+                            height: ${size}px;
+                            background-color: ${color};
+                            border-radius: 50%;
+                            animation: enhancedFireworkExplosion ${duration}s ease-out forwards;
+                            --end-x: ${endX}px;
+                            --end-y: ${endY}px;
+                            --fall-speed: ${fallSpeed};
+                            z-index: 10002;
+                            will-change: transform, opacity;
+                        `;
 
                         container.appendChild(firework);
-
-                        setTimeout(() => firework.remove(), 1000);
+                        setTimeout(() => {
+                            if (firework.parentNode) {
+                                firework.parentNode.removeChild(firework);
+                            }
+                        }, duration * 1000 + 200);
                     }
-                }, i * 300);
+                }, i * 300); // Faster sequence
             }
+        }
+
+        // Legacy fireworks function for backward compatibility
+        function createFireworks() {
+            createEnhancedFireworks();
+            createConfetti();
         }
 
         function showCongratulations(message) {
@@ -2622,19 +2718,96 @@
             messageEl.textContent = message;
             overlay.classList.remove('hidden');
 
-            createFireworks();
+            // Use enhanced effects with confetti and bigger fireworks
+            createEnhancedFireworks();
+            createConfetti();
 
             closeBtn.onclick = () => {
                 overlay.classList.add('hidden');
             };
 
-            // Auto close after 5 seconds
+            // Auto close after 8 seconds to enjoy the enhanced effects
             setTimeout(() => {
                 overlay.classList.add('hidden');
-            }, 5000);
+            }, 8000);
         }
 
-        function checkAllTicketsCompleted() {
+        // Check if all work is truly completed by querying all tickets and checking completion status
+        async function checkAllWorkCompleted() {
+            const isLeaderView = localStorage.getItem('leaderViewMode') === 'true';
+            const isMosView = localStorage.getItem('mosViewMode') === 'true';
+            const currentTypeFilter = currentTicketTypeFilter || 'all';
+
+            // Create a unique celebration key that includes the ticket type filter
+            const celebrationKey = `all_work_completed_${new Date().toDateString()}_${isLeaderView ? 'leader' : isMosView ? 'mos' : 'normal'}_${currentTypeFilter}`;
+            const alreadyShown = localStorage.getItem(celebrationKey);
+
+            if (alreadyShown) return;
+
+            try {
+                // Query ALL tickets (not just incomplete ones) to check true completion status
+                let query = supabaseClient.from('tickets').select('*');
+
+                // Apply the same view mode filters as the main query
+                if (isLeaderView) {
+                    query = query.eq('need_leader_support', true);
+                } else if (isMosView) {
+                    query = query.eq('needMos', 'request');
+                } else {
+                    // For normal view, exclude tickets that need leader support or have MoS requests
+                    query = query.or('need_leader_support.is.null,need_leader_support.eq.false')
+                                 .or('needMos.is.null,needMos.neq.request');
+                }
+
+                const { data: allTickets, error } = await query;
+                if (error) throw error;
+
+                // Filter by ticket type (AOPS/FMOP) based on current filter
+                const filteredTickets = allTickets.filter(ticket => {
+                    if (currentTypeFilter === 'all') return true;
+                    const ticketType = getTicketType(ticket.ticket);
+                    return ticketType === currentTypeFilter;
+                });
+
+                // Check if there are any tickets in this category
+                if (filteredTickets.length === 0) return;
+
+                // Check if ALL tickets in this category are completed (have time_end)
+                const completedTickets = filteredTickets.filter(ticket => ticket.time_end);
+                const allCompleted = completedTickets.length === filteredTickets.length;
+
+                console.log(`Completion check: ${filteredTickets.length} total tickets, ${completedTickets.length} completed, view: ${isLeaderView ? 'leader' : isMosView ? 'mos' : 'normal'}, filter: ${currentTypeFilter}`);
+
+                if (allCompleted) {
+                    // Create celebration message with cute icons
+                    let message = "🧨👤 Congratulations! All tickets have been completed! 🎉✨";
+                    let celebrationIcon = "🧨👤"; // Person blowing firecracker
+
+                    if (isLeaderView) {
+                        message = `${celebrationIcon} Outstanding! All AOPS tickets requiring leader support have been completed! 🌟🎊`;
+                    } else if (isMosView) {
+                        message = `${celebrationIcon} Excellent! All FMOP tickets with MOS requests have been completed! 🚢🎉`;
+                    } else {
+                        // Normal view with type-specific messages
+                        if (currentTypeFilter === 'aops') {
+                            message = `${celebrationIcon} Amazing! All AOPS tickets have been completed! 🌟🎆`;
+                        } else if (currentTypeFilter === 'fmop') {
+                            message = `${celebrationIcon} Fantastic! All FMOP tickets have been completed! 🚢🎊`;
+                        }
+                    }
+
+                    // Show the enhanced celebration
+                    setTimeout(() => {
+                        showFireworksEffect(message);
+                        localStorage.setItem(celebrationKey, 'true');
+                    }, 800);
+                }
+            } catch (error) {
+                console.error('Error checking completion status:', error);
+            }
+        }
+
+        async function checkAllTicketsCompleted() {
             const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
             const selectedAssignee = assigneeSelect.value;
 
@@ -2645,25 +2818,66 @@
 
             const isLeaderView = localStorage.getItem('leaderViewMode') === 'true';
             const isMosView = localStorage.getItem('mosViewMode') === 'true';
+            const currentTypeFilter = currentTicketTypeFilter || 'all';
 
-            // Check if there are any tickets in the current view
-            const hasTickets = ticketsMap.size > 0;
+            try {
+                // Query ALL tickets for this user to check true completion status
+                let query = supabaseClient.from('tickets').select('*').eq('assignee_account', selectedAssignee);
 
-            if (!hasTickets) {
-                let message = "Congratulations on completing all tickets!";
-
+                // Apply the same view mode filters
                 if (isLeaderView) {
-                    message = "Congratulations on completing all AOPS tickets!";
+                    query = query.eq('need_leader_support', true);
                 } else if (isMosView) {
-                    message = "Congratulations on completing all FMOP tickets!";
+                    query = query.eq('needMos', 'request');
+                } else {
+                    query = query.or('need_leader_support.is.null,need_leader_support.eq.false')
+                                 .or('needMos.is.null,needMos.neq.request');
                 }
 
-                showCongratulations(message);
+                const { data: userTickets, error } = await query;
+                if (error) throw error;
+
+                // Filter by ticket type
+                const filteredTickets = userTickets.filter(ticket => {
+                    if (currentTypeFilter === 'all') return true;
+                    const ticketType = getTicketType(ticket.ticket);
+                    return ticketType === currentTypeFilter;
+                });
+
+                // Check if user has any tickets in this category
+                if (filteredTickets.length === 0) return;
+
+                // Check if ALL user's tickets in this category are completed
+                const completedTickets = filteredTickets.filter(ticket => ticket.time_end);
+                const allCompleted = completedTickets.length === filteredTickets.length;
+
+                console.log(`User completion check for ${selectedAssignee}: ${filteredTickets.length} total tickets, ${completedTickets.length} completed, view: ${isLeaderView ? 'leader' : isMosView ? 'mos' : 'normal'}, filter: ${currentTypeFilter}`);
+
+                if (allCompleted) {
+                    let message = "🎉👤 Congratulations on completing all your tickets! 🎊";
+                    let celebrationIcon = "🎉👤";
+
+                    if (isLeaderView) {
+                        message = `${celebrationIcon} Congratulations on completing all your AOPS tickets requiring leader support! 🌟`;
+                    } else if (isMosView) {
+                        message = `${celebrationIcon} Congratulations on completing all your FMOP tickets with MOS requests! 🚢`;
+                    } else {
+                        if (currentTypeFilter === 'aops') {
+                            message = `${celebrationIcon} Congratulations on completing all your AOPS tickets! 🌟🎆`;
+                        } else if (currentTypeFilter === 'fmop') {
+                            message = `${celebrationIcon} Congratulations on completing all your FMOP tickets! 🚢🎊`;
+                        }
+                    }
+
+                    showCongratulations(message);
+                }
+            } catch (error) {
+                console.error('Error checking user completion status:', error);
             }
         }
 
         // Fireworks celebration effect
-        function showFireworksEffect() {
+        function showFireworksEffect(customMessage = null) {
             // Create fireworks container
             const fireworksContainer = document.createElement('div');
             fireworksContainer.id = 'fireworks-container';
@@ -2678,35 +2892,41 @@
                 overflow: hidden;
             `;
 
-            // Vietnamese congratulations messages
-            const messages = [
-                'Chúc mừng bạn đã hoàn thành tất cả ticket! 🎉',
-                'Xuất sắc! Bạn đã xử lý xong toàn bộ công việc! 🌟',
-                'Tuyệt vời! Không còn ticket nào cần xử lý! 🎊',
-                'Hoàn hảo! Bạn đã làm việc rất tốt hôm nay! ✨',
-                'Chúc mừng! Tất cả ticket đã được giải quyết! 🎈'
-            ];
+            // Use custom message or default Vietnamese congratulations messages with cute icons
+            let randomMessage = customMessage;
 
-            const randomMessage = messages[Math.floor(Math.random() * messages.length)];
+            if (!customMessage) {
+                const messages = [
+                    '🧨👤 Chúc mừng bạn đã hoàn thành tất cả ticket! 🎉✨',
+                    '🎆👨‍💼 Xuất sắc! Bạn đã xử lý xong toàn bộ công việc! 🌟🎊',
+                    '🎇👩‍💻 Tuyệt vời! Không còn ticket nào cần xử lý! 🎊🎈',
+                    '✨👤 Hoàn hảo! Bạn đã làm việc rất tốt hôm nay! ✨🎉',
+                    '🎉👨‍🎓 Chúc mừng! Tất cả ticket đã được giải quyết! 🎈🎆'
+                ];
+                randomMessage = messages[Math.floor(Math.random() * messages.length)];
+            }
 
-            // Create message overlay
+            // Create enhanced message overlay
             const messageOverlay = document.createElement('div');
             messageOverlay.style.cssText = `
                 position: absolute;
                 top: 50%;
                 left: 50%;
                 transform: translate(-50%, -50%);
-                background: rgba(0, 0, 0, 0.8);
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
                 color: white;
-                padding: 30px 50px;
-                border-radius: 20px;
-                font-size: 24px;
+                padding: 40px 60px;
+                border-radius: 25px;
+                font-size: 28px;
                 font-weight: bold;
                 text-align: center;
-                backdrop-filter: blur(10px);
-                border: 2px solid #ffd700;
-                box-shadow: 0 0 30px rgba(255, 215, 0, 0.5);
-                animation: messageGlow 2s ease-in-out infinite alternate;
+                backdrop-filter: blur(15px);
+                border: 3px solid rgba(255,255,255,0.3);
+                box-shadow: 0 25px 50px rgba(0,0,0,0.4);
+                animation: messageGlow 2s ease-in-out infinite alternate, messageBounce 0.6s ease-out;
+                max-width: 80%;
+                word-wrap: break-word;
+                z-index: 10001;
             `;
             messageOverlay.textContent = randomMessage;
 
@@ -2734,56 +2954,17 @@
 
             fireworksContainer.appendChild(messageOverlay);
 
-            // Create fireworks particles
-            function createFirework(x, y) {
-                const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4', '#feca57', '#ff9ff3', '#54a0ff'];
-                const particleCount = 12;
-
-                for (let i = 0; i < particleCount; i++) {
-                    const particle = document.createElement('div');
-                    particle.className = 'firework';
-                    particle.style.cssText = `
-                        left: ${x}px;
-                        top: ${y}px;
-                        background-color: ${colors[Math.floor(Math.random() * colors.length)]};
-                        animation-delay: ${Math.random() * 0.5}s;
-                        transform-origin: center;
-                    `;
-
-                    // Random direction for particles
-                    const angle = (360 / particleCount) * i;
-                    const distance = 50 + Math.random() * 100;
-                    particle.style.setProperty('--end-x', `${Math.cos(angle * Math.PI / 180) * distance}px`);
-                    particle.style.setProperty('--end-y', `${Math.sin(angle * Math.PI / 180) * distance}px`);
-
-                    fireworksContainer.appendChild(particle);
-
-                    // Remove particle after animation
-                    setTimeout(() => {
-                        if (particle.parentNode) {
-                            particle.parentNode.removeChild(particle);
-                        }
-                    }, 2000);
-                }
-            }
-
-            // Create multiple fireworks at random positions
-            function launchFireworks() {
-                for (let i = 0; i < 5; i++) {
-                    setTimeout(() => {
-                        const x = Math.random() * window.innerWidth;
-                        const y = Math.random() * window.innerHeight;
-                        createFirework(x, y);
-                    }, i * 300);
-                }
-            }
-
             document.body.appendChild(fireworksContainer);
 
-            // Launch fireworks multiple times
-            launchFireworks();
-            setTimeout(launchFireworks, 1000);
-            setTimeout(launchFireworks, 2000);
+            // Launch enhanced fireworks and confetti
+            createEnhancedFireworks();
+            createConfetti();
+
+            // One additional wave for celebration
+            setTimeout(() => {
+                createEnhancedFireworks();
+                createConfetti();
+            }, 1500);
 
             // Remove fireworks after 5 seconds
             setTimeout(() => {

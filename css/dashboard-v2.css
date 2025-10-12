@@ -182,13 +182,76 @@
             to { transform: scale(1); opacity: 1; }
         }
 
-        /* Fireworks Animation */
+        @keyframes messageBounce {
+            0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; }
+            50% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+        }
+
+        @keyframes messageGlow {
+            from { box-shadow: 0 0 30px rgba(255, 215, 0, 0.5); }
+            to { box-shadow: 0 0 50px rgba(255, 215, 0, 0.8); }
+        }
+
+        /* Enhanced Confetti Animations */
+        .confetti {
+            position: absolute;
+            pointer-events: none;
+        }
+
+        .confetti-square {
+            border-radius: 2px;
+        }
+
+        .confetti-circle {
+            border-radius: 50%;
+        }
+
+        .confetti-triangle {
+            width: 0 !important;
+            height: 0 !important;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-bottom: 8px solid;
+            background: transparent !important;
+        }
+
+        .confetti-square {
+            box-shadow: 0 0 4px rgba(255,255,255,0.8);
+        }
+
+        .confetti-circle {
+            box-shadow: 0 0 4px rgba(255,255,255,0.8);
+        }
+
+        @keyframes confettiFall {
+            0% {
+                transform: translateY(-20px) translateX(0) rotate(0deg);
+                opacity: 1;
+            }
+            50% {
+                transform: translateY(50vh) translateX(var(--sway)) rotate(180deg);
+                opacity: 0.8;
+            }
+            100% {
+                transform: translateY(100vh) translateX(calc(var(--sway) * 1.5)) rotate(360deg);
+                opacity: 0;
+            }
+        }
+
+        /* Enhanced Fireworks Animation */
         .firework {
             position: absolute;
             width: 4px;
             height: 4px;
             border-radius: 50%;
             animation: firework 1s ease-out forwards;
+        }
+
+        .enhanced-firework {
+            position: absolute;
+            border-radius: 50%;
+            pointer-events: none;
         }
 
         @keyframes firework {
@@ -198,6 +261,25 @@
             }
             100% {
                 transform: translate(var(--x), var(--y));
+                opacity: 0;
+            }
+        }
+
+        @keyframes enhancedFireworkExplosion {
+            0% {
+                transform: translate(0, 0) scale(1);
+                opacity: 1;
+            }
+            30% {
+                transform: translate(calc(var(--end-x) * 0.7), calc(var(--end-y) * 0.7)) scale(1.2);
+                opacity: 1;
+            }
+            60% {
+                transform: translate(var(--end-x), var(--end-y)) scale(0.8);
+                opacity: 0.7;
+            }
+            100% {
+                transform: translate(var(--end-x), calc(var(--end-y) + 200px * var(--fall-speed))) scale(0.3);
                 opacity: 0;
             }
         }
