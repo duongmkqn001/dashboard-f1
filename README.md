@@ -32,16 +32,26 @@ dashboard f1/
 ├── index.html                 # Main portal page
 ├── adminview.html             # Admin management interface
 ├── dashboard-v2.html          # Ticket dashboard
+├── csv-import-enhanced.html   # CSV import tool
+├── manual-reschedule-pos.html # Manual reschedule interface
 ├── js/
-│   ├── adminview.js          # Enhanced with CSV import
-│   └── dashboard-v2.js       # Ticket management logic
+│   ├── adminview.js          # Admin logic with manual schedule
+│   └── dashboard-v2.js       # Dashboard logic with celebrations
 ├── css/
 │   ├── adminview.css         # Admin styles
 │   └── dashboard-v2.css      # Dashboard styles
-├── sample-suppliers.csv      # Sample supplier data
-├── sample-children.csv       # Sample children data
-├── sample-mixed.csv          # Sample mixed data
-├── test-csv-parser.html      # CSV parser testing tool
+├── docs/                      # 📚 Documentation folder
+│   ├── README.md             # Documentation index
+│   ├── TIMEZONE_FIX_COMPLETE.md
+│   ├── MANUAL_SCHEDULE_COMPLETE_GUIDE.md
+│   └── ... (all other .md files)
+├── sql/                       # 🗄️ SQL scripts folder
+│   ├── README.md             # SQL scripts index
+│   ├── manual_schedule_complete_setup.sql
+│   ├── test_manual_schedule.sql
+│   └── fix_notifications_table.sql
+├── sample/                    # Sample CSV files
+├── scriptgs.txt              # Google Apps Script
 └── README.md                 # This file
 ```
 
@@ -171,10 +181,21 @@ Run the CSV parser tests by opening `test-csv-parser.html` in your browser and c
 - **Undo functionality** for imports
 - **CSV template download**
 
+## Documentation
+
+📚 **All documentation is now organized in the `/docs` folder!**
+
+For detailed guides and fixes, see:
+- **[docs/README.md](docs/README.md)** - Complete documentation index
+- **[docs/TIMEZONE_FIX_COMPLETE.md](docs/TIMEZONE_FIX_COMPLETE.md)** - Critical timezone fix
+- **[docs/MANUAL_SCHEDULE_COMPLETE_GUIDE.md](docs/MANUAL_SCHEDULE_COMPLETE_GUIDE.md)** - Manual schedule guide
+- **[sql/README.md](sql/README.md)** - SQL scripts index
+
 ## Support
 
 For issues or questions:
-1. Check the browser console for detailed error messages
-2. Verify CSV format matches the expected structure
-3. Test with the provided sample files
-4. Use the test-csv-parser.html tool for debugging
+1. Check the **[docs/](docs/)** folder for relevant documentation
+2. Check the browser console for detailed error messages
+3. Verify CSV format matches the expected structure
+4. Test with the provided sample files
+5. See **[docs/FIXES_TESTING_GUIDE.md](docs/FIXES_TESTING_GUIDE.md)** for testing help

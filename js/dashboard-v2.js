@@ -563,6 +563,12 @@
                    }
                 } else {
                     renderTable(data);
+
+                    // ALWAYS check for completion after rendering, not just when data.length === 0
+                    // This ensures celebration triggers when user completes their last ticket
+                    if (selectedAssignee && selectedAssignee !== 'all') {
+                        await checkAllTicketsCompleted();
+                    }
                 }
             } catch (error) {
                 console.error('Lỗi khi lấy ticket:', error);
@@ -2358,20 +2364,28 @@
                     const vietnamTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Ho_Chi_Minh' }));
                     const hours = vietnamTime.getHours();
                     const minutes = vietnamTime.getMinutes();
+                    const currentTimeMinutes = hours * 60 + minutes; // Convert to minutes since midnight
+                    const targetTimeMinutes = 8 * 60 + 28; // 8:28 AM in minutes
 
-                    // Check if it's exactly 8:28 AM (within a 1-minute window)
-                    const isTargetTime = hours === 8 && minutes === 28;
+                    console.log('🕐 Vietnam time:', hours + ':' + minutes, 'Current minutes:', currentTimeMinutes, 'Target:', targetTimeMinutes);
 
                     // Check if we've already shown the popup today
                     const popupShownKey = `manual_schedule_popup_shown_${today}`;
                     const popupAlreadyShown = localStorage.getItem(popupShownKey) === 'true';
 
-                    if (isTargetTime && !popupAlreadyShown) {
-                        // Show full-screen popup at 8:28 AM
+                    // BEFORE 8:28 AM: Show banner
+                    // AT 8:28 AM: Show popup (once)
+                    // AFTER 8:28 AM: Show banner again
+                    if (currentTimeMinutes === targetTimeMinutes && !popupAlreadyShown) {
+                        // Show full-screen popup at exactly 8:28 AM (once per day)
+                        console.log('🎯 Showing manual schedule popup at 8:28 AM');
                         showManualSchedulePopup(assignment);
                         localStorage.setItem(popupShownKey, 'true');
+                        // Also show banner after popup is closed
+                        setTimeout(() => showManualRescheduleBanner(assignment), 500);
                     } else {
-                        // Show banner notification at other times
+                        // Show banner at all other times (before and after 8:28 AM)
+                        console.log('📋 Showing manual schedule banner');
                         showManualRescheduleBanner(assignment);
                     }
                 }
@@ -2388,15 +2402,15 @@
             popup.innerHTML = `
                 <div class="bg-gradient-to-br from-orange-500 to-red-600 p-12 rounded-3xl shadow-2xl max-w-2xl text-center transform scale-100 animate-pulse">
                     <div class="text-8xl mb-6">📋</div>
-                    <h1 class="text-5xl font-bold text-white mb-4">Manual Schedule Assignment</h1>
-                    <p class="text-2xl text-orange-100 mb-6">You have been assigned to work on:</p>
+                    <h1 class="text-5xl font-bold text-white mb-4">Phân Công Manual Schedule</h1>
+                    <p class="text-2xl text-orange-100 mb-6">Bạn được phân công xử lý:</p>
                     <div class="bg-white bg-opacity-20 rounded-xl p-6 mb-8">
                         <p class="text-4xl font-bold text-white">${assignment.account_export_name}</p>
                     </div>
-                    <p class="text-xl text-orange-200 mb-8">Please start your work for today!</p>
+                    <p class="text-xl text-orange-200 mb-8">Vui lòng bắt đầu công việc hôm nay!</p>
                     <button onclick="closeManualSchedulePopup()"
                             class="bg-white text-orange-600 px-8 py-4 rounded-full text-xl font-bold hover:bg-orange-50 transition-all transform hover:scale-105 shadow-lg">
-                        Got it! Let's start 🚀
+                        Đã hiểu! Bắt đầu ngay 🚀
                     </button>
                 </div>
             `;
@@ -2424,15 +2438,15 @@
                     <div class="flex items-center gap-3">
                         <div class="text-2xl animate-bounce">📋</div>
                         <div>
-                            <h3 class="font-bold text-lg">🎯 Manual Schedule Assignment - Today</h3>
-                            <p class="text-orange-100">You have been assigned to work on manual schedule today.</p>
-                            <p class="text-sm text-orange-200">Account: <span class="font-semibold">${assignment.account_export_name}</span></p>
+                            <h3 class="font-bold text-lg">🎯 Phân Công Manual Schedule - Hôm Nay</h3>
+                            <p class="text-orange-100">Bạn được phân công xử lý manual schedule hôm nay.</p>
+                            <p class="text-sm text-orange-200">Tài khoản: <span class="font-semibold">${assignment.account_export_name}</span></p>
                         </div>
                     </div>
                     <div class="flex gap-2">
                         <button onclick="openManualRescheduleTask(event)"
                                 class="bg-white text-orange-600 px-4 py-2 rounded-lg font-semibold hover:bg-orange-50 transition-colors shadow-md">
-                            🚀 Start Task
+                            🚀 Bắt Đầu
                         </button>
                         <button onclick="dismissManualRescheduleBanner()"
                                 class="bg-orange-600 text-white px-3 py-2 rounded-lg hover:bg-orange-700 transition-colors">
@@ -2861,14 +2875,21 @@
             const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
             const selectedAssignee = assigneeSelect.value;
 
-            // Only check if user is viewing their own tickets
-            if (!selectedAssignee || selectedAssignee !== currentUser.agent_account) {
+            console.log('🔍 checkAllTicketsCompleted called - selectedAssignee:', selectedAssignee, 'loggedInUser:', currentUser.account_name);
+
+            // Check if a specific assignee is selected (not "all")
+            // Celebration triggers when ALL tickets for the selected assignee are completed
+            // The logged-in user can handle tickets for multiple assignee accounts
+            if (!selectedAssignee || selectedAssignee === 'all') {
+                console.log('⏭️ Skipping celebration check - no specific assignee selected or viewing all');
                 return;
             }
 
             const isLeaderView = localStorage.getItem('leaderViewMode') === 'true';
             const isMosView = localStorage.getItem('mosViewMode') === 'true';
             const currentTypeFilter = currentTicketTypeFilter || 'all';
+
+            console.log('🎯 Celebration check params:', { isLeaderView, isMosView, currentTypeFilter });
 
             try {
                 // Query ALL tickets for this user to check true completion status
@@ -2887,6 +2908,8 @@
                 const { data: userTickets, error } = await query;
                 if (error) throw error;
 
+                console.log('📊 Total user tickets from DB:', userTickets.length);
+
                 // Filter by ticket type
                 const filteredTickets = userTickets.filter(ticket => {
                     if (currentTypeFilter === 'all') return true;
@@ -2894,52 +2917,76 @@
                     return ticketType === currentTypeFilter;
                 });
 
+                console.log('📊 Filtered tickets:', filteredTickets.length, 'Filter:', currentTypeFilter);
+
                 // Check if user has any tickets in this category
-                if (filteredTickets.length === 0) return;
+                if (filteredTickets.length === 0) {
+                    console.log('⏭️ No tickets in this category');
+                    return;
+                }
 
                 // Check if ALL user's tickets in this category are completed
                 const completedTickets = filteredTickets.filter(ticket => ticket.time_end);
                 const allCompleted = completedTickets.length === filteredTickets.length;
 
-                console.log(`User completion check for ${selectedAssignee}: ${filteredTickets.length} total tickets, ${completedTickets.length} completed, view: ${isLeaderView ? 'leader' : isMosView ? 'mos' : 'normal'}, filter: ${currentTypeFilter}`);
+                console.log(`🎊 User completion check for ${selectedAssignee}: ${filteredTickets.length} total tickets, ${completedTickets.length} completed, allCompleted: ${allCompleted}, view: ${isLeaderView ? 'leader' : isMosView ? 'mos' : 'normal'}, filter: ${currentTypeFilter}`);
 
                 if (allCompleted) {
-                    let message = "🎉👤 Congratulations on completing all your tickets! 🎊";
-                    let celebrationIcon = "🎉👤";
+                    console.log('🎉 ALL TICKETS COMPLETED! Triggering celebration...');
+
+                    // Vietnamese celebration messages
+                    let message = `🧨👤 Chúc mừng! Đã hoàn thành tất cả ticket cho ${selectedAssignee}! 🎉✨`;
+                    let celebrationIcon = "🧨👤";
 
                     if (isLeaderView) {
-                        message = `${celebrationIcon} Congratulations on completing all your AOPS tickets requiring leader support! 🌟`;
+                        message = `${celebrationIcon} Xuất sắc! Đã hoàn thành tất cả ticket AOPS cần hỗ trợ leader cho ${selectedAssignee}! 🌟🎊`;
                     } else if (isMosView) {
-                        message = `${celebrationIcon} Congratulations on completing all your FMOP tickets with MOS requests! 🚢`;
+                        message = `${celebrationIcon} Tuyệt vời! Đã hoàn thành tất cả ticket FMOP có yêu cầu MOS cho ${selectedAssignee}! 🚢🎉`;
                     } else {
                         if (currentTypeFilter === 'aops') {
-                            message = `${celebrationIcon} Congratulations on completing all your AOPS tickets! 🌟🎆`;
+                            message = `${celebrationIcon} Hoàn hảo! Đã hoàn thành tất cả ticket AOPS cho ${selectedAssignee}! 🌟🎆`;
                         } else if (currentTypeFilter === 'fmop') {
-                            message = `${celebrationIcon} Congratulations on completing all your FMOP tickets! 🚢🎊`;
+                            message = `${celebrationIcon} Tuyệt vời! Đã hoàn thành tất cả ticket FMOP cho ${selectedAssignee}! 🚢🎊`;
                         }
                     }
 
-                    // Show local celebration
-                    showCongratulations(message);
+                    console.log('🎊 Celebration message:', message);
+
+                    // Show celebration with fireworks effect (only one banner)
+                    showFireworksEffect(message);
 
                     // Create a celebration notification for the user
                     try {
-                        const celebrationNotificationKey = `celebration_sent_${new Date().toDateString()}_${isLeaderView ? 'leader' : isMosView ? 'mos' : 'normal'}_${currentTypeFilter}`;
+                        // Include assignee account in the key so each assignee gets their own celebration
+                        const celebrationNotificationKey = `celebration_sent_${new Date().toDateString()}_${selectedAssignee}_${isLeaderView ? 'leader' : isMosView ? 'mos' : 'normal'}_${currentTypeFilter}`;
                         const notificationAlreadySent = localStorage.getItem(celebrationNotificationKey);
 
+                        console.log('🔑 Celebration key:', celebrationNotificationKey);
+                        console.log('📝 Already sent?', notificationAlreadySent);
+
                         if (!notificationAlreadySent) {
-                            await supabaseClient.from('notifications').insert({
+                            console.log('📤 Inserting celebration notification to DB...');
+                            const { data, error } = await supabaseClient.from('notifications').insert({
                                 recipient_id: currentUser.stt,
                                 message: message,
                                 type: 'celebration',
-                                is_read: false
+                                read: false
                             });
-                            localStorage.setItem(celebrationNotificationKey, 'true');
-                            console.log('✅ Celebration notification created');
+
+                            if (error) {
+                                console.error('❌ Error inserting celebration notification:', error);
+                            } else {
+                                console.log('✅ Celebration notification created successfully!', data);
+                                localStorage.setItem(celebrationNotificationKey, 'true');
+                            }
+                        } else {
+                            console.log('⏭️ Celebration notification already sent today for this category');
                         }
                     } catch (notifError) {
-                        console.error('Error creating celebration notification:', notifError);
+                        console.error('❌ Exception creating celebration notification:', notifError);
                     }
+                } else {
+                    console.log('⏳ Not all tickets completed yet:', completedTickets.length, '/', filteredTickets.length);
                 }
             } catch (error) {
                 console.error('Error checking user completion status:', error);

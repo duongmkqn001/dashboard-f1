@@ -2710,6 +2710,7 @@ function createGuideStepEditor(type, stepData = {}) {
                         showNotification('Please select an assignment date', 'error');
                         return;
                     }
+                    console.log('📅 Manual assignment - Selected date:', selectedDate);
                     dates = [selectedDate];
                 } else if (dateOption === 'week') {
                     dates = getNext5Weekdays(today);
@@ -2735,24 +2736,31 @@ function createGuideStepEditor(type, stepData = {}) {
                     return;
                 }
 
+                console.log('📋 Manual assignment - Dates to assign:', dates);
+
                 // Check for existing assignments and prepare data
                 const assignments = [];
                 const updates = [];
 
                 for (const date of dates) {
+                    console.log('🔍 Checking assignment for date:', date, 'agent:', memberId);
+
                     // Check if assignment already exists for this date and agent
+                    // Use .maybeSingle() instead of .single() to avoid 406 error when no results
                     const { data: existingAssignment, error: checkError } = await supabase
                         .from('schedule_assignments')
                         .select('*')
                         .eq('assignment_date', date)
                         .eq('agent_id', memberId)
-                        .single();
+                        .maybeSingle();
 
-                    if (checkError && checkError.code !== 'PGRST116') {
+                    if (checkError) {
+                        console.error('❌ Error checking existing assignment:', checkError);
                         throw checkError;
                     }
 
                     if (existingAssignment) {
+                        console.log('🔄 Assignment exists, will update:', existingAssignment.id);
                         // Prepare update
                         updates.push({
                             id: existingAssignment.id,
@@ -2763,6 +2771,7 @@ function createGuideStepEditor(type, stepData = {}) {
                             status: 'assigned'
                         });
                     } else {
+                        console.log('➕ No existing assignment, will create new');
                         // Prepare insert
                         assignments.push({
                             assignment_date: date,
@@ -2777,22 +2786,31 @@ function createGuideStepEditor(type, stepData = {}) {
 
                 // Perform batch operations
                 if (assignments.length > 0) {
+                    console.log('➕ Inserting assignments:', assignments);
                     const { error: insertError } = await supabase
                         .from('schedule_assignments')
                         .insert(assignments);
 
-                    if (insertError) throw insertError;
+                    if (insertError) {
+                        console.error('❌ Insert error:', insertError);
+                        throw insertError;
+                    }
+                    console.log('✅ Assignments inserted successfully');
                 }
 
                 // Perform updates one by one (Supabase doesn't support batch updates easily)
                 for (const update of updates) {
                     const { id, ...updateData } = update;
+                    console.log('🔄 Updating assignment:', id, updateData);
                     const { error: updateError } = await supabase
                         .from('schedule_assignments')
                         .update(updateData)
                         .eq('id', id);
 
-                    if (updateError) throw updateError;
+                    if (updateError) {
+                        console.error('❌ Update error:', updateError);
+                        throw updateError;
+                    }
                 }
 
                 // Create notification for the assigned user
@@ -2800,6 +2818,16 @@ function createGuideStepEditor(type, stepData = {}) {
 
                 const totalAssignments = assignments.length + updates.length;
                 showNotification(`${totalAssignments} assignment${totalAssignments > 1 ? 's' : ''} created successfully`, 'success');
+
+                // Verify what was actually created
+                console.log('🔍 Verifying created assignments...');
+                const { data: verifyData } = await supabase
+                    .from('schedule_assignments')
+                    .select('assignment_date, agent_id, account_export_name')
+                    .in('assignment_date', dates)
+                    .eq('agent_id', memberId);
+                console.log('✅ Verified assignments in database:', verifyData);
+
                 loadCurrentAssignments();
 
                 // Reset form
@@ -2814,7 +2842,7 @@ function createGuideStepEditor(type, stepData = {}) {
 
         async function loadCurrentAssignments() {
             try {
-                const today = new Date().toISOString().split('T')[0];
+                const today = formatDateLocal(new Date());
 
                 const { data: assignments, error } = await supabase
                     .from('schedule_assignments')
@@ -2913,23 +2941,31 @@ function createGuideStepEditor(type, stepData = {}) {
                     .eq('setting_key', 'notification_message')
                     .single();
 
-                if (settingsError) throw settingsError;
+                if (settingsError) {
+                    console.warn('Could not load notification message setting:', settingsError);
+                }
 
-                const baseMessage = settings?.setting_value || 'You have been assigned to perform the Manual Reschedule POs task today.';
-                const message = `${baseMessage} Account: ${accountId}. Click here to start: manual-reschedule-pos.html`;
+                const baseMessage = settings?.setting_value || 'Bạn được phân công xử lý Manual Schedule hôm nay.';
+                const message = `${baseMessage} Tài khoản: ${accountId}`;
 
                 const { error: notificationError } = await supabase
                     .from('notifications')
                     .insert({
                         recipient_id: memberId,
                         message: message,
-                        type: 'assignment',
-                        related_ticket_id: null
+                        type: 'manual_schedule',
+                        read: false
                     });
 
-                if (notificationError) throw notificationError;
+                if (notificationError) {
+                    console.error('❌ Error creating notification:', notificationError);
+                    throw notificationError;
+                } else {
+                    console.log('✅ Manual schedule notification created for agent:', memberId, 'account:', accountId);
+                }
             } catch (error) {
                 console.error('Error creating notification:', error);
+                throw error; // Re-throw so calling code knows it failed
             }
         }
 
@@ -3061,11 +3097,11 @@ function createGuideStepEditor(type, stepData = {}) {
             if (selectedOption === 'single') {
                 singleDateInput.classList.remove('hidden');
                 // Set default to today
-                document.getElementById('assignment-date').value = new Date().toISOString().split('T')[0];
+                document.getElementById('assignment-date').value = formatDateLocal(new Date());
             } else if (selectedOption === 'custom') {
                 customDateInputs.classList.remove('hidden');
                 // Set default start date to today
-                document.getElementById('start-date').value = new Date().toISOString().split('T')[0];
+                document.getElementById('start-date').value = formatDateLocal(new Date());
             }
             // For 'week' option, we don't need date inputs as it's automatic
         }
@@ -3229,6 +3265,15 @@ function createGuideStepEditor(type, stepData = {}) {
         }
 
         // --- Utility Functions for Date Handling ---
+
+        // Helper function to format date as YYYY-MM-DD in local timezone (not UTC)
+        function formatDateLocal(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
         function getNext5Weekdays(startDate) {
             const dates = [];
             let currentDate = new Date(startDate);
@@ -3238,7 +3283,7 @@ function createGuideStepEditor(type, stepData = {}) {
                 const dayOfWeek = currentDate.getDay();
                 // Only include weekdays (Monday = 1, Friday = 5)
                 if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-                    dates.push(currentDate.toISOString().split('T')[0]);
+                    dates.push(formatDateLocal(currentDate));
                 }
                 currentDate.setDate(currentDate.getDate() + 1);
             }
@@ -3255,7 +3300,7 @@ function createGuideStepEditor(type, stepData = {}) {
                 const dayOfWeek = currentDate.getDay();
                 // Only include weekdays (Monday = 1, Friday = 5)
                 if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-                    dates.push(currentDate.toISOString().split('T')[0]);
+                    dates.push(formatDateLocal(currentDate));
                 }
                 currentDate.setDate(currentDate.getDate() + 1);
             }
@@ -3271,7 +3316,7 @@ function createGuideStepEditor(type, stepData = {}) {
                 const dayOfWeek = currentDate.getDay();
                 // Only include weekdays
                 if (dayOfWeek >= 1 && dayOfWeek <= 5) {
-                    dates.push(currentDate.toISOString().split('T')[0]);
+                    dates.push(formatDateLocal(currentDate));
                 }
                 currentDate.setDate(currentDate.getDate() + 1);
             }
@@ -3488,7 +3533,7 @@ function createGuideStepEditor(type, stepData = {}) {
                             .update({
                                 agent_current_index: newAgentIndex,
                                 account_current_index: newAccountIndex,
-                                last_assignment_date: new Date().toISOString().split('T')[0],
+                                last_assignment_date: formatDateLocal(new Date()),
                                 updated_at: new Date().toISOString()
                             })
                             .eq('id', 1);
@@ -3500,7 +3545,7 @@ function createGuideStepEditor(type, stepData = {}) {
                                 id: 1,
                                 agent_current_index: newAgentIndex,
                                 account_current_index: newAccountIndex,
-                                last_assignment_date: new Date().toISOString().split('T')[0]
+                                last_assignment_date: formatDateLocal(new Date())
                             });
                     }
                 }
@@ -3519,7 +3564,7 @@ function createGuideStepEditor(type, stepData = {}) {
         async function performAutoAssignment() {
             try {
                 const today = new Date();
-                const todayString = today.toISOString().split('T')[0];
+                const todayString = formatDateLocal(today);
 
                 // Check if assignment already exists for today
                 const { data: existingAssignments, error: checkError } = await supabase
@@ -4016,8 +4061,9 @@ function createGuideStepEditor(type, stepData = {}) {
             }
 
             // Load assignments for this month (including buffer days)
-            const startDate = dates[0].date.toISOString().split('T')[0];
-            const endDate = dates[dates.length - 1].date.toISOString().split('T')[0];
+            // Use formatDateLocal to avoid timezone issues
+            const startDate = formatDateLocal(dates[0].date);
+            const endDate = formatDateLocal(dates[dates.length - 1].date);
 
             try {
                 const { data: assignments, error } = await supabase
@@ -4048,9 +4094,11 @@ function createGuideStepEditor(type, stepData = {}) {
 
                 // Render calendar
                 const datesHtml = dates.map(({ date, isCurrentMonth }) => {
-                    const dateStr = date.toISOString().split('T')[0];
+                    // Use formatDateLocal to avoid timezone issues
+                    const dateStr = formatDateLocal(date);
                     const assignment = assignmentMap.get(dateStr);
-                    const isToday = dateStr === new Date().toISOString().split('T')[0];
+                    const todayStr = formatDateLocal(new Date());
+                    const isToday = dateStr === todayStr;
                     const dayOfWeek = date.getDay();
                     const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
 
