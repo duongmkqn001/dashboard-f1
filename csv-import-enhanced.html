@@ -125,9 +125,9 @@
                             </label>
                             <select id="processing-mode" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
                                 <option value="new-only">➕ Chỉ nhập mới - Chỉ nhập ticket mới, bỏ qua trùng lặp</option>
-                                <option value="smart-update">🧠 Cập nhật thông minh - Cập nhật ticket có sẵn, thêm mới (bỏ qua đặc biệt)</option>
+                                <option value="smart-update">🧠 Cập nhật thông minh - Cập nhật ticket chưa xử lý, thêm mới (bảo vệ ticket đang làm)</option>
                                 <option value="replace-all">🔄 Thay thế toàn bộ - Xóa toàn bộ và nhập lại từ đầu</option>
-                                <option value="replace-non-special">⚡ Thay thế an toàn - Xóa ticket thường, giữ lại đặc biệt</option>
+                                <option value="replace-non-special">⚡ Thay thế an toàn - Xóa ticket chưa xử lý, giữ lại đang làm</option>
                             </select>
                             <div class="mt-2 text-xs text-gray-600 dark:text-gray-400">
                                 <div id="mode-description" class="p-2 bg-gray-100 dark:bg-gray-800 rounded">
@@ -191,7 +191,7 @@
                                     Chế độ đã chọn: <span id="current-mode-name">Chỉ nhập mới</span>
                                 </p>
                                 <p class="text-xs text-gray-600 dark:text-gray-400">
-                                    <strong>Trường hợp đặc biệt (được bảo vệ):</strong> needMos ≠ null, ticket_status_id ≠ null, need_leader_support = true
+                                    <strong>Ticket được bảo vệ (không cập nhật):</strong> Đã start, đã end, có needMos, có ticket_status_id, need_leader_support = true, hoặc đã được handle
                                 </p>
                             </div>
                             <div class="flex gap-4">
@@ -331,16 +331,16 @@
             const mode = processingMode.value;
             const descriptions = {
                 'new-only': '<strong>Chỉ nhập mới:</strong> Chỉ nhập những ticket chưa có trong database. Ticket trùng lặp sẽ bị bỏ qua hoàn toàn. An toàn và nhanh chóng.',
-                'smart-update': '<strong>Cập nhật thông minh:</strong> Cập nhật ticket đã có (trừ trường hợp đặc biệt), thêm ticket mới. Giữ nguyên ticket có needMos, ticket_status_id, need_leader_support.',
+                'smart-update': '<strong>Cập nhật thông minh:</strong> Cập nhật ticket chưa xử lý, thêm ticket mới. <span class="text-green-600">✓ Bảo vệ:</span> Ticket đã start, đã end, có needMos, có status, need_leader_support, hoặc đã được handle sẽ KHÔNG bị cập nhật.',
                 'replace-all': '<strong>Thay thế toàn bộ:</strong> Xóa toàn bộ database và nhập lại từ đầu. ⚠️ Cẩn thận - sẽ mất tất cả dữ liệu hiện tại!',
-                'replace-non-special': '<strong>Thay thế an toàn:</strong> Xóa ticket thường, giữ lại ticket đặc biệt (có needMos, status, need_leader_support), sau đó nhập dữ liệu mới.'
+                'replace-non-special': '<strong>Thay thế an toàn:</strong> Xóa ticket chưa xử lý, giữ lại ticket đang làm (đã start, có needMos, status, need_leader_support), sau đó nhập dữ liệu mới.'
             };
 
             const modeNames = {
                 'new-only': 'Chỉ nhập mới',
-                'smart-update': 'Cập nhật thông minh',
+                'smart-update': 'Cập nhật thông minh (Bảo vệ ticket đang làm)',
                 'replace-all': 'Thay thế toàn bộ',
-                'replace-non-special': 'Thay thế an toàn'
+                'replace-non-special': 'Thay thế an toàn (Bảo vệ ticket đang làm)'
             };
 
             modeDescription.innerHTML = descriptions[mode] || descriptions['new-only'];
@@ -482,21 +482,22 @@
             }
 
             try {
-                const issueIds = data.map(row => row.issue_id).filter(id => id);
-                if (issueIds.length === 0) {
+                // Use ticket numbers as unique identifiers, not issue_id
+                const ticketNumbers = data.map(row => row.ticket).filter(t => t);
+                if (ticketNumbers.length === 0) {
                     return {
                         finalData: data,
                         duplicateCount: 0,
                         totalCount: data.length,
-                        modeInfo: 'Không có issue_id để kiểm tra'
+                        modeInfo: 'Không có ticket number để kiểm tra'
                     };
                 }
 
-                // Check for existing tickets in database
+                // Check for existing tickets in database by ticket number
                 const { data: existingTickets, error } = await supabaseClient
                     .from('tickets')
-                    .select('issue_id')
-                    .in('issue_id', issueIds);
+                    .select('ticket')
+                    .in('ticket', ticketNumbers);
 
                 if (error) {
                     console.error('Error checking for duplicates:', error);
@@ -509,13 +510,13 @@
                     };
                 }
 
-                const existingIssueIds = new Set(existingTickets.map(t => String(t.issue_id)));
+                const existingTicketNumbers = new Set(existingTickets.map(t => String(t.ticket)));
 
                 // Process based on unified mode (mode determines both filtering and import strategy)
                 switch (mode) {
                     case 'new-only':
                         // Only new data (filter out duplicates) + new-only import strategy
-                        const newData = data.filter(row => !existingIssueIds.has(String(row.issue_id)));
+                        const newData = data.filter(row => !existingTicketNumbers.has(String(row.ticket)));
                         return {
                             finalData: newData,
                             duplicateCount: data.length - newData.length,
@@ -528,11 +529,11 @@
                         // All data with duplicate marking + smart-update import strategy
                         const smartData = data.map(row => ({
                             ...row,
-                            _isDuplicate: existingIssueIds.has(String(row.issue_id))
+                            _isDuplicate: existingTicketNumbers.has(String(row.ticket))
                         }));
                         return {
                             finalData: smartData,
-                            duplicateCount: data.length - data.filter(row => !existingIssueIds.has(String(row.issue_id))).length,
+                            duplicateCount: data.length - data.filter(row => !existingTicketNumbers.has(String(row.ticket))).length,
                             totalCount: data.length,
                             modeInfo: 'cập nhật thông minh',
                             importStrategy: 'smart-update'
@@ -542,11 +543,11 @@
                         // All data + replace-all import strategy
                         const replaceAllData = data.map(row => ({
                             ...row,
-                            _isDuplicate: existingIssueIds.has(String(row.issue_id))
+                            _isDuplicate: existingTicketNumbers.has(String(row.ticket))
                         }));
                         return {
                             finalData: replaceAllData,
-                            duplicateCount: data.length - data.filter(row => !existingIssueIds.has(String(row.issue_id))).length,
+                            duplicateCount: data.length - data.filter(row => !existingTicketNumbers.has(String(row.ticket))).length,
                             totalCount: data.length,
                             modeInfo: 'thay thế toàn bộ',
                             importStrategy: 'replace-all'
@@ -556,11 +557,11 @@
                         // All data + replace-non-special import strategy
                         const replaceNonSpecialData = data.map(row => ({
                             ...row,
-                            _isDuplicate: existingIssueIds.has(String(row.issue_id))
+                            _isDuplicate: existingTicketNumbers.has(String(row.ticket))
                         }));
                         return {
                             finalData: replaceNonSpecialData,
-                            duplicateCount: data.length - data.filter(row => !existingIssueIds.has(String(row.issue_id))).length,
+                            duplicateCount: data.length - data.filter(row => !existingTicketNumbers.has(String(row.ticket))).length,
                             totalCount: data.length,
                             modeInfo: 'thay thế an toàn',
                             importStrategy: 'replace-non-special'
@@ -568,7 +569,7 @@
 
                     default:
                         // Default to new-only
-                        const defaultData = data.filter(row => !existingIssueIds.has(String(row.issue_id)));
+                        const defaultData = data.filter(row => !existingTicketNumbers.has(String(row.ticket)));
                         return {
                             finalData: defaultData,
                             duplicateCount: data.length - defaultData.length,
@@ -1044,33 +1045,46 @@
 
         // Strategy 2: Smart Update - Update existing, add new (skip special cases)
         async function importSmartUpdate() {
-            const issueIds = processedData.map(row => row.issue_id).filter(id => id);
+            // Use ticket number as unique identifier, not issue_id
+            const ticketNumbers = processedData.map(row => row.ticket).filter(t => t);
 
-            // Get existing tickets
+            // Get existing tickets with all fields to check special status
             const { data: existingTickets, error: fetchError } = await supabaseClient
                 .from('tickets')
                 .select('*')
-                .in('issue_id', issueIds);
+                .in('ticket', ticketNumbers);
 
             if (fetchError) throw fetchError;
 
-            const existingMap = new Map(existingTickets.map(t => [t.issue_id, t]));
+            // Map by ticket number (the true unique identifier)
+            const existingMap = new Map(existingTickets.map(t => [t.ticket, t]));
             const toInsert = [];
             const toUpdate = [];
+            let skippedSpecial = 0;
 
             for (const row of processedData) {
-                const existing = existingMap.get(row.issue_id);
+                const existing = existingMap.get(row.ticket);
 
                 if (!existing) {
                     // New ticket - add to insert list
                     toInsert.push(row);
                 } else {
-                    // Check if it's a special case
-                    const isSpecial = existing.needMos != null || existing.ticket_status_id != null || existing.need_leader_support === true;
+                    // Check if it's a special case - ticket is in progress or has special status
+                    const isSpecial =
+                        existing.needMos != null ||
+                        existing.ticket_status_id != null ||
+                        existing.need_leader_support === true ||
+                        existing.time_start != null || // Ticket has been started
+                        existing.time_end != null || // Ticket has been completed
+                        existing.agent_handle_ticket != null; // Ticket has been handled
 
                     if (!isSpecial) {
-                        // Not special - update it (keep only ticket number, update rest)
-                        toUpdate.push({ id: existing.id, issue_id: row.issue_id, data: row });
+                        // Not special - safe to update
+                        toUpdate.push({ id: existing.id, ticket: row.ticket, data: row });
+                    } else {
+                        // Skip special tickets to avoid duplication
+                        skippedSpecial++;
+                        console.log(`Skipping special ticket ${row.ticket} - in progress or has special status`);
                     }
                 }
             }
@@ -1086,7 +1100,7 @@
                 if (insertError) throw insertError;
             }
 
-            // Update existing tickets
+            // Update existing tickets (only non-special ones)
             if (toUpdate.length > 0) {
                 showStatus(`Updating ${toUpdate.length} existing tickets...`, 'info');
                 for (const item of toUpdate) {
@@ -1094,15 +1108,16 @@
                     const { error: updateError } = await supabaseClient
                         .from('tickets')
                         .update(updateData)
-                        .eq('id', item.id);
+                        .eq('ticket', item.ticket); // Use ticket number, not id
 
                     if (updateError) {
-                        console.error(`Error updating ticket ${item.issue_id}:`, updateError);
+                        console.error(`Error updating ticket ${item.ticket}:`, updateError);
                     }
                 }
             }
 
-            showStatus(`✅ Smart update complete: ${toInsert.length} inserted, ${toUpdate.length} updated`, 'success');
+            const statusMessage = `✅ Smart update complete: ${toInsert.length} inserted, ${toUpdate.length} updated${skippedSpecial > 0 ? `, ${skippedSpecial} skipped (in progress/special status)` : ''}`;
+            showStatus(statusMessage, 'success');
         }
 
         // Strategy 3: Replace Non-Special - Delete non-special rows, replace with CSV data
@@ -1114,13 +1129,20 @@
 
             if (fetchError) throw fetchError;
 
-            // Find non-special tickets to delete
+            // Find non-special tickets to delete (tickets that haven't been worked on)
             const toDelete = allTickets.filter(t =>
-                t.needMos == null && t.ticket_status_id == null && t.need_leader_support !== true
+                t.needMos == null &&
+                t.ticket_status_id == null &&
+                t.need_leader_support !== true &&
+                t.time_start == null && // Not started
+                t.time_end == null && // Not completed
+                t.agent_handle_ticket == null // Not handled
             );
 
+            const keptSpecial = allTickets.length - toDelete.length;
+
             if (toDelete.length > 0) {
-                showStatus(`Deleting ${toDelete.length} non-special tickets...`, 'info');
+                showStatus(`Deleting ${toDelete.length} unworked tickets (keeping ${keptSpecial} in-progress/special)...`, 'info');
                 const idsToDelete = toDelete.map(t => t.id);
                 const { error: deleteError } = await supabaseClient
                     .from('tickets')
@@ -1139,23 +1161,23 @@
 
             if (insertError) throw insertError;
 
-            showStatus(`✅ Replaced ${toDelete.length} non-special tickets with ${processedData.length} new records`, 'success');
+            showStatus(`✅ Replaced ${toDelete.length} unworked tickets with ${processedData.length} new records (kept ${keptSpecial} in-progress)`, 'success');
         }
 
         // Strategy 4: New Only - Import only new tickets (skip existing)
         async function importNewOnly() {
-            const issueIds = processedData.map(row => row.issue_id).filter(id => id);
+            const ticketNumbers = processedData.map(row => row.ticket).filter(t => t);
 
-            // Get existing issue IDs
+            // Get existing ticket numbers
             const { data: existingTickets, error: fetchError } = await supabaseClient
                 .from('tickets')
-                .select('issue_id')
-                .in('issue_id', issueIds);
+                .select('ticket')
+                .in('ticket', ticketNumbers);
 
             if (fetchError) throw fetchError;
 
-            const existingIds = new Set(existingTickets.map(t => t.issue_id));
-            const newTickets = processedData.filter(row => !existingIds.has(row.issue_id));
+            const existingTicketNums = new Set(existingTickets.map(t => t.ticket));
+            const newTickets = processedData.filter(row => !existingTicketNums.has(row.ticket));
 
             if (newTickets.length === 0) {
                 showStatus('⚠️ No new tickets to import. All tickets already exist in database.', 'warning');

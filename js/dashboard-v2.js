@@ -180,6 +180,28 @@
             
             // Event listeners
             ticketTableBody.addEventListener('click', handleTableClick);
+
+            // Event delegation for hover effects - prevents memory leaks
+            ticketTableBody.addEventListener('mouseenter', (e) => {
+                const row = e.target.closest('tr[data-po-group]');
+                if (row) {
+                    const poGroup = row.dataset.poGroup;
+                    document.querySelectorAll(`tr[data-po-group="${poGroup}"]`).forEach(groupRow => {
+                        groupRow.classList.add('group-hover');
+                    });
+                }
+            }, true);
+
+            ticketTableBody.addEventListener('mouseleave', (e) => {
+                const row = e.target.closest('tr[data-po-group]');
+                if (row) {
+                    const poGroup = row.dataset.poGroup;
+                    document.querySelectorAll(`tr[data-po-group="${poGroup}"]`).forEach(groupRow => {
+                        groupRow.classList.remove('group-hover');
+                    });
+                }
+            }, true);
+
             closeTemplateSelectionModal.addEventListener('click', closeTemplateSelectionModalHandler);
             popupProjectTabs.addEventListener('click', handlePopupProjectClick);
             popupIssuesList.addEventListener('click', handlePopupIssueClick);
@@ -645,17 +667,7 @@
                 mosDetailsHeader.style.display = currentViewMode === 'mos' ? 'table-cell' : 'none';
             }
 
-             // Add hover effect
-            document.querySelectorAll('tr[data-po-group]').forEach(row => {
-                row.addEventListener('mouseenter', (e) => {
-                    const poGroup = e.currentTarget.dataset.poGroup;
-                    document.querySelectorAll(`tr[data-po-group="${poGroup}"]`).forEach(groupRow => groupRow.classList.add('group-hover'));
-                });
-                row.addEventListener('mouseleave', (e) => {
-                    const poGroup = e.currentTarget.dataset.poGroup;
-                    document.querySelectorAll(`tr[data-po-group="${poGroup}"]`).forEach(groupRow => groupRow.classList.remove('group-hover'));
-                });
-            });
+             // Hover effect is now handled by event delegation on ticketTableBody (see initialization)
 
             // Load MOS request details if in MOS view
             if (currentViewMode === 'mos') {
@@ -2318,7 +2330,7 @@
         }
 
         function openManualRescheduleTask(event) {
-            event.stopPropagation(); // Prevent the notification from being marked as read
+            if (event) event.stopPropagation(); // Prevent the notification from being marked as read
             window.open('manual-reschedule-pos.html', '_blank');
         }
 
@@ -2406,20 +2418,20 @@
 
             const banner = document.createElement('div');
             banner.id = 'manual-reschedule-banner';
-            banner.className = 'bg-gradient-to-r from-orange-500 to-red-500 text-white p-4 mb-4 rounded-lg shadow-lg border-l-4 border-orange-600';
+            banner.className = 'bg-gradient-to-r from-orange-500 to-red-500 text-white p-4 rounded-lg shadow-lg border-l-4 border-orange-600 animate-slide-in';
             banner.innerHTML = `
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3">
-                        <div class="text-2xl">📋</div>
+                        <div class="text-2xl animate-bounce">📋</div>
                         <div>
-                            <h3 class="font-bold text-lg">Manual Schedule Assignment</h3>
+                            <h3 class="font-bold text-lg">🎯 Manual Schedule Assignment - Today</h3>
                             <p class="text-orange-100">You have been assigned to work on manual schedule today.</p>
                             <p class="text-sm text-orange-200">Account: <span class="font-semibold">${assignment.account_export_name}</span></p>
                         </div>
                     </div>
                     <div class="flex gap-2">
                         <button onclick="openManualRescheduleTask(event)"
-                                class="bg-white text-orange-600 px-4 py-2 rounded-lg font-semibold hover:bg-orange-50 transition-colors">
+                                class="bg-white text-orange-600 px-4 py-2 rounded-lg font-semibold hover:bg-orange-50 transition-colors shadow-md">
                             🚀 Start Task
                         </button>
                         <button onclick="dismissManualRescheduleBanner()"
@@ -2430,10 +2442,16 @@
                 </div>
             `;
 
-            // Insert banner at the top of the main content
-            const mainContent = document.querySelector('.container');
-            if (mainContent && mainContent.firstChild) {
-                mainContent.insertBefore(banner, mainContent.firstChild);
+            // Insert banner into the banner container
+            const bannerContainer = document.getElementById('banner-container');
+            if (bannerContainer) {
+                bannerContainer.appendChild(banner);
+            } else {
+                // Fallback: insert after header if banner container doesn't exist
+                const header = document.querySelector('header');
+                if (header && header.parentNode) {
+                    header.parentNode.insertBefore(banner, header.nextSibling);
+                }
             }
         }
 
@@ -2475,11 +2493,26 @@
                             filter: `recipient_id=eq.${currentUser.stt}`
                         },
                         (payload) => {
-                            console.log('New notification received:', payload);
+                            console.log('🔔 New notification received:', payload);
+
+                            // Check if it's a celebration notification
+                            const notification = payload.new;
+                            if (notification && notification.type === 'celebration') {
+                                // Trigger celebration effect
+                                console.log('🎉 Celebration notification received!');
+                                triggerCelebration();
+                                // Show celebration message
+                                showMessage('🎉 ' + (notification.message || 'Congratulations on completing a ticket!'), 'success');
+                            } else if (notification && notification.type === 'manual_schedule') {
+                                // Manual schedule assignment notification
+                                showMessage('📋 ' + (notification.message || 'New schedule assignment'), 'info');
+                            } else {
+                                // Generic notification
+                                showMessage('🔔 New notification received', 'info');
+                            }
+
                             // Update notification counts
                             updateNotificationCounts();
-                            // Show a toast notification
-                            showMessage('🔔 New notification received', 'info');
                         }
                     )
                     .on(
@@ -2491,12 +2524,19 @@
                             filter: `recipient_id=eq.${currentUser.stt}`
                         },
                         (payload) => {
-                            console.log('Notification updated:', payload);
+                            console.log('📝 Notification updated:', payload);
                             // Update notification counts
                             updateNotificationCounts();
                         }
                     )
-                    .subscribe();
+                    .subscribe((status) => {
+                        console.log('📡 Notifications channel status:', status);
+                        if (status === 'SUBSCRIBED') {
+                            console.log('✅ Successfully subscribed to notifications channel');
+                        } else if (status === 'CHANNEL_ERROR') {
+                            console.error('❌ Error subscribing to notifications channel');
+                        }
+                    });
 
                 // Subscribe to MoS requests for leaders/keys
                 if (currentUser.level === 'leader' || currentUser.level === 'key') {
@@ -2510,7 +2550,7 @@
                                 table: 'mos_requests'
                             },
                             (payload) => {
-                                console.log('New MoS request received:', payload);
+                                console.log('🚢 New MoS request received:', payload);
                                 // Update notification counts
                                 updateNotificationCounts();
                                 // Show a toast notification
@@ -2525,12 +2565,17 @@
                                 table: 'mos_requests'
                             },
                             (payload) => {
-                                console.log('MoS request updated:', payload);
+                                console.log('🚢 MoS request updated:', payload);
                                 // Update notification counts
                                 updateNotificationCounts();
                             }
                         )
-                        .subscribe();
+                        .subscribe((status) => {
+                            console.log('📡 MoS requests channel status:', status);
+                            if (status === 'SUBSCRIBED') {
+                                console.log('✅ Successfully subscribed to MoS requests channel');
+                            }
+                        });
                 }
 
                 // Subscribe to schedule assignments for current user
@@ -2545,7 +2590,7 @@
                             filter: `agent_id=eq.${currentUser.stt}`
                         },
                         (payload) => {
-                            console.log('New schedule assignment received:', payload);
+                            console.log('📋 New schedule assignment received:', payload);
                             // Check for new manual reschedule assignment
                             checkManualRescheduleAssignment();
                             // Show a toast notification
@@ -2561,14 +2606,19 @@
                             filter: `agent_id=eq.${currentUser.stt}`
                         },
                         (payload) => {
-                            console.log('Schedule assignment updated:', payload);
+                            console.log('📋 Schedule assignment updated:', payload);
                             // Check for updated manual reschedule assignment
                             checkManualRescheduleAssignment();
                         }
                     )
-                    .subscribe();
+                    .subscribe((status) => {
+                        console.log('📡 Schedule assignments channel status:', status);
+                        if (status === 'SUBSCRIBED') {
+                            console.log('✅ Successfully subscribed to schedule assignments channel');
+                        }
+                    });
 
-                console.log('✅ Realtime subscriptions setup complete');
+                console.log('✅ Realtime subscriptions setup initiated for user:', currentUser.stt);
             } catch (error) {
                 console.error('Error setting up realtime subscriptions:', error);
             }
@@ -2869,11 +2919,36 @@
                         }
                     }
 
+                    // Show local celebration
                     showCongratulations(message);
+
+                    // Create a celebration notification for the user
+                    try {
+                        const celebrationNotificationKey = `celebration_sent_${new Date().toDateString()}_${isLeaderView ? 'leader' : isMosView ? 'mos' : 'normal'}_${currentTypeFilter}`;
+                        const notificationAlreadySent = localStorage.getItem(celebrationNotificationKey);
+
+                        if (!notificationAlreadySent) {
+                            await supabaseClient.from('notifications').insert({
+                                recipient_id: currentUser.stt,
+                                message: message,
+                                type: 'celebration',
+                                is_read: false
+                            });
+                            localStorage.setItem(celebrationNotificationKey, 'true');
+                            console.log('✅ Celebration notification created');
+                        }
+                    } catch (notifError) {
+                        console.error('Error creating celebration notification:', notifError);
+                    }
                 }
             } catch (error) {
                 console.error('Error checking user completion status:', error);
             }
+        }
+
+        // Trigger celebration - wrapper function for real-time notifications
+        function triggerCelebration(customMessage = null) {
+            showFireworksEffect(customMessage);
         }
 
         // Fireworks celebration effect

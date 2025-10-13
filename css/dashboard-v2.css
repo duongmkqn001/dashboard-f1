@@ -5,6 +5,21 @@
         .notification { transition: opacity 0.5s ease, transform 0.5s ease; }
         #main-content thead th { position: sticky; top: 0; z-index: 10; }
 
+        /* Banner animations */
+        @keyframes slide-in {
+            from {
+                transform: translateY(-100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+        .animate-slide-in {
+            animation: slide-in 0.5s ease-out;
+        }
+
         /* --- THEME STYLES --- */
         /* Daylight Theme */
         html.daylight body { background-color: #f9fafb; color: #374151; }
