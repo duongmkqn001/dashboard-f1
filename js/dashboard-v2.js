@@ -1229,7 +1229,7 @@
             dynamicOptionalsContainer.innerHTML = '';
             
             const content = template.content || '';
-            const ignoredPlaceholders = new Set(['signature', 'Customer_Name', 'Order_Number', 'Brand']);
+            const ignoredPlaceholders = new Set(['signature', 'greeting', 'Customer_Name', 'Order_Number', 'Brand']);
 
             const createPlaceholderInput = (pKey) => {
                 const placeholderData = placeholderMap.get(pKey.toLowerCase());
@@ -1344,6 +1344,21 @@
                 }
             }
 
+            // Check if template has {{signature}} placeholder
+            const hasSignaturePlaceholder = content.includes('{{signature}}');
+
+            // Get signature data
+            const assigneeAccount = popupCurrentTicket.assignee_account;
+            const assigneeName = allAgentsMap.get(assigneeAccount);
+            const signature = allSignatures.find(s => s.name === assigneeName) || allSignatures.find(s => s.isDefault) || allSignatures[0];
+            let signatureText = signature ? `${signature.name}\n${signature.title || ''}\n${signature.department || ''}`.trim() : '';
+
+            // Handle signature placeholder replacement
+            if (hasSignaturePlaceholder) {
+                // Replace {{signature}} placeholder with the signature text
+                content = content.replace(/\{\{signature\}\}/g, signatureText);
+            }
+
             // Process special placeholders {{carrier}} and {{name}} for SUID search logic
             if (content.includes('{{carrier}}') || content.includes('{{name}}')) {
                 // If agentName is available, replace {{name}} with it
@@ -1367,12 +1382,15 @@
             content = replacePlaceholdersInText(content);
             const footerText = (template.includeFooter && allSettings.footer_text?.value) ? allSettings.footer_text.value : '';
 
-            const assigneeAccount = popupCurrentTicket.assignee_account;
-            const assigneeName = allAgentsMap.get(assigneeAccount);
-            const signature = allSignatures.find(s => s.name === assigneeName) || allSignatures.find(s => s.isDefault) || allSignatures[0];
-            let signatureText = signature ? `${signature.name}\n${signature.title || ''}\n${signature.department || ''}`.trim() : '';
-
-            let finalPlainText = `${greeting ? greeting + '\n\n' : ''}${content}${footerText ? `\n\n${footerText}` : ''}\n\nBest regards,\n${signatureText}`;
+            // Only append signature at the end if it wasn't already in the content as a placeholder
+            let finalPlainText;
+            if (hasSignaturePlaceholder) {
+                // Signature was already replaced in content, don't append it again
+                finalPlainText = `${greeting ? greeting + '\n\n' : ''}${content}${footerText ? `\n\n${footerText}` : ''}`;
+            } else {
+                // Append signature at the end as before
+                finalPlainText = `${greeting ? greeting + '\n\n' : ''}${content}${footerText ? `\n\n${footerText}` : ''}\n\nBest regards,\n${signatureText}`;
+            }
 
             const finalOutput = document.getElementById('final-output');
             finalOutput.innerHTML = formatTextForDisplay(finalPlainText, footerText);
@@ -1653,10 +1671,29 @@
 
                     // Generate email body using template content
                     let emailBody = template.content || '';
+
+                    // Auto-fill greeting placeholder
+                    const agentName = document.getElementById('viewer-agent-name')?.value.trim() || '';
+                    const manualSupplierName = document.getElementById('viewer-manual-supplier-name')?.value.trim() || '';
+                    let greeting = '';
+                    if (agentName) {
+                        greeting = (allSettings.greeting_person?.value || 'Hi {{name}},').replace('{{name}}', toTitleCase(agentName));
+                    } else if (manualSupplierName) {
+                        greeting = (allSettings.greeting_team?.value || 'Hi {{name}} Team,').replace('{{name}}', cleanSupplierName(manualSupplierName));
+                    }
+
+                    // Auto-fill signature placeholder
+                    const assigneeAccount = popupCurrentTicket?.assignee_account;
+                    const assigneeName = allAgentsMap.get(assigneeAccount);
+                    const signature = allSignatures.find(s => s.name === assigneeName) || allSignatures.find(s => s.isDefault) || allSignatures[0];
+                    let signatureText = signature ? `${signature.name}\n${signature.title || ''}\n${signature.department || ''}`.trim() : '';
+
                     emailBody = emailBody
                         .replace(/\{\{ticket\}\}/g, ticket)
                         .replace(/\{\{PO\}\}/g, po)
-                        .replace(/\{\{carrier\}\}/g, carrierName);
+                        .replace(/\{\{carrier\}\}/g, carrierName)
+                        .replace(/\{\{greeting\}\}/g, greeting)
+                        .replace(/\{\{signature\}\}/g, signatureText);
 
                     // Update outputs
                     subjectOutput.textContent = emailSubject;
