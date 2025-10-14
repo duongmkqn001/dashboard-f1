@@ -3543,10 +3543,41 @@
             }
         }
 
+        // Chat zoom functionality
+        function zoomChatIn() {
+            const chatContainer = document.getElementById('chat-container');
+            if (!chatContainer) return;
+
+            const currentWidth = parseInt(chatContainer.style.width) || 350;
+            const currentHeight = parseInt(chatContainer.style.height) || 500;
+
+            const newWidth = Math.min(currentWidth + 50, 600);
+            const newHeight = Math.min(currentHeight + 50, 700);
+
+            chatContainer.style.width = newWidth + 'px';
+            chatContainer.style.height = newHeight + 'px';
+        }
+
+        function zoomChatOut() {
+            const chatContainer = document.getElementById('chat-container');
+            if (!chatContainer) return;
+
+            const currentWidth = parseInt(chatContainer.style.width) || 350;
+            const currentHeight = parseInt(chatContainer.style.height) || 500;
+
+            const newWidth = Math.max(currentWidth - 50, 300);
+            const newHeight = Math.max(currentHeight - 50, 400);
+
+            chatContainer.style.width = newWidth + 'px';
+            chatContainer.style.height = newHeight + 'px';
+        }
+
         // AI Chat functionality
         window.toggleChat = toggleChat;
         window.handleChatKeyPress = handleChatKeyPress;
         window.sendMessage = sendMessage;
+        window.zoomChatIn = zoomChatIn;
+        window.zoomChatOut = zoomChatOut;
 
         // Debug function to test AI connection
         window.testAI = async function() {

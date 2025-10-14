@@ -471,7 +471,7 @@
         .chat-icon {
             position: fixed;
             bottom: 20px;
-            left: 20px;
+            right: 20px;
             width: 60px;
             height: 60px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -493,7 +493,7 @@
         .chat-container {
             position: fixed;
             bottom: 90px;
-            left: 20px;
+            right: 20px;
             width: 350px;
             height: 500px;
             background: white;
@@ -503,6 +503,11 @@
             flex-direction: column;
             z-index: 1001;
             overflow: hidden;
+            resize: both;
+            min-width: 300px;
+            min-height: 400px;
+            max-width: 600px;
+            max-height: 700px;
         }
 
         .chat-header {
@@ -593,5 +598,12 @@
                 bottom: 90px;
                 left: 20px;
                 right: 20px;
+                min-width: 280px;
+                min-height: 350px;
+            }
+
+            .chat-icon {
+                right: 20px;
+                bottom: 20px;
             }
         }
