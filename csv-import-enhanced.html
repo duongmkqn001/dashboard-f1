@@ -124,10 +124,9 @@
                                 ⚙️ Chọn chế độ xử lý dữ liệu:
                             </label>
                             <select id="processing-mode" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
-                                <option value="new-only">➕ Chỉ nhập mới - Chỉ nhập ticket mới, bỏ qua trùng lặp</option>
-                                <option value="smart-update">🧠 Cập nhật thông minh - Cập nhật ticket chưa xử lý, thêm mới (bảo vệ ticket đang làm)</option>
-                                <option value="replace-all">🔄 Thay thế toàn bộ - Xóa toàn bộ và nhập lại từ đầu</option>
-                                <option value="replace-non-special">⚡ Thay thế an toàn - Xóa ticket chưa xử lý, giữ lại đang làm</option>
+                                <option value="complete-replace">🔄 Logic 1: Xóa toàn bộ bảng và nhập lại từ file</option>
+                                <option value="smart-compare">🧠 Logic 2: So sánh thông minh với database</option>
+                                <option value="add-new-only">➕ Logic 3: Chỉ thêm ticket mới (an toàn)</option>
                             </select>
                             <div class="mt-2 text-xs text-gray-600 dark:text-gray-400">
                                 <div id="mode-description" class="p-2 bg-gray-100 dark:bg-gray-800 rounded">
@@ -241,7 +240,7 @@
 
         let supabaseClient;
         let processedData = [];
-        let selectedImportStrategy = 'new-only';
+        let selectedImportStrategy = 'add-new-only';
         
         try {
             supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -330,24 +329,22 @@
 
             const mode = processingMode.value;
             const descriptions = {
-                'new-only': '<strong>Chỉ nhập mới:</strong> Chỉ nhập những ticket chưa có trong database. Ticket trùng lặp sẽ bị bỏ qua hoàn toàn. An toàn và nhanh chóng.',
-                'smart-update': '<strong>Cập nhật thông minh:</strong> Cập nhật ticket chưa xử lý, thêm ticket mới. <span class="text-green-600">✓ Bảo vệ:</span> Ticket đã start, đã end, có needMos, có status, need_leader_support, hoặc đã được handle sẽ KHÔNG bị cập nhật.',
-                'replace-all': '<strong>Thay thế toàn bộ:</strong> Xóa toàn bộ database và nhập lại từ đầu. ⚠️ Cẩn thận - sẽ mất tất cả dữ liệu hiện tại!',
-                'replace-non-special': '<strong>Thay thế an toàn:</strong> Xóa ticket chưa xử lý, giữ lại ticket đang làm (đã start, có needMos, status, need_leader_support), sau đó nhập dữ liệu mới.'
+                'complete-replace': '<strong>Logic 1 - Xóa toàn bộ bảng:</strong> Xóa hoàn toàn tất cả dữ liệu trong bảng tickets (giữ lại cấu trúc bảng), sau đó nhập toàn bộ dữ liệu từ file CSV. ⚠️ <span class="text-red-600">Cẩn thận - sẽ mất TẤT CẢ dữ liệu hiện tại!</span>',
+                'smart-compare': '<strong>Logic 2 - So sánh thông minh:</strong> So sánh file với database. <span class="text-green-600">✓ Giữ lại:</span> Ticket đặc biệt (đang xử lý, cần leader, hoặc không cần action). <span class="text-blue-600">+ Thêm:</span> Ticket mới. <span class="text-gray-600">= Bỏ qua:</span> Ticket trùng lặp. <span class="text-red-600">- Xóa:</span> Ticket có trong DB nhưng không có trong file và chưa được xử lý.',
+                'add-new-only': '<strong>Logic 3 - Chỉ thêm mới:</strong> <span class="text-green-600">✓ An toàn 100%</span> - Chỉ thêm những ticket mới từ file CSV. <span class="text-blue-600">+ Thêm:</span> Ticket chưa có trong database. <span class="text-gray-600">= Bỏ qua:</span> Ticket đã tồn tại. <span class="text-green-600">🛡️ Không xóa gì cả!</span>'
             };
 
             const modeNames = {
-                'new-only': 'Chỉ nhập mới',
-                'smart-update': 'Cập nhật thông minh (Bảo vệ ticket đang làm)',
-                'replace-all': 'Thay thế toàn bộ',
-                'replace-non-special': 'Thay thế an toàn (Bảo vệ ticket đang làm)'
+                'complete-replace': 'Logic 1: Xóa toàn bộ bảng',
+                'smart-compare': 'Logic 2: So sánh thông minh',
+                'add-new-only': 'Logic 3: Chỉ thêm mới (An toàn)'
             };
 
-            modeDescription.innerHTML = descriptions[mode] || descriptions['new-only'];
+            modeDescription.innerHTML = descriptions[mode] || descriptions['add-new-only'];
 
             // Update current mode name in preview
             if (currentModeName) {
-                currentModeName.textContent = modeNames[mode] || modeNames['new-only'];
+                currentModeName.textContent = modeNames[mode] || modeNames['add-new-only'];
             }
         }
 
@@ -445,12 +442,12 @@
                 const preparedData = await prepareForImport(processedRows);
 
                 // Get selected processing mode
-                const selectedMode = processingMode ? processingMode.value : 'smart-filter';
+                const selectedMode = processingMode ? processingMode.value : 'add-new-only';
 
                 // Process data based on selected mode
                 const { finalData, duplicateCount, totalCount, modeInfo, importStrategy } = await processDataByMode(preparedData, selectedMode);
                 processedData = finalData;
-                selectedImportStrategy = importStrategy || 'new-only';
+                selectedImportStrategy = importStrategy || 'add-new-only';
 
                 updateStep(3, 'complete', 'Chuẩn bị dữ liệu hoàn tất');
                 showStatus(`Đã chuẩn bị ${processedData.length} dòng để nhập (${modeInfo})`, 'success');
@@ -512,70 +509,58 @@
 
                 const existingTicketNumbers = new Set(existingTickets.map(t => String(t.ticket)));
 
-                // Process based on unified mode (mode determines both filtering and import strategy)
+                // Process based on the two unique logics
                 switch (mode) {
-                    case 'new-only':
-                        // Only new data (filter out duplicates) + new-only import strategy
-                        const newData = data.filter(row => !existingTicketNumbers.has(String(row.ticket)));
-                        return {
-                            finalData: newData,
-                            duplicateCount: data.length - newData.length,
-                            totalCount: data.length,
-                            modeInfo: 'chỉ nhập mới',
-                            importStrategy: 'new-only'
-                        };
-
-                    case 'smart-update':
-                        // All data with duplicate marking + smart-update import strategy
-                        const smartData = data.map(row => ({
+                    case 'complete-replace':
+                        // Logic 1: Delete entire table and import from file
+                        // All data will be imported (no filtering needed)
+                        const completeReplaceData = data.map(row => ({
                             ...row,
                             _isDuplicate: existingTicketNumbers.has(String(row.ticket))
                         }));
                         return {
-                            finalData: smartData,
-                            duplicateCount: data.length - data.filter(row => !existingTicketNumbers.has(String(row.ticket))).length,
+                            finalData: completeReplaceData,
+                            duplicateCount: 0, // No duplicates since we're replacing everything
                             totalCount: data.length,
-                            modeInfo: 'cập nhật thông minh',
-                            importStrategy: 'smart-update'
+                            modeInfo: 'xóa toàn bộ bảng và nhập lại',
+                            importStrategy: 'complete-replace'
                         };
 
-                    case 'replace-all':
-                        // All data + replace-all import strategy
-                        const replaceAllData = data.map(row => ({
+                    case 'smart-compare':
+                        // Logic 2: Smart comparison with database
+                        // All data with duplicate marking for smart comparison
+                        const smartCompareData = data.map(row => ({
                             ...row,
                             _isDuplicate: existingTicketNumbers.has(String(row.ticket))
                         }));
                         return {
-                            finalData: replaceAllData,
+                            finalData: smartCompareData,
                             duplicateCount: data.length - data.filter(row => !existingTicketNumbers.has(String(row.ticket))).length,
                             totalCount: data.length,
-                            modeInfo: 'thay thế toàn bộ',
-                            importStrategy: 'replace-all'
+                            modeInfo: 'so sánh thông minh với database',
+                            importStrategy: 'smart-compare'
                         };
 
-                    case 'replace-non-special':
-                        // All data + replace-non-special import strategy
-                        const replaceNonSpecialData = data.map(row => ({
-                            ...row,
-                            _isDuplicate: existingTicketNumbers.has(String(row.ticket))
-                        }));
+                    case 'add-new-only':
+                        // Logic 3: Only add new tickets (filter out duplicates)
+                        const newOnlyData = data.filter(row => !existingTicketNumbers.has(String(row.ticket)));
                         return {
-                            finalData: replaceNonSpecialData,
-                            duplicateCount: data.length - data.filter(row => !existingTicketNumbers.has(String(row.ticket))).length,
+                            finalData: newOnlyData,
+                            duplicateCount: data.length - newOnlyData.length,
                             totalCount: data.length,
-                            modeInfo: 'thay thế an toàn',
-                            importStrategy: 'replace-non-special'
+                            modeInfo: 'chỉ thêm ticket mới',
+                            importStrategy: 'add-new-only'
                         };
 
                     default:
-                        // Default to new-only
+                        // Default to add-new-only (safest option)
                         const defaultData = data.filter(row => !existingTicketNumbers.has(String(row.ticket)));
                         return {
                             finalData: defaultData,
                             duplicateCount: data.length - defaultData.length,
                             totalCount: data.length,
-                            modeInfo: 'chỉ nhập mới (mặc định)',
-                            importStrategy: 'new-only'
+                            modeInfo: 'chỉ thêm ticket mới (mặc định)',
+                            importStrategy: 'add-new-only'
                         };
                 }
 
@@ -977,10 +962,9 @@
 
             const strategy = selectedImportStrategy;
             const strategyNames = {
-                'replace-all': 'Thay thế toàn bộ (Xóa toàn bộ bảng)',
-                'smart-update': 'Cập nhật thông minh (Cập nhật có sẵn, thêm mới)',
-                'replace-non-special': 'Thay thế an toàn (Xóa ticket thường)',
-                'new-only': 'Chỉ nhập mới (Bỏ qua ticket đã có)'
+                'complete-replace': 'Logic 1: Xóa toàn bộ bảng và nhập lại từ file',
+                'smart-compare': 'Logic 2: So sánh thông minh với database',
+                'add-new-only': 'Logic 3: Chỉ thêm ticket mới (An toàn)'
             };
 
             if (!confirm(`Bạn có chắc chắn muốn nhập ${processedData.length} bản ghi bằng chiến lược: ${strategyNames[strategy]}?`)) {
@@ -992,17 +976,17 @@
                 setProcessing(true);
 
                 switch (strategy) {
-                    case 'replace-all':
-                        await importReplaceAll();
+                    case 'complete-replace':
+                        await importCompleteReplace();
                         break;
-                    case 'smart-update':
-                        await importSmartUpdate();
+                    case 'smart-compare':
+                        await importSmartCompare();
                         break;
-                    case 'replace-non-special':
-                        await importReplaceNonSpecial();
+                    case 'add-new-only':
+                        await importAddNewOnly();
                         break;
-                    case 'new-only':
-                        await importNewOnly();
+                    default:
+                        await importAddNewOnly();
                         break;
                 }
 
@@ -1019,11 +1003,11 @@
             }
         }
 
-        // Strategy 1: Replace All - Delete entire table and import new data
-        async function importReplaceAll() {
-            showStatus('Deleting all existing tickets...', 'info');
+        // Logic 1: Complete Replace - Delete entire table but keep structure, then import data from file
+        async function importCompleteReplace() {
+            showStatus('🗑️ Logic 1: Deleting all existing tickets (keeping table structure)...', 'info');
 
-            // Delete all tickets
+            // Delete all tickets but keep table structure
             const { error: deleteError } = await supabaseClient
                 .from('tickets')
                 .delete()
@@ -1031,7 +1015,7 @@
 
             if (deleteError) throw deleteError;
 
-            showStatus('Inserting new data...', 'info');
+            showStatus('📥 Inserting all data from CSV file...', 'info');
 
             const ticketData = prepareTicketData(processedData);
             const { error: insertError } = await supabaseClient
@@ -1040,28 +1024,34 @@
 
             if (insertError) throw insertError;
 
-            showStatus(`✅ Successfully replaced all data with ${processedData.length} new records`, 'success');
+            showStatus(`✅ Logic 1 Complete: Replaced entire table with ${processedData.length} new records from file`, 'success');
         }
 
-        // Strategy 2: Smart Update - Update existing, add new (skip special cases)
-        async function importSmartUpdate() {
-            // Use ticket number as unique identifier, not issue_id
-            const ticketNumbers = processedData.map(row => row.ticket).filter(t => t);
+        // Logic 2: Smart Compare - Compare file with database and handle accordingly
+        async function importSmartCompare() {
+            showStatus('🧠 Logic 2: Starting smart comparison with database...', 'info');
 
-            // Get existing tickets with all fields to check special status
-            const { data: existingTickets, error: fetchError } = await supabaseClient
+            // Get ALL existing tickets from database (not just those in CSV)
+            const { data: allExistingTickets, error: fetchAllError } = await supabaseClient
                 .from('tickets')
-                .select('*')
-                .in('ticket', ticketNumbers);
+                .select('*');
 
-            if (fetchError) throw fetchError;
+            if (fetchAllError) throw fetchAllError;
 
-            // Map by ticket number (the true unique identifier)
-            const existingMap = new Map(existingTickets.map(t => [t.ticket, t]));
-            const toInsert = [];
-            const toUpdate = [];
-            let skippedSpecial = 0;
+            // Get ticket numbers from CSV file
+            const csvTicketNumbers = new Set(processedData.map(row => row.ticket).filter(t => t));
 
+            // Map existing tickets by ticket number
+            const existingMap = new Map(allExistingTickets.map(t => [t.ticket, t]));
+
+            const toInsert = [];      // New tickets from CSV
+            const toUpdate = [];      // Existing tickets to update
+            const toDelete = [];      // Tickets to delete from DB
+            let skippedSpecial = 0;   // Special tickets skipped
+            let skippedDuplicates = 0; // Duplicate tickets skipped
+
+            // Step 1: Process CSV data
+            showStatus('📊 Step 1: Processing CSV tickets...', 'info');
             for (const row of processedData) {
                 const existing = existingMap.get(row.ticket);
 
@@ -1069,80 +1059,63 @@
                     // New ticket - add to insert list
                     toInsert.push(row);
                 } else {
-                    // Check if it's a special case - ticket is in progress or has special status
+                    // Check if it's a special case
+                    const isNoActionNeeded = existing.time_end != null &&
+                        (existing.notes && existing.notes.includes('No action needed'));
+
                     const isSpecial =
-                        existing.needMos != null ||
-                        existing.ticket_status_id != null ||
-                        existing.need_leader_support === true ||
-                        existing.time_start != null || // Ticket has been started
-                        existing.time_end != null || // Ticket has been completed
-                        existing.agent_handle_ticket != null; // Ticket has been handled
+                        existing.needMos != null ||                    // Needs MOS approval
+                        existing.ticket_status_id != null ||          // Has status assigned
+                        existing.need_leader_support === true ||      // Needs leader help
+                        existing.time_start != null ||                // Ticket has been started
+                        existing.time_end != null ||                  // Ticket has been completed
+                        existing.agent_handle_ticket != null ||       // Ticket has been handled
+                        isNoActionNeeded;                             // Ticket marked as no action needed
+
+                    if (isSpecial) {
+                        // Skip special tickets - keep them as is
+                        skippedSpecial++;
+                        const reason = isNoActionNeeded ? 'no action needed' :
+                                     existing.need_leader_support ? 'needs leader support' :
+                                     existing.time_end ? 'completed' :
+                                     existing.time_start ? 'in progress' : 'special status';
+                        console.log(`Keeping special ticket ${row.ticket} - ${reason}`);
+                    } else {
+                        // Duplicate - do nothing (skip)
+                        skippedDuplicates++;
+                        console.log(`Skipping duplicate ticket ${row.ticket} - already exists and not special`);
+                    }
+                }
+            }
+
+            // Step 2: Find tickets to delete (exist in DB but not in file, and not special)
+            showStatus('🗑️ Step 2: Finding tickets to delete...', 'info');
+            for (const existingTicket of allExistingTickets) {
+                if (!csvTicketNumbers.has(existingTicket.ticket)) {
+                    // Ticket exists in DB but not in CSV file
+                    const isNoActionNeeded = existingTicket.time_end != null &&
+                        (existingTicket.notes && existingTicket.notes.includes('No action needed'));
+
+                    const isSpecial =
+                        existingTicket.needMos != null ||
+                        existingTicket.ticket_status_id != null ||
+                        existingTicket.need_leader_support === true ||
+                        existingTicket.time_start != null ||
+                        existingTicket.time_end != null ||
+                        existingTicket.agent_handle_ticket != null ||
+                        isNoActionNeeded;
 
                     if (!isSpecial) {
-                        // Not special - safe to update
-                        toUpdate.push({ id: existing.id, ticket: row.ticket, data: row });
-                    } else {
-                        // Skip special tickets to avoid duplication
-                        skippedSpecial++;
-                        console.log(`Skipping special ticket ${row.ticket} - in progress or has special status`);
+                        // Not special and not in file - delete it
+                        toDelete.push(existingTicket);
                     }
                 }
             }
 
-            // Insert new tickets
-            if (toInsert.length > 0) {
-                showStatus(`Inserting ${toInsert.length} new tickets...`, 'info');
-                const ticketData = prepareTicketData(toInsert);
-                const { error: insertError } = await supabaseClient
-                    .from('tickets')
-                    .insert(ticketData);
-
-                if (insertError) throw insertError;
-            }
-
-            // Update existing tickets (only non-special ones)
-            if (toUpdate.length > 0) {
-                showStatus(`Updating ${toUpdate.length} existing tickets...`, 'info');
-                for (const item of toUpdate) {
-                    const updateData = prepareTicketData([item.data])[0];
-                    const { error: updateError } = await supabaseClient
-                        .from('tickets')
-                        .update(updateData)
-                        .eq('ticket', item.ticket); // Use ticket number, not id
-
-                    if (updateError) {
-                        console.error(`Error updating ticket ${item.ticket}:`, updateError);
-                    }
-                }
-            }
-
-            const statusMessage = `✅ Smart update complete: ${toInsert.length} inserted, ${toUpdate.length} updated${skippedSpecial > 0 ? `, ${skippedSpecial} skipped (in progress/special status)` : ''}`;
-            showStatus(statusMessage, 'success');
-        }
-
-        // Strategy 3: Replace Non-Special - Delete non-special rows, replace with CSV data
-        async function importReplaceNonSpecial() {
-            // Get all existing tickets
-            const { data: allTickets, error: fetchError } = await supabaseClient
-                .from('tickets')
-                .select('*');
-
-            if (fetchError) throw fetchError;
-
-            // Find non-special tickets to delete (tickets that haven't been worked on)
-            const toDelete = allTickets.filter(t =>
-                t.needMos == null &&
-                t.ticket_status_id == null &&
-                t.need_leader_support !== true &&
-                t.time_start == null && // Not started
-                t.time_end == null && // Not completed
-                t.agent_handle_ticket == null // Not handled
-            );
-
-            const keptSpecial = allTickets.length - toDelete.length;
-
+            // Step 3: Execute operations
+            let deletedCount = 0;
             if (toDelete.length > 0) {
-                showStatus(`Deleting ${toDelete.length} unworked tickets (keeping ${keptSpecial} in-progress/special)...`, 'info');
+                showStatus(`🗑️ Step 3a: Deleting ${toDelete.length} unprocessed tickets not in file...`, 'info');
                 const idsToDelete = toDelete.map(t => t.id);
                 const { error: deleteError } = await supabaseClient
                     .from('tickets')
@@ -1150,41 +1123,50 @@
                     .in('id', idsToDelete);
 
                 if (deleteError) throw deleteError;
+                deletedCount = toDelete.length;
             }
 
-            // Insert all CSV data
-            showStatus(`Inserting ${processedData.length} tickets from CSV...`, 'info');
-            const ticketData = prepareTicketData(processedData);
-            const { error: insertError } = await supabaseClient
-                .from('tickets')
-                .insert(ticketData);
+            if (toInsert.length > 0) {
+                showStatus(`➕ Step 3b: Adding ${toInsert.length} new tickets from file...`, 'info');
+                const insertData = prepareTicketData(toInsert);
+                const { error: insertError } = await supabaseClient
+                    .from('tickets')
+                    .insert(insertData);
 
-            if (insertError) throw insertError;
+                if (insertError) throw insertError;
+            }
 
-            showStatus(`✅ Replaced ${toDelete.length} unworked tickets with ${processedData.length} new records (kept ${keptSpecial} in-progress)`, 'success');
+            const statusMessage = `✅ Logic 2 Complete: ➕${toInsert.length} added, 🗑️${deletedCount} deleted, ✋${skippedSpecial} special kept, ⏭️${skippedDuplicates} duplicates skipped`;
+            showStatus(statusMessage, 'success');
         }
 
-        // Strategy 4: New Only - Import only new tickets (skip existing)
-        async function importNewOnly() {
-            const ticketNumbers = processedData.map(row => row.ticket).filter(t => t);
+        // Logic 3: Add New Only - Only add new tickets, never delete anything
+        async function importAddNewOnly() {
+            showStatus('➕ Logic 3: Adding only new tickets (100% safe)...', 'info');
 
-            // Get existing ticket numbers
+            // Get ticket numbers from CSV
+            const csvTicketNumbers = processedData.map(row => row.ticket).filter(t => t);
+
+            // Get existing ticket numbers from database
             const { data: existingTickets, error: fetchError } = await supabaseClient
                 .from('tickets')
                 .select('ticket')
-                .in('ticket', ticketNumbers);
+                .in('ticket', csvTicketNumbers);
 
             if (fetchError) throw fetchError;
 
-            const existingTicketNums = new Set(existingTickets.map(t => t.ticket));
-            const newTickets = processedData.filter(row => !existingTicketNums.has(row.ticket));
+            // Find which tickets are truly new
+            const existingTicketNumbers = new Set(existingTickets.map(t => t.ticket));
+            const newTickets = processedData.filter(row => !existingTicketNumbers.has(row.ticket));
+            const skippedExisting = processedData.length - newTickets.length;
 
             if (newTickets.length === 0) {
-                showStatus('⚠️ No new tickets to import. All tickets already exist in database.', 'warning');
+                showStatus('ℹ️ No new tickets to add. All tickets from CSV already exist in database.', 'info');
                 return;
             }
 
-            showStatus(`Inserting ${newTickets.length} new tickets...`, 'info');
+            // Insert only new tickets
+            showStatus(`➕ Adding ${newTickets.length} new tickets to database...`, 'info');
             const ticketData = prepareTicketData(newTickets);
             const { error: insertError } = await supabaseClient
                 .from('tickets')
@@ -1192,8 +1174,13 @@
 
             if (insertError) throw insertError;
 
-            showStatus(`✅ Successfully imported ${newTickets.length} new tickets (skipped ${processedData.length - newTickets.length} existing)`, 'success');
+            const statusMessage = `✅ Logic 3 Complete: ➕${newTickets.length} new tickets added${skippedExisting > 0 ? `, ⏭️${skippedExisting} existing tickets skipped` : ''} 🛡️ Nothing deleted!`;
+            showStatus(statusMessage, 'success');
         }
+
+
+
+
 
         // Helper function to prepare ticket data for insert/update
         function prepareTicketData(dataArray) {
