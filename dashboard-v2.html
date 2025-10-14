@@ -37,6 +37,12 @@
                                 🚢 <span class="hidden sm:inline">MoS Requests</span>
                                 <span id="mos-notification-badge" class="ml-1 px-2 py-1 bg-red-500 text-white text-xs rounded-full hidden">0</span>
                             </button>
+                            <button onclick="window.testAI()" class="px-3 py-2 bg-green-500 hover:bg-green-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1">
+                                🤖 <span class="hidden sm:inline">Test AI</span>
+                            </button>
+                            <button onclick="window.testAIDirect()" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1">
+                                🔗 <span class="hidden sm:inline">Direct</span>
+                            </button>
                             <!-- Facebook-style notification bell -->
                             <div id="notifications-container" class="relative hidden">
                                 <button id="notifications-btn" class="relative p-2 text-gray-600 hover:text-gray-800 transition-colors">
@@ -306,6 +312,18 @@
 
     <!-- Supabase Client -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Gradio Client for AI Chat -->
+    <script type="module">
+        import { Client } from "https://cdn.jsdelivr.net/npm/@gradio/client@1.0.1/dist/index.js";
+
+        // Make Client available globally
+        window.GradioClient = Client;
+
+        // Signal that Gradio is ready
+        window.gradioReady = true;
+        window.dispatchEvent(new Event('gradioLoaded'));
+    </script>
 
     <!-- Authentication Check -->
     <script>

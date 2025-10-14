@@ -176,6 +176,9 @@
                 await checkManualRescheduleAssignment();
 
                 await fetchAndRenderTickets();
+
+                // Initialize AI chat client
+                initializeGradioClient();
             }
             
             // Event listeners
@@ -802,6 +805,9 @@
                             <a href="${emailUrl}" target="_blank" title="Email" class="btn-email text-xs hover:brightness-90 font-medium py-1 px-2 rounded transition-all duration-200">Email</a>
                             <button data-action="template" data-ticket-id="${item.id}" class="js-template-btn text-xs bg-blue-600 hover:bg-blue-500 text-white font-medium py-1 px-2 rounded transition-all duration-200">Template</button>
                         </div>
+                        <div class="flex items-center gap-1.5 mt-1">
+                            <button data-action="no-action-needed" data-ticket-id="${item.id}" class="js-no-action-btn text-xs bg-gray-500 hover:bg-gray-600 text-white font-medium py-1 px-2 rounded transition-all duration-200" title="No action needed - remove from view">No Action Needed</button>
+                        </div>
                     </div>`;
         }
 
@@ -932,7 +938,7 @@
         async function handleTableClick(e) {
             const target = e.target;
             const button = target.closest('button[data-action]');
-            
+
             if (button) {
                 const action = button.dataset.action;
                 const ticketId = parseInt(button.dataset.ticketId, 10);
@@ -944,6 +950,7 @@
                 if (action === 'start') await handleGroupAction(button, ticketIdsInGroup, 'start');
                 if (action === 'end') await handleGroupAction(button, ticketIdsInGroup, 'end');
                 if (action === 'template') startTemplateWorkflow(ticket);
+                if (action === 'no-action-needed') await handleNoActionNeeded(button, ticketId);
             }
         }
 
@@ -992,6 +999,52 @@
             } catch(error) {
                 console.error(`Lỗi khi ${action} nhóm:`, error);
                 showMessage(`Không thể ${action} nhóm ticket.`, 'error');
+                button.disabled = false;
+            }
+        }
+
+        async function handleNoActionNeeded(button, ticketId) {
+            if (!supabaseClient) return;
+
+            // Confirm action with user
+            if (!confirm('Are you sure you want to mark this ticket as "No action needed"? This will remove it from the view.')) {
+                return;
+            }
+
+            button.disabled = true;
+
+            try {
+                // Update the ticket to mark it as no action needed
+                // We'll set time_end to current time to remove it from the active view
+                const payload = {
+                    time_end: new Date().toISOString(),
+                    ticket_status_id: null, // No specific status since no action was needed
+                    notes: 'No action needed - removed from view'
+                };
+
+                const { error } = await supabaseClient
+                    .from('tickets')
+                    .update(payload)
+                    .eq('id', ticketId);
+
+                if (error) throw error;
+
+                showMessage('Ticket marked as "No action needed" and removed from view.', 'success');
+
+                // Remove the ticket row from the view immediately
+                const ticketRow = document.querySelector(`tr[data-ticket-id="${ticketId}"]`);
+                if (ticketRow) {
+                    ticketRow.style.transition = 'opacity 0.3s ease-out';
+                    ticketRow.style.opacity = '0';
+                    setTimeout(() => {
+                        // Refresh the table to ensure consistency
+                        fetchAndRenderTickets();
+                    }, 300);
+                }
+
+            } catch (error) {
+                console.error('Error marking ticket as no action needed:', error);
+                showMessage('Failed to mark ticket as no action needed.', 'error');
                 button.disabled = false;
             }
         }
@@ -3266,12 +3319,209 @@
             typingIndicator.style.display = 'none';
         }
 
-        // AI API Integration (placeholder implementation)
-        async function callAIAPI(message) {
-            // Simulate API delay
-            await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+        // AI API Integration using Gradio Client
+        let gradioClient = null;
+        let gradioInitialized = false;
 
-            // For now, return a mock response based on keywords
+        async function initializeGradioClient() {
+            if (gradioInitialized) return;
+
+            console.log("Attempting to initialize Gradio client...");
+
+            // Wait for Gradio to be loaded if not ready
+            if (!window.gradioReady) {
+                console.log("Waiting for Gradio to load...");
+                await new Promise(resolve => {
+                    if (window.gradioReady) {
+                        resolve();
+                    } else {
+                        window.addEventListener('gradioLoaded', resolve, { once: true });
+                    }
+                });
+            }
+
+            if (!gradioClient && window.GradioClient) {
+                try {
+                    console.log("Connecting to Luong29/ai-assistant...");
+                    gradioClient = await window.GradioClient.connect("Luong29/ai-assistant");
+                    gradioInitialized = true;
+                    console.log("✅ Gradio client connected successfully to Luong29/ai-assistant");
+                } catch (error) {
+                    console.error("❌ Failed to connect to Gradio client:", error);
+                    gradioInitialized = false;
+                }
+            } else {
+                console.error("❌ GradioClient not available on window object");
+            }
+        }
+
+        async function callAIAPI(message) {
+            console.log("🤖 AI API called with message:", message);
+
+            try {
+                // Try direct fetch API first (more reliable)
+                console.log("📡 Trying direct API call to Luong29/ai-assistant...");
+                const response = await callAIDirectly(message);
+                if (response) {
+                    console.log("✅ Direct API call successful:", response);
+                    return response;
+                }
+
+                // Fallback to Gradio client
+                console.log("🔄 Direct API failed, trying Gradio client...");
+
+                // Initialize client if not already done
+                if (!gradioClient || !gradioInitialized) {
+                    console.log("🔄 Initializing Gradio client...");
+                    await initializeGradioClient();
+                }
+
+                // If client is still not available, fall back to mock responses
+                if (!gradioClient) {
+                    console.log("⚠️ Gradio client not available, using fallback");
+                    return await fallbackResponse(message);
+                }
+
+                console.log("📡 Calling Luong29/ai-assistant API via Gradio client...");
+
+                // Call the actual AI API
+                const result = await gradioClient.predict("/chatbot_interface", {
+                    user_query: message
+                });
+
+                console.log("📥 AI API response:", result);
+
+                // Extract the response from the result
+                if (result && result.data && result.data.length > 0) {
+                    const response = result.data[0];
+                    console.log("✅ AI response extracted:", response);
+                    return response || "I'm sorry, I couldn't generate a response. Please try again.";
+                } else {
+                    console.log("❌ No valid response data from AI");
+                    return "I'm sorry, I couldn't generate a response. Please try again.";
+                }
+
+            } catch (error) {
+                console.error("❌ AI API Error:", error);
+                console.log("🔄 Falling back to mock response");
+                // Fall back to mock response on error
+                return await fallbackResponse(message);
+            }
+        }
+
+        // Direct API call using fetch (alternative method)
+        async function callAIDirectly(message) {
+            try {
+                console.log("🌐 Making direct HTTP request to Hugging Face...");
+                console.log("📤 Sending message:", message);
+
+                // First, initiate the prediction
+                const initResponse = await fetch('https://luong29-ai-assistant.hf.space/gradio_api/call/chatbot_interface', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        data: [message]
+                    })
+                });
+
+                if (!initResponse.ok) {
+                    throw new Error(`HTTP error! status: ${initResponse.status}`);
+                }
+
+                const initData = await initResponse.text();
+                console.log("📡 Init response:", initData);
+
+                // Extract event ID from response
+                let eventId;
+                try {
+                    const initJson = JSON.parse(initData);
+                    eventId = initJson.event_id;
+                } catch (e) {
+                    const eventIdMatch = initData.match(/"event_id":"([^"]+)"/);
+                    if (eventIdMatch) {
+                        eventId = eventIdMatch[1];
+                    }
+                }
+
+                if (!eventId) {
+                    throw new Error("Could not extract event ID from response");
+                }
+
+                console.log("🆔 Event ID:", eventId);
+
+                // Wait a moment for processing
+                await new Promise(resolve => setTimeout(resolve, 1000));
+
+                // Poll for the result
+                const resultResponse = await fetch(`https://luong29-ai-assistant.hf.space/gradio_api/call/chatbot_interface/${eventId}`);
+
+                if (!resultResponse.ok) {
+                    throw new Error(`HTTP error! status: ${resultResponse.status}`);
+                }
+
+                const reader = resultResponse.body.getReader();
+                const decoder = new TextDecoder();
+                let result = '';
+                let attempts = 0;
+                const maxAttempts = 30; // 30 seconds timeout
+
+                while (attempts < maxAttempts) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+
+                    const chunk = decoder.decode(value);
+                    result += chunk;
+                    console.log("📥 Received chunk:", chunk);
+
+                    // Look for the complete event
+                    if (chunk.includes('event: complete')) {
+                        console.log("✅ Received complete event");
+                        break;
+                    }
+
+                    attempts++;
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                }
+
+                console.log("📥 Full API result:", result);
+
+                // Parse the result to extract the AI response
+                const lines = result.split('\n');
+                for (const line of lines) {
+                    if (line.startsWith('data: ')) {
+                        try {
+                            const dataStr = line.substring(6).trim();
+                            console.log("🔍 Parsing data line:", dataStr);
+                            const data = JSON.parse(dataStr);
+                            if (data && Array.isArray(data) && data.length > 0) {
+                                const response = data[0];
+                                console.log("✅ Direct API response extracted:", response);
+                                return response;
+                            }
+                        } catch (e) {
+                            console.log("⚠️ Failed to parse line:", line, e);
+                            // Continue parsing other lines
+                        }
+                    }
+                }
+
+                console.log("❌ No valid response found in result");
+                return null;
+
+            } catch (error) {
+                console.error("❌ Direct API call failed:", error);
+                return null;
+            }
+        }
+
+        // Fallback function with mock responses
+        async function fallbackResponse(message) {
+            console.log("🔄 Using fallback response for:", message);
+            // Simulate API delay
+            await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 1000));
+
             const lowerMessage = message.toLowerCase();
 
             if (lowerMessage.includes('ticket') || lowerMessage.includes('dashboard')) {
@@ -3286,10 +3536,8 @@
                 return "The notification system keeps you updated on: 1) Manual schedule assignments, 2) MoS requests, 3) System updates. Check the bell icon in the header for recent notifications.";
             } else if (lowerMessage.includes('theme') || lowerMessage.includes('color')) {
                 return "You can change the dashboard theme using the 🎨 button in the header. Available themes include: Dark, Daylight, Sunset, Twilight, Blossom Dawn, Blue Sky, and Fresh Mint. Each theme is optimized for different lighting conditions!";
-            } else if (lowerMessage.includes('api') || lowerMessage.includes('integration')) {
-                return "For AI integration, you can use:\n\n1. **Hugging Face API**: Use their Inference API with models like GPT-2, BERT, or custom fine-tuned models\n2. **Google Colab**: Host your own model and expose it via ngrok\n3. **OpenAI API**: For advanced conversational AI\n\nReplace the `callAIAPI` function in the code with your chosen solution.";
             } else if (lowerMessage.includes('help') || lowerMessage.includes('how')) {
-                return "I'm here to help! I can assist with:\n• Ticket management and workflow\n• Template usage and customization\n• Dashboard navigation and features\n• Filtering and search options\n• Notification system\n• Theme customization\n• API integration guidance\n\nWhat specific topic would you like to know more about?";
+                return "I'm here to help! I can assist with:\n• Ticket management and workflow\n• Template usage and customization\n• Dashboard navigation and features\n• Filtering and search options\n• Notification system\n• Theme customization\n\nWhat specific topic would you like to know more about?";
             } else {
                 return "That's an interesting question! I can help with dashboard features, ticket management, templates, themes, and system usage. Could you be more specific about what you'd like to know? Try asking about 'tickets', 'templates', 'themes', or 'help' for more information.";
             }
@@ -3299,3 +3547,40 @@
         window.toggleChat = toggleChat;
         window.handleChatKeyPress = handleChatKeyPress;
         window.sendMessage = sendMessage;
+
+        // Debug function to test AI connection
+        window.testAI = async function() {
+            console.log("🧪 Testing AI connection...");
+            console.log("🧪 Testing direct API call first...");
+
+            try {
+                // Test direct API call
+                const directResponse = await callAIDirectly("Hello, are you working?");
+                if (directResponse) {
+                    console.log("🧪 Direct API test successful:", directResponse);
+                    alert("✅ AI Direct API Response: " + directResponse);
+                    return;
+                }
+
+                // Test full API call
+                const response = await callAIAPI("Hello, are you working?");
+                console.log("🧪 Full API test response:", response);
+                alert("🤖 AI Test Response: " + response);
+            } catch (error) {
+                console.error("🧪 Test failed:", error);
+                alert("❌ AI Test Failed: " + error.message);
+            }
+        };
+
+        // Simple direct test function
+        window.testAIDirect = async function() {
+            console.log("🧪 Testing DIRECT API only...");
+            try {
+                const response = await callAIDirectly("Test message");
+                console.log("🧪 Direct test result:", response);
+                alert("Direct API Result: " + (response || "No response"));
+            } catch (error) {
+                console.error("🧪 Direct test failed:", error);
+                alert("Direct API Failed: " + error.message);
+            }
+        };
