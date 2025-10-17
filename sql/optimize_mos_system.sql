@@ -26,8 +26,8 @@ CREATE INDEX IF NOT EXISTS idx_mos_requests_request_status
 ON mos_requests(ticket_id, description) WHERE status = 'request';
 
 -- Index for tickets table MOS-related queries
-CREATE INDEX IF NOT EXISTS idx_tickets_needmos 
-ON tickets(needMos) WHERE needMos IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_tickets_needmos
+ON tickets("needMos") WHERE "needMos" IS NOT NULL;
 
 -- Index for notifications MOS-related queries
 CREATE INDEX IF NOT EXISTS idx_notifications_mos_type 
