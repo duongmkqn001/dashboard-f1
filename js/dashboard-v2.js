@@ -4021,7 +4021,7 @@
         // Log question and response to Google Sheets for feedback tracking
         async function logQuestionToSheet(question, response, type = 'general', rating = '') {
             try {
-                const FEEDBACK_SHEET_URL = 'https://script.google.com/macros/s/AKfycbzDXf9HPZi9NiJy-f8Enw9ZINljy2njMSWcZFXnrKCDzRPpAwwipIsTTMjP3lTtPZM07A/exec';
+                const FEEDBACK_SHEET_URL = 'https://script.google.com/macros/s/AKfycbxFbzeEHUENpnk7d4u46R_FunBDJcQMN9PrlFt8D46Gg5rk1C41eo0Ya68uIW8Dfu1h/exec';
                 const SECRET_TOKEN = '14092000';
 
                 const params = new URLSearchParams({
