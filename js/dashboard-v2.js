@@ -41,6 +41,12 @@
         let mosRequestsChannel = null;
         let scheduleAssignmentsChannel = null;
 
+        // MOS System Optimization - Caching and Performance
+        let mosRequestsCache = new Map(); // Cache for MOS requests
+        let mosNotificationCount = 0; // Cached notification count
+        let mosLastUpdate = 0; // Last update timestamp
+        let mosUpdateInProgress = false; // Prevent concurrent updates
+
         // Popup State
         let popupCurrentTicket = null;
         let popupCurrentProject = null;
@@ -687,6 +693,7 @@
             checkForCompletionCelebration();
         }
 
+        // Optimized MOS request details loading with caching
         async function loadMosRequestDetails() {
             // Get all ticket IDs currently displayed
             const ticketIds = Array.from(ticketsMap.keys());
@@ -694,28 +701,67 @@
             if (ticketIds.length === 0) return;
 
             try {
-                // Fetch MOS request details for all displayed tickets
-                const { data: mosRequests, error } = await supabaseClient
-                    .from('mos_requests')
-                    .select('ticket_id, description')
-                    .in('ticket_id', ticketIds)
-                    .eq('status', 'request');
+                // Check cache first - only fetch uncached tickets
+                const uncachedTicketIds = ticketIds.filter(id => {
+                    const cached = mosRequestsCache.get(id);
+                    // Cache is valid for 5 minutes
+                    return !cached || (Date.now() - cached.cached_at) > 300000;
+                });
 
-                if (error) throw error;
+                if (uncachedTicketIds.length > 0) {
+                    // Fetch MOS request details for uncached tickets only
+                    const { data: mosRequests, error } = await supabaseClient
+                        .from('mos_requests')
+                        .select('ticket_id, description, status, created_at')
+                        .in('ticket_id', uncachedTicketIds)
+                        .eq('status', 'request');
 
-                // Update the details in the table
-                mosRequests.forEach(mosRequest => {
-                    const detailsElement = document.getElementById(`mos-details-${mosRequest.ticket_id}`);
+                    if (error) throw error;
+
+                    // Update cache with new data
+                    mosRequests.forEach(mosRequest => {
+                        mosRequestsCache.set(mosRequest.ticket_id, {
+                            description: mosRequest.description,
+                            status: mosRequest.status,
+                            created_at: mosRequest.created_at,
+                            cached_at: Date.now()
+                        });
+                    });
+
+                    // Mark tickets without MOS requests in cache
+                    uncachedTicketIds.forEach(ticketId => {
+                        if (!mosRequests.find(req => req.ticket_id === ticketId)) {
+                            mosRequestsCache.set(ticketId, {
+                                description: null,
+                                status: null,
+                                cached_at: Date.now()
+                            });
+                        }
+                    });
+                }
+
+                // Update UI using cached data
+                ticketIds.forEach(ticketId => {
+                    const detailsElement = document.getElementById(`mos-details-${ticketId}`);
                     if (detailsElement) {
-                        if (mosRequest.description) {
-                            detailsElement.innerHTML = `<span class="text-sm font-medium text-headings">${mosRequest.description}</span>`;
+                        const cachedData = mosRequestsCache.get(ticketId);
+                        if (cachedData && cachedData.description) {
+                            detailsElement.innerHTML = `<span class="text-sm font-medium text-headings">${cachedData.description}</span>`;
                         } else {
                             detailsElement.innerHTML = `<span class="text-secondary italic">No details provided</span>`;
                         }
                     }
                 });
+
             } catch (error) {
                 console.error('Error loading MOS request details:', error);
+                // Show error state in UI
+                ticketIds.forEach(ticketId => {
+                    const detailsElement = document.getElementById(`mos-details-${ticketId}`);
+                    if (detailsElement) {
+                        detailsElement.innerHTML = `<span class="text-red-500 italic">Error loading details</span>`;
+                    }
+                });
             }
         }
 
@@ -1949,39 +1995,101 @@
             }
         }
 
+        // Optimized MOS request function with better UX and error handling
         async function requestMos(ticketId) {
-            // Show popup to ask for request details
-            const requestDetails = prompt('Please provide details for your MoS request:');
+            // Show enhanced popup for request details
+            const requestDetails = prompt('Please provide details for your MoS request:\n(This will help leaders understand your request better)');
 
             // If user cancels, don't proceed
             if (requestDetails === null) {
                 return;
             }
 
+            // Validate input
+            if (!requestDetails.trim()) {
+                showMessage('Please provide details for your MoS request', 'error');
+                return;
+            }
+
+            // Show loading state
+            const button = document.querySelector(`button[onclick="requestMos(${ticketId})"]`);
+            const originalText = button?.innerHTML;
+            if (button) {
+                button.innerHTML = '⏳ Sending...';
+                button.disabled = true;
+            }
+
             try {
                 const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
 
-                // Update ticket needMos status to 'request'
-                const { error: ticketError } = await supabaseClient
-                    .from('tickets')
-                    .update({ needMos: 'request' })
-                    .eq('id', ticketId);
+                // Batch operations for better performance
+                const operations = [];
 
-                if (ticketError) throw ticketError;
+                // Update ticket needMos status to 'request'
+                operations.push(
+                    supabaseClient
+                        .from('tickets')
+                        .update({ needMos: 'request' })
+                        .eq('id', ticketId)
+                );
 
                 // Create MoS request record with description
-                const { error: mosError } = await supabaseClient
-                    .from('mos_requests')
-                    .insert({
-                        ticket_id: ticketId,
-                        requester_id: currentUser.stt,
-                        status: 'request',
-                        description: requestDetails || ''
-                    });
+                operations.push(
+                    supabaseClient
+                        .from('mos_requests')
+                        .insert({
+                            ticket_id: ticketId,
+                            requester_id: currentUser.stt,
+                            status: 'request',
+                            description: requestDetails.trim()
+                        })
+                );
 
-                if (mosError) throw mosError;
+                // Execute operations in parallel
+                const [ticketResult, mosResult] = await Promise.all(operations);
 
-                // Create notification for leaders/keys
+                if (ticketResult.error) throw ticketResult.error;
+                if (mosResult.error) throw mosResult.error;
+
+                // Update cache
+                mosRequestsCache.set(ticketId, {
+                    description: requestDetails.trim(),
+                    status: 'request',
+                    created_at: new Date().toISOString(),
+                    cached_at: Date.now()
+                });
+
+                // Create notification for leaders/keys (async, don't wait)
+                createMosNotifications(ticketId, currentUser.stt);
+
+                showMessage('🚢 MoS request sent successfully!', 'success');
+
+                // Remove the row from current view with animation
+                const row = document.querySelector(`tr[data-ticket-id="${ticketId}"]`);
+                if (row) {
+                    row.style.transition = 'opacity 0.3s ease-out';
+                    row.style.opacity = '0';
+                    setTimeout(() => {
+                        const poGroup = row.dataset.poGroup;
+                        document.querySelectorAll(`tr[data-po-group="${poGroup}"]`).forEach(r => r.remove());
+                    }, 300);
+                }
+
+            } catch (error) {
+                console.error('Error requesting MoS:', error);
+                showMessage(`Failed to send MoS request: ${error.message}`, 'error');
+            } finally {
+                // Restore button state
+                if (button) {
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                }
+            }
+        }
+
+        // Separate function for creating notifications (async)
+        async function createMosNotifications(ticketId, requesterId) {
+            try {
                 const { data: leaders } = await supabaseClient
                     .from('vcn_agent')
                     .select('stt')
@@ -1997,130 +2105,215 @@
 
                     await supabaseClient.from('notifications').insert(notifications);
                 }
-
-                showMessage('MoS request đã được gửi', 'success');
-
-                // Remove the row from current view
-                const row = document.querySelector(`tr[data-ticket-id="${ticketId}"]`);
-                if (row) {
-                    const poGroup = row.dataset.poGroup;
-                    document.querySelectorAll(`tr[data-po-group="${poGroup}"]`).forEach(r => r.remove());
-                }
             } catch (error) {
-                console.error('Error requesting MoS:', error);
-                showMessage('Không thể gửi MoS request', 'error');
+                console.error('Error creating MoS notifications:', error);
+                // Don't show error to user as this is background operation
             }
         }
 
+        // Optimized MOS approval function with better performance and UX
         async function approveMos(ticketId) {
+            // Show loading state
+            const button = document.querySelector(`button[onclick="approveMos(${ticketId})"]`);
+            const originalText = button?.innerHTML;
+            if (button) {
+                button.innerHTML = '⏳ Approving...';
+                button.disabled = true;
+            }
+
             try {
                 const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+                const responseDate = new Date().toISOString();
+
+                // Batch operations for better performance
+                const operations = [];
 
                 // Update ticket needMos status to 'approved'
-                const { error: ticketError } = await supabaseClient
-                    .from('tickets')
-                    .update({ needMos: 'approved' })
-                    .eq('id', ticketId);
-
-                if (ticketError) throw ticketError;
+                operations.push(
+                    supabaseClient
+                        .from('tickets')
+                        .update({ needMos: 'approved' })
+                        .eq('id', ticketId)
+                );
 
                 // Update MoS request record
-                const { error: mosError } = await supabaseClient
-                    .from('mos_requests')
-                    .update({
+                operations.push(
+                    supabaseClient
+                        .from('mos_requests')
+                        .update({
+                            status: 'approved',
+                            responder_id: currentUser.stt,
+                            response_date: responseDate
+                        })
+                        .eq('ticket_id', ticketId)
+                        .eq('status', 'request')
+                );
+
+                // Execute operations in parallel
+                const [ticketResult, mosResult] = await Promise.all(operations);
+
+                if (ticketResult.error) throw ticketResult.error;
+                if (mosResult.error) throw mosResult.error;
+
+                // Update cache
+                const cachedRequest = mosRequestsCache.get(ticketId);
+                if (cachedRequest) {
+                    mosRequestsCache.set(ticketId, {
+                        ...cachedRequest,
                         status: 'approved',
                         responder_id: currentUser.stt,
-                        response_date: new Date().toISOString()
-                    })
-                    .eq('ticket_id', ticketId)
-                    .eq('status', 'request');
-
-                if (mosError) throw mosError;
-
-                // Get requester info and create notification
-                const { data: mosRequest } = await supabaseClient
-                    .from('mos_requests')
-                    .select('requester_id')
-                    .eq('ticket_id', ticketId)
-                    .eq('status', 'approved')
-                    .single();
-
-                if (mosRequest) {
-                    await supabaseClient.from('notifications').insert({
-                        recipient_id: mosRequest.requester_id,
-                        message: `Your MoS request for ticket ${ticketsMap.get(ticketId)?.ticket || ticketId} has been approved`,
-                        type: 'mos_approved',
-                        related_ticket_id: ticketId
+                        response_date: responseDate,
+                        cached_at: Date.now()
                     });
                 }
 
-                showMessage('MoS request đã được phê duyệt', 'success');
+                // Create notification for requester (async, don't wait)
+                createMosResponseNotification(ticketId, 'approved');
 
-                // Remove the row from current view
+                showMessage('✅ MoS request approved successfully!', 'success');
+
+                // Remove the row from current view with animation
                 const row = document.querySelector(`tr[data-ticket-id="${ticketId}"]`);
                 if (row) {
-                    const poGroup = row.dataset.poGroup;
-                    document.querySelectorAll(`tr[data-po-group="${poGroup}"]`).forEach(r => r.remove());
+                    row.style.transition = 'opacity 0.3s ease-out';
+                    row.style.opacity = '0';
+                    setTimeout(() => {
+                        const poGroup = row.dataset.poGroup;
+                        document.querySelectorAll(`tr[data-po-group="${poGroup}"]`).forEach(r => r.remove());
+                    }, 300);
                 }
+
             } catch (error) {
                 console.error('Error approving MoS:', error);
-                showMessage('Không thể phê duyệt MoS request', 'error');
+                showMessage(`Failed to approve MoS request: ${error.message}`, 'error');
+            } finally {
+                // Restore button state
+                if (button) {
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                }
             }
         }
 
+        // Optimized MOS rejection function with better performance and UX
         async function rejectMos(ticketId) {
+            // Show loading state
+            const button = document.querySelector(`button[onclick="rejectMos(${ticketId})"]`);
+            const originalText = button?.innerHTML;
+            if (button) {
+                button.innerHTML = '⏳ Rejecting...';
+                button.disabled = true;
+            }
+
             try {
                 const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+                const responseDate = new Date().toISOString();
+
+                // Batch operations for better performance
+                const operations = [];
 
                 // Update ticket needMos status to 'rejected'
-                const { error: ticketError } = await supabaseClient
-                    .from('tickets')
-                    .update({ needMos: 'rejected' })
-                    .eq('id', ticketId);
-
-                if (ticketError) throw ticketError;
+                operations.push(
+                    supabaseClient
+                        .from('tickets')
+                        .update({ needMos: 'rejected' })
+                        .eq('id', ticketId)
+                );
 
                 // Update MoS request record
-                const { error: mosError } = await supabaseClient
-                    .from('mos_requests')
-                    .update({
+                operations.push(
+                    supabaseClient
+                        .from('mos_requests')
+                        .update({
+                            status: 'rejected',
+                            responder_id: currentUser.stt,
+                            response_date: responseDate
+                        })
+                        .eq('ticket_id', ticketId)
+                        .eq('status', 'request')
+                );
+
+                // Execute operations in parallel
+                const [ticketResult, mosResult] = await Promise.all(operations);
+
+                if (ticketResult.error) throw ticketResult.error;
+                if (mosResult.error) throw mosResult.error;
+
+                // Update cache
+                const cachedRequest = mosRequestsCache.get(ticketId);
+                if (cachedRequest) {
+                    mosRequestsCache.set(ticketId, {
+                        ...cachedRequest,
                         status: 'rejected',
                         responder_id: currentUser.stt,
-                        response_date: new Date().toISOString()
-                    })
-                    .eq('ticket_id', ticketId)
-                    .eq('status', 'request');
-
-                if (mosError) throw mosError;
-
-                // Get requester info and create notification
-                const { data: mosRequest } = await supabaseClient
-                    .from('mos_requests')
-                    .select('requester_id')
-                    .eq('ticket_id', ticketId)
-                    .eq('status', 'rejected')
-                    .single();
-
-                if (mosRequest) {
-                    await supabaseClient.from('notifications').insert({
-                        recipient_id: mosRequest.requester_id,
-                        message: `Your MoS request for ticket ${ticketsMap.get(ticketId)?.ticket || ticketId} has been rejected`,
-                        type: 'mos_rejected',
-                        related_ticket_id: ticketId
+                        response_date: responseDate,
+                        cached_at: Date.now()
                     });
                 }
 
-                showMessage('MoS request đã bị từ chối', 'success');
+                // Create notification for requester (async, don't wait)
+                createMosResponseNotification(ticketId, 'rejected');
 
-                // Remove the row from current view
+                showMessage('❌ MoS request rejected', 'success');
+
+                // Remove the row from current view with animation
                 const row = document.querySelector(`tr[data-ticket-id="${ticketId}"]`);
                 if (row) {
-                    const poGroup = row.dataset.poGroup;
-                    document.querySelectorAll(`tr[data-po-group="${poGroup}"]`).forEach(r => r.remove());
+                    row.style.transition = 'opacity 0.3s ease-out';
+                    row.style.opacity = '0';
+                    setTimeout(() => {
+                        const poGroup = row.dataset.poGroup;
+                        document.querySelectorAll(`tr[data-po-group="${poGroup}"]`).forEach(r => r.remove());
+                    }, 300);
                 }
+
             } catch (error) {
                 console.error('Error rejecting MoS:', error);
-                showMessage('Không thể từ chối MoS request', 'error');
+                showMessage(`Failed to reject MoS request: ${error.message}`, 'error');
+            } finally {
+                // Restore button state
+                if (button) {
+                    button.innerHTML = originalText;
+                    button.disabled = false;
+                }
+            }
+        }
+
+        // Separate function for creating response notifications (async)
+        async function createMosResponseNotification(ticketId, action) {
+            try {
+                // Get requester info from cache first, then database
+                let requesterId = null;
+                const cachedRequest = mosRequestsCache.get(ticketId);
+
+                if (cachedRequest && cachedRequest.requester_id) {
+                    requesterId = cachedRequest.requester_id;
+                } else {
+                    const { data: mosRequest } = await supabaseClient
+                        .from('mos_requests')
+                        .select('requester_id')
+                        .eq('ticket_id', ticketId)
+                        .eq('status', action)
+                        .single();
+
+                    requesterId = mosRequest?.requester_id;
+                }
+
+                if (requesterId) {
+                    const message = action === 'approved'
+                        ? `Your MoS request for ticket ${ticketsMap.get(ticketId)?.ticket || ticketId} has been approved ✅`
+                        : `Your MoS request for ticket ${ticketsMap.get(ticketId)?.ticket || ticketId} has been rejected ❌`;
+
+                    await supabaseClient.from('notifications').insert({
+                        recipient_id: requesterId,
+                        message: message,
+                        type: `mos_${action}`,
+                        related_ticket_id: ticketId
+                    });
+                }
+            } catch (error) {
+                console.error('Error creating MoS response notification:', error);
+                // Don't show error to user as this is background operation
             }
         }
 
@@ -2182,12 +2375,20 @@
             }
         }
 
-        // Queue system for Google Sheets requests to prevent concurrent conflicts
+        // Enhanced queue system for Google Sheets requests with better error handling
         const googleSheetsQueue = {
             queue: [],
             processing: false,
+            retryAttempts: new Map(), // Track retry attempts per ticket
+            maxRetries: 3,
 
             add(ticketId) {
+                // Don't add duplicates to queue
+                if (this.queue.includes(ticketId)) {
+                    console.log(`📋 Ticket ${ticketId} already in queue, skipping duplicate`);
+                    return;
+                }
+
                 this.queue.push(ticketId);
                 console.log(`📋 Added ticket ${ticketId} to Google Sheets queue. Queue length: ${this.queue.length}`);
                 this.processNext();
@@ -2203,20 +2404,85 @@
 
                 try {
                     console.log(`🔄 Processing ticket ${ticketId} from queue. Remaining: ${this.queue.length}`);
+
+                    // Check if ticket is already imported before processing
+                    const isAlreadyImported = await this.checkIfImported(ticketId);
+                    if (isAlreadyImported) {
+                        console.log(`✅ Ticket ${ticketId} already imported, skipping`);
+                        return;
+                    }
+
                     await this.sendSingleTicket(ticketId);
                     console.log(`✅ Successfully processed ticket ${ticketId}`);
+
+                    // Reset retry count on success
+                    this.retryAttempts.delete(ticketId);
+
                 } catch (error) {
                     console.error(`❌ Failed to process ticket ${ticketId}:`, error);
-                    // Add back to queue for retry (at the end)
-                    this.queue.push(ticketId);
-                    console.log(`🔄 Retrying ticket ${ticketId} - added back to queue`);
+
+                    // Track retry attempts
+                    const attempts = this.retryAttempts.get(ticketId) || 0;
+                    if (attempts < this.maxRetries) {
+                        this.retryAttempts.set(ticketId, attempts + 1);
+                        this.queue.push(ticketId);
+                        console.log(`🔄 Retrying ticket ${ticketId} (attempt ${attempts + 1}/${this.maxRetries})`);
+                    } else {
+                        console.error(`❌ Max retries reached for ticket ${ticketId}, giving up`);
+                        this.retryAttempts.delete(ticketId);
+
+                        // Log failed import for manual review
+                        this.logFailedImport(ticketId, error);
+                    }
                 } finally {
                     this.processing = false;
 
                     // Add delay between requests to prevent conflicts
                     if (this.queue.length > 0) {
-                        setTimeout(() => this.processNext(), 1000); // 1 second delay
+                        setTimeout(() => this.processNext(), 2000); // Increased to 2 seconds
                     }
+                }
+            },
+
+            // Check if ticket is already imported to avoid duplicate processing
+            async checkIfImported(ticketId) {
+                try {
+                    const { data, error } = await supabaseClient
+                        .from('tickets')
+                        .select('import_to_tracker')
+                        .eq('id', ticketId)
+                        .single();
+
+                    if (error) {
+                        console.error(`Error checking import status for ticket ${ticketId}:`, error);
+                        return false; // Assume not imported if we can't check
+                    }
+
+                    return data?.import_to_tracker === true;
+                } catch (error) {
+                    console.error(`Error checking import status for ticket ${ticketId}:`, error);
+                    return false;
+                }
+            },
+
+            // Log failed imports for manual review
+            async logFailedImport(ticketId, error) {
+                try {
+                    console.error(`🚨 FAILED IMPORT - Ticket ${ticketId}:`, error.message);
+
+                    // You could also log this to a separate table or external service
+                    // For now, we'll just log to console with a clear marker
+                    const errorDetails = {
+                        ticketId: ticketId,
+                        error: error.message,
+                        timestamp: new Date().toISOString(),
+                        userAgent: navigator.userAgent
+                    };
+
+                    console.error('🚨 FAILED IMPORT DETAILS:', JSON.stringify(errorDetails, null, 2));
+
+                } catch (logError) {
+                    console.error('Error logging failed import:', logError);
                 }
             },
 
@@ -2232,33 +2498,46 @@
                             ticketId: ticketId
                         });
 
-                        // Use image beacon for fire-and-forget request (no CORS, no waiting)
-                        const img = new Image();
-                        img.style.display = 'none';
+                        // Use JSONP for better error handling instead of image beacon
+                        const callbackName = `callback_${ticketId}_${Date.now()}`;
 
+                        // Create callback function
+                        window[callbackName] = (response) => {
+                            // Clean up
+                            delete window[callbackName];
+                            const script = document.getElementById(callbackName);
+                            if (script) document.head.removeChild(script);
+
+                            if (response.status === 'success') {
+                                console.log('✅ Ticket successfully exported to Google Sheets:', ticketId);
+                                resolve(response);
+                            } else {
+                                console.error('❌ Google Sheets export failed:', response.message);
+                                reject(new Error(response.message || 'Unknown error'));
+                            }
+                        };
+
+                        // Create script tag for JSONP
+                        const script = document.createElement('script');
+                        script.id = callbackName;
+                        script.src = `${GOOGLE_SHEETS_URL}?${params.toString()}&callback=${callbackName}`;
+
+                        // Set timeout for the request
                         const timeout = setTimeout(() => {
-                            document.body.removeChild(img);
-                            resolve(); // Consider timeout as success since it's fire-and-forget
-                        }, 5000); // 5 second timeout
+                            delete window[callbackName];
+                            if (script.parentNode) document.head.removeChild(script);
+                            reject(new Error('Request timeout'));
+                        }, 10000); // 10 second timeout
 
-                        img.onload = () => {
+                        script.onload = () => clearTimeout(timeout);
+                        script.onerror = () => {
                             clearTimeout(timeout);
-                            console.log('✅ Ticket export request sent to Google Sheets:', ticketId);
-                            document.body.removeChild(img);
-                            resolve();
+                            delete window[callbackName];
+                            if (script.parentNode) document.head.removeChild(script);
+                            reject(new Error('Script loading failed'));
                         };
 
-                        img.onerror = () => {
-                            clearTimeout(timeout);
-                            // This is expected - Google Apps Script returns HTML, not an image
-                            // But the request was sent successfully
-                            console.log('✅ Ticket export request sent to Google Sheets:', ticketId);
-                            document.body.removeChild(img);
-                            resolve();
-                        };
-
-                        img.src = `${GOOGLE_SHEETS_URL}?${params.toString()}`;
-                        document.body.appendChild(img);
+                        document.head.appendChild(script);
 
                     } catch (error) {
                         console.error('Error sending ticket to Google Sheets:', error);
@@ -2273,6 +2552,53 @@
         function sendTicketToGoogleSheets(ticketId) {
             googleSheetsQueue.add(ticketId);
         }
+
+        // Periodic check for tickets that failed to import and retry them
+        async function checkAndRetryFailedImports() {
+            try {
+                console.log('🔍 Checking for tickets that failed to import...');
+
+                // Query tickets that should be imported but aren't marked as imported
+                // These are tickets that have been ended but import_to_tracker is still false
+                const { data: failedTickets, error } = await supabaseClient
+                    .from('tickets')
+                    .select('id, ticket, time_end')
+                    .not('time_end', 'is', null)
+                    .not('ticket_status_id', 'is', null)
+                    .eq('import_to_tracker', false)
+                    .gte('time_end', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()) // Last 24 hours
+                    .order('time_end', { ascending: false })
+                    .limit(50); // Limit to prevent overwhelming the system
+
+                if (error) {
+                    console.error('Error checking for failed imports:', error);
+                    return;
+                }
+
+                if (failedTickets && failedTickets.length > 0) {
+                    console.log(`🔄 Found ${failedTickets.length} tickets that may have failed to import`);
+
+                    // Add them to the queue for retry (with a small delay between each)
+                    failedTickets.forEach((ticket, index) => {
+                        setTimeout(() => {
+                            console.log(`🔄 Retrying import for ticket ${ticket.ticket} (ID: ${ticket.id})`);
+                            googleSheetsQueue.add(ticket.id);
+                        }, index * 1000); // 1 second delay between each retry
+                    });
+                } else {
+                    console.log('✅ No failed imports found');
+                }
+
+            } catch (error) {
+                console.error('Error in checkAndRetryFailedImports:', error);
+            }
+        }
+
+        // Start periodic check for failed imports (every 10 minutes)
+        setInterval(checkAndRetryFailedImports, 10 * 60 * 1000);
+
+        // Also run an initial check after 30 seconds (to allow system to initialize)
+        setTimeout(checkAndRetryFailedImports, 30000);
 
         async function updateNotificationCounts() {
             try {
@@ -2294,20 +2620,41 @@
                     notificationBadge.style.display = count > 0 ? 'inline' : 'none';
                 }
 
-                // Count MoS requests for leaders/keys
+                // Optimized MoS requests count for leaders/keys with caching
                 if (currentUser.level === 'leader' || currentUser.level === 'key') {
-                    const { data: mosRequests, error: mosError } = await supabaseClient
-                        .from('mos_requests')
-                        .select('*')
-                        .eq('status', 'request');
+                    // Check if we need to update (avoid unnecessary queries)
+                    const now = Date.now();
+                    if (!mosUpdateInProgress && (now - mosLastUpdate) > 30000) { // Update every 30 seconds max
+                        mosUpdateInProgress = true;
 
-                    if (mosError) throw mosError;
+                        try {
+                            const { data: mosRequests, error: mosError } = await supabaseClient
+                                .from('mos_requests')
+                                .select('id')  // Only select ID for count, not all fields
+                                .eq('status', 'request');
 
-                    const mosBadge = document.getElementById('mos-notification-badge');
-                    if (mosBadge) {
-                        const mosCount = mosRequests?.length || 0;
-                        mosBadge.textContent = mosCount;
-                        mosBadge.style.display = mosCount > 0 ? 'inline' : 'none';
+                            if (mosError) throw mosError;
+
+                            mosNotificationCount = mosRequests?.length || 0;
+                            mosLastUpdate = now;
+
+                            const mosBadge = document.getElementById('mos-notification-badge');
+                            if (mosBadge) {
+                                mosBadge.textContent = mosNotificationCount;
+                                mosBadge.style.display = mosNotificationCount > 0 ? 'inline' : 'none';
+                            }
+                        } catch (error) {
+                            console.error('Error updating MoS count:', error);
+                        } finally {
+                            mosUpdateInProgress = false;
+                        }
+                    } else {
+                        // Use cached count
+                        const mosBadge = document.getElementById('mos-notification-badge');
+                        if (mosBadge) {
+                            mosBadge.textContent = mosNotificationCount;
+                            mosBadge.style.display = mosNotificationCount > 0 ? 'inline' : 'none';
+                        }
                     }
                 }
             } catch (error) {
@@ -2642,7 +2989,7 @@
                         }
                     });
 
-                // Subscribe to MoS requests for leaders/keys
+                // Optimized MoS requests subscription for leaders/keys
                 if (currentUser.level === 'leader' || currentUser.level === 'key') {
                     mosRequestsChannel = supabaseClient
                         .channel('mos-requests-changes')
@@ -2655,10 +3002,31 @@
                             },
                             (payload) => {
                                 console.log('🚢 New MoS request received:', payload);
-                                // Update notification counts
-                                updateNotificationCounts();
-                                // Show a toast notification
-                                showMessage('🔔 New MoS request received', 'info');
+
+                                // Update cache immediately
+                                if (payload.new) {
+                                    mosRequestsCache.set(payload.new.ticket_id, {
+                                        description: payload.new.description,
+                                        status: payload.new.status,
+                                        created_at: payload.new.created_at,
+                                        requester_id: payload.new.requester_id,
+                                        cached_at: Date.now()
+                                    });
+                                }
+
+                                // Update notification count immediately
+                                mosNotificationCount++;
+                                mosLastUpdate = Date.now();
+
+                                // Update UI
+                                const mosBadge = document.getElementById('mos-notification-badge');
+                                if (mosBadge) {
+                                    mosBadge.textContent = mosNotificationCount;
+                                    mosBadge.style.display = 'inline';
+                                }
+
+                                // Show enhanced toast notification
+                                showMessage('🚢 New MoS request received - Check MoS view', 'info');
                             }
                         )
                         .on(
@@ -2670,8 +3038,30 @@
                             },
                             (payload) => {
                                 console.log('🚢 MoS request updated:', payload);
-                                // Update notification counts
-                                updateNotificationCounts();
+
+                                // Update cache immediately
+                                if (payload.new) {
+                                    const existing = mosRequestsCache.get(payload.new.ticket_id) || {};
+                                    mosRequestsCache.set(payload.new.ticket_id, {
+                                        ...existing,
+                                        status: payload.new.status,
+                                        responder_id: payload.new.responder_id,
+                                        response_date: payload.new.response_date,
+                                        cached_at: Date.now()
+                                    });
+                                }
+
+                                // If status changed from 'request' to something else, decrease count
+                                if (payload.old?.status === 'request' && payload.new?.status !== 'request') {
+                                    mosNotificationCount = Math.max(0, mosNotificationCount - 1);
+                                    mosLastUpdate = Date.now();
+
+                                    const mosBadge = document.getElementById('mos-notification-badge');
+                                    if (mosBadge) {
+                                        mosBadge.textContent = mosNotificationCount;
+                                        mosBadge.style.display = mosNotificationCount > 0 ? 'inline' : 'none';
+                                    }
+                                }
                             }
                         )
                         .subscribe((status) => {
@@ -3224,6 +3614,24 @@
             }
         }
 
+        // MOS Cache Management Functions
+        function clearMosCache() {
+            mosRequestsCache.clear();
+            mosNotificationCount = 0;
+            mosLastUpdate = 0;
+            mosUpdateInProgress = false;
+            console.log('🧹 MOS cache cleared');
+        }
+
+        function getMosCacheStats() {
+            return {
+                cacheSize: mosRequestsCache.size,
+                notificationCount: mosNotificationCount,
+                lastUpdate: new Date(mosLastUpdate).toISOString(),
+                updateInProgress: mosUpdateInProgress
+            };
+        }
+
         // Make functions globally available
         window.sendToLeader = sendToLeader;
         window.requestMos = requestMos;
@@ -3235,6 +3643,10 @@
         window.openManualRescheduleTask = openManualRescheduleTask;
         window.dismissManualRescheduleBanner = dismissManualRescheduleBanner;
         window.showFireworksEffect = showFireworksEffect;
+
+        // MOS optimization functions
+        window.clearMosCache = clearMosCache;
+        window.getMosCacheStats = getMosCacheStats;
 
         // AI Chat Functionality
         let chatOpen = false;
@@ -3280,16 +3692,34 @@
 
                 // Hide typing indicator and add bot response
                 hideTypingIndicator();
-                addMessageToChat(response, 'bot');
+
+                // Check if response indicates AI couldn't answer
+                const isUnanswered = isResponseUnanswered(response);
+
+                if (isUnanswered) {
+                    // Log unanswered question to Google Sheets
+                    await logQuestionToSheet(message, response, 'unanswered');
+
+                    // Add response with feedback option
+                    addMessageToChat(response, 'bot', true, message, response);
+                } else {
+                    // Add response with feedback option for user satisfaction
+                    addMessageToChat(response, 'bot', true, message, response);
+                }
 
             } catch (error) {
                 hideTypingIndicator();
-                addMessageToChat('Sorry, I encountered an error. Please try again later.', 'bot');
+                const errorResponse = 'Sorry, I encountered an error. Please try again later.';
+
+                // Log error to Google Sheets
+                await logQuestionToSheet(message, errorResponse, 'error');
+
+                addMessageToChat(errorResponse, 'bot', true, message, errorResponse);
                 console.error('AI Chat Error:', error);
             }
         }
 
-        function addMessageToChat(message, sender) {
+        function addMessageToChat(message, sender, showFeedback = false, originalQuestion = '', botResponse = '') {
             const messagesContainer = document.getElementById('chat-messages');
 
             const messageDiv = document.createElement('div');
@@ -3300,6 +3730,35 @@
             contentDiv.textContent = message;
 
             messageDiv.appendChild(contentDiv);
+
+            // Add feedback buttons for bot messages
+            if (sender === 'bot' && showFeedback) {
+                const feedbackDiv = document.createElement('div');
+                feedbackDiv.className = 'message-feedback';
+                feedbackDiv.style.cssText = 'margin-top: 8px; display: flex; gap: 8px; align-items: center;';
+
+                const feedbackText = document.createElement('span');
+                feedbackText.textContent = 'Was this helpful?';
+                feedbackText.style.cssText = 'font-size: 12px; color: #666; margin-right: 4px;';
+
+                const thumbsUpBtn = document.createElement('button');
+                thumbsUpBtn.innerHTML = '👍';
+                thumbsUpBtn.style.cssText = 'background: none; border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 14px;';
+                thumbsUpBtn.title = 'Helpful';
+                thumbsUpBtn.onclick = () => handleFeedback('positive', originalQuestion, botResponse, feedbackDiv);
+
+                const thumbsDownBtn = document.createElement('button');
+                thumbsDownBtn.innerHTML = '👎';
+                thumbsDownBtn.style.cssText = 'background: none; border: 1px solid #ddd; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 14px;';
+                thumbsDownBtn.title = 'Not helpful';
+                thumbsDownBtn.onclick = () => handleFeedback('negative', originalQuestion, botResponse, feedbackDiv);
+
+                feedbackDiv.appendChild(feedbackText);
+                feedbackDiv.appendChild(thumbsUpBtn);
+                feedbackDiv.appendChild(thumbsDownBtn);
+                messageDiv.appendChild(feedbackDiv);
+            }
+
             messagesContainer.appendChild(messageDiv);
 
             // Scroll to bottom
@@ -3317,6 +3776,31 @@
         function hideTypingIndicator() {
             const typingIndicator = document.getElementById('typing-indicator');
             typingIndicator.style.display = 'none';
+        }
+
+        // Handle user feedback on AI responses
+        async function handleFeedback(rating, question, response, feedbackDiv) {
+            try {
+                // Log feedback to Google Sheets
+                await logQuestionToSheet(question, response, 'feedback', rating);
+
+                // Update UI to show feedback was recorded
+                feedbackDiv.innerHTML = `
+                    <span style="font-size: 12px; color: #28a745; font-weight: 500;">
+                        ${rating === 'positive' ? '✅ Thank you for your feedback!' : '📝 Thank you! We\'ll improve our responses.'}
+                    </span>
+                `;
+
+                console.log(`✅ User feedback recorded: ${rating} for question: "${question.substring(0, 50)}..."`);
+
+            } catch (error) {
+                console.error('❌ Error recording feedback:', error);
+                feedbackDiv.innerHTML = `
+                    <span style="font-size: 12px; color: #dc3545;">
+                        ❌ Error recording feedback. Please try again.
+                    </span>
+                `;
+            }
         }
 
         // AI API Integration using Gradio Client
@@ -3513,6 +3997,63 @@
             } catch (error) {
                 console.error("❌ Direct API call failed:", error);
                 return null;
+            }
+        }
+
+        // Check if AI response indicates it couldn't answer the question
+        function isResponseUnanswered(response) {
+            const lowerResponse = response.toLowerCase();
+            const unansweredIndicators = [
+                "i'm sorry, i couldn't",
+                "i don't know",
+                "i can't help",
+                "i'm not sure",
+                "that's an interesting question",
+                "could you be more specific",
+                "i couldn't generate a response",
+                "please try again",
+                "i encountered an error"
+            ];
+
+            return unansweredIndicators.some(indicator => lowerResponse.includes(indicator));
+        }
+
+        // Log question and response to Google Sheets for feedback tracking
+        async function logQuestionToSheet(question, response, type = 'general', rating = '') {
+            try {
+                const FEEDBACK_SHEET_URL = 'https://script.google.com/macros/s/AKfycbzDXf9HPZi9NiJy-f8Enw9ZINljy2njMSWcZFXnrKCDzRPpAwwipIsTTMjP3lTtPZM07A/exec';
+                const SECRET_TOKEN = '14092000';
+
+                const params = new URLSearchParams({
+                    secret: SECRET_TOKEN,
+                    action: 'log_question',
+                    sheetId: '10iS5jfShvztelK5kp7q1Qlnge2_H87vsMVTlK-szkH0',
+                    date: new Date().toLocaleDateString('vi-VN'),
+                    question: question,
+                    response: response,
+                    type: type,
+                    rating: rating
+                });
+
+                // Use image beacon for fire-and-forget request (no CORS issues)
+                const img = new Image();
+                img.style.display = 'none';
+
+                const timeout = setTimeout(() => {
+                    if (img.parentNode) document.body.removeChild(img);
+                }, 5000);
+
+                img.onload = img.onerror = () => {
+                    clearTimeout(timeout);
+                    if (img.parentNode) document.body.removeChild(img);
+                    console.log('✅ Question logged to feedback sheet:', question.substring(0, 50) + '...');
+                };
+
+                img.src = `${FEEDBACK_SHEET_URL}?${params.toString()}`;
+                document.body.appendChild(img);
+
+            } catch (error) {
+                console.error('❌ Error logging question to sheet:', error);
             }
         }
 

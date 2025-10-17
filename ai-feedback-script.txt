@@ -1,0 +1,194 @@
+/********************** AI CHAT FEEDBACK LOGGING SCRIPT **********************/
+// This Google Apps Script handles logging AI chat questions and feedback to Google Sheets
+// Deploy as Web App with Execute as: Me, Access: Anyone
+
+// Configuration
+const SECRET_TOKEN = '14092000'; // Must match the token in dashboard-v2.js
+const DEFAULT_SHEET_ID = '10iS5jfShvztelK5kp7q1Qlnge2_H87vsMVTlK-szkH0'; // Default feedback sheet ID
+
+/********************** WEB APP - ENTRY POINT **********************/
+function doGet(e) {
+  const startTime = new Date();
+  
+  try {
+    // Verify secret token
+    const secret = e.parameter.secret;
+    if (secret !== SECRET_TOKEN) {
+      throw new Error('Invalid secret token.');
+    }
+
+    const action = e.parameter.action;
+    
+    if (action === 'log_question') {
+      return handleLogQuestion(e);
+    } else {
+      throw new Error('Invalid action: ' + action);
+    }
+    
+  } catch (error) {
+    console.error('❌ Error in doGet:', error.message);
+    
+    const errorResponse = {
+      status: 'error',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    };
+
+    // Support JSONP callback even for errors
+    const callback = e.parameter.callback;
+    if (callback) {
+      return ContentService
+        .createTextOutput(callback + '(' + JSON.stringify(errorResponse) + ')')
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+
+    return ContentService
+      .createTextOutput(JSON.stringify(errorResponse))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+/********************** LOG QUESTION HANDLER **********************/
+function handleLogQuestion(e) {
+  try {
+    const sheetId = e.parameter.sheetId || DEFAULT_SHEET_ID;
+    const date = e.parameter.date || new Date().toLocaleDateString('vi-VN');
+    const question = e.parameter.question || '';
+    const response = e.parameter.response || '';
+    const type = e.parameter.type || 'general';
+    const rating = e.parameter.rating || '';
+
+    console.log(`📝 Logging question to sheet ${sheetId}: ${question.substring(0, 50)}...`);
+
+    // Log to Google Sheet
+    logToSheet(sheetId, date, question, response, type, rating);
+
+    const successResponse = {
+      status: 'success',
+      message: 'Question logged successfully',
+      timestamp: new Date().toISOString()
+    };
+
+    // Support JSONP callback
+    const callback = e.parameter.callback;
+    if (callback) {
+      return ContentService
+        .createTextOutput(callback + '(' + JSON.stringify(successResponse) + ')')
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+
+    return ContentService
+      .createTextOutput(JSON.stringify(successResponse))
+      .setMimeType(ContentService.MimeType.JSON);
+
+  } catch (error) {
+    console.error('❌ Error in handleLogQuestion:', error.message);
+    throw error;
+  }
+}
+
+/********************** SHEET LOGGING LOGIC **********************/
+function logToSheet(sheetId, date, question, response, type, rating) {
+  try {
+    const ss = SpreadsheetApp.openById(sheetId);
+    let sheet = ss.getSheetByName('Sheet1');
+    
+    // Create Sheet1 if it doesn't exist
+    if (!sheet) {
+      sheet = ss.insertSheet('Sheet1');
+      
+      // Add headers
+      const headers = ['Date', 'Question', 'Bot Answer', 'User Rating'];
+      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      
+      // Format headers
+      const headerRange = sheet.getRange(1, 1, 1, headers.length);
+      headerRange.setFontWeight('bold');
+      headerRange.setBackground('#f0f0f0');
+      
+      console.log('✅ Created Sheet1 with headers');
+    }
+
+    // Find the next empty row
+    const lastRow = sheet.getLastRow();
+    const nextRow = lastRow + 1;
+
+    // Prepare data row
+    const rowData = [
+      date,
+      question,
+      response,
+      rating || (type === 'unanswered' ? 'Unanswered' : type === 'error' ? 'Error' : '')
+    ];
+
+    // Insert data
+    sheet.getRange(nextRow, 1, 1, rowData.length).setValues([rowData]);
+    
+    // Auto-resize columns for better readability
+    sheet.autoResizeColumns(1, rowData.length);
+    
+    console.log(`✅ Successfully logged question to row ${nextRow} in sheet ${sheetId}`);
+    
+  } catch (error) {
+    console.error(`❌ Error logging to sheet ${sheetId}:`, error.message);
+    throw new Error('Failed to log to sheet: ' + error.message);
+  }
+}
+
+/********************** UTILITY FUNCTIONS **********************/
+// Test function to verify the script works
+function testLogQuestion() {
+  try {
+    const testData = {
+      sheetId: DEFAULT_SHEET_ID,
+      date: new Date().toLocaleDateString('vi-VN'),
+      question: 'Test question from Apps Script',
+      response: 'Test response from AI',
+      type: 'test',
+      rating: 'positive'
+    };
+    
+    logToSheet(testData.sheetId, testData.date, testData.question, testData.response, testData.type, testData.rating);
+    console.log('✅ Test completed successfully');
+    
+  } catch (error) {
+    console.error('❌ Test failed:', error.message);
+  }
+}
+
+// Function to create a new feedback sheet with proper structure
+function createFeedbackSheet(sheetId) {
+  try {
+    const ss = SpreadsheetApp.openById(sheetId);
+    let sheet = ss.getSheetByName('Sheet1');
+    
+    if (sheet) {
+      console.log('Sheet1 already exists');
+      return;
+    }
+    
+    sheet = ss.insertSheet('Sheet1');
+    
+    // Add headers
+    const headers = ['Date', 'Question', 'Bot Answer', 'User Rating'];
+    sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+    
+    // Format headers
+    const headerRange = sheet.getRange(1, 1, 1, headers.length);
+    headerRange.setFontWeight('bold');
+    headerRange.setBackground('#4285f4');
+    headerRange.setFontColor('#ffffff');
+    
+    // Set column widths
+    sheet.setColumnWidth(1, 120); // Date
+    sheet.setColumnWidth(2, 400); // Question
+    sheet.setColumnWidth(3, 400); // Bot Answer
+    sheet.setColumnWidth(4, 150); // User Rating
+    
+    console.log('✅ Created feedback sheet with proper formatting');
+    
+  } catch (error) {
+    console.error('❌ Error creating feedback sheet:', error.message);
+    throw error;
+  }
+}
