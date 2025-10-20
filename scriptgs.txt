@@ -220,55 +220,29 @@ function addSingleTicketToSheet(ticket) {
 
   // Find the nearest blank row by checking Date column
   const dateColIndex = colIndex(TRACKER_COLUMNS.DATE);
-  const ticketNumberColIndex = colIndex(TRACKER_COLUMNS.TICKET_NUMBER);
   let targetRow = -1;
 
   if (dateColIndex !== -1) {
     const lastRow = sheet.getLastRow();
     if (lastRow > 1) {
-      // Read both Date and Ticket Number columns in one call for efficiency
-      const numCols = ticketNumberColIndex !== -1 ? Math.max(dateColIndex, ticketNumberColIndex) + 1 : dateColIndex + 1;
-      const dataRange = sheet.getRange(2, 1, lastRow - 1, numCols).getValues();
+      // Read Date column to find first blank row
+      const dataRange = sheet.getRange(2, dateColIndex + 1, lastRow - 1, 1).getValues();
 
-      // Find first blank cell in Date column AND check for duplicates TODAY
+      // Find first blank cell in Date column
       for (let i = 0; i < dataRange.length; i++) {
-        const dateValue = dataRange[i][dateColIndex];
-        const ticketValue = ticketNumberColIndex !== -1 ? dataRange[i][ticketNumberColIndex] : '';
-
-        // Format the date from the sheet for comparison
-        let dateStrFromSheet = '';
-        if (dateValue) {
-          if (dateValue instanceof Date) {
-            dateStrFromSheet = Utilities.formatDate(dateValue, Session.getScriptTimeZone(), DATE_FORMAT_FOR_TRACKER);
-          } else {
-            dateStrFromSheet = String(dateValue).trim();
-          }
-        }
-
-        // Check for duplicate: same ticket number AND same date (TODAY)
-        if (ticketNumberColIndex !== -1 &&
-            String(ticketValue).trim() === String(ticket['Ticket']).trim() &&
-            dateStrFromSheet === todayStrTracker) {
-          console.log(`⚠️ Ticket ${ticket['Ticket']} already uploaded TODAY (${todayStrTracker}) at row ${i + 2}`);
-          return {
-            success: true,
-            row: i + 2,
-            sheetName: sheetName,
-            ticketNumber: ticket['Ticket'],
-            alreadyExists: true
-          };
-        }
+        const dateValue = dataRange[i][0];
 
         // Find first blank Date cell
-        if (targetRow === -1 && (!dateValue || String(dateValue).trim() === '')) {
+        if (!dateValue || String(dateValue).trim() === '') {
           targetRow = i + 2; // +2 because: +1 for 0-index, +1 for header row
+          break;
         }
       }
     }
 
     // If no blank row found, append to end
     if (targetRow === -1) {
-      targetRow = lastRow + 1;
+      targetRow = sheet.getLastRow() + 1;
     }
   } else {
     // If Date column not found, append to end
