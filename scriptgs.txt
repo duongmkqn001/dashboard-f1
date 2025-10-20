@@ -230,14 +230,26 @@ function addSingleTicketToSheet(ticket) {
       const numCols = ticketNumberColIndex !== -1 ? Math.max(dateColIndex, ticketNumberColIndex) + 1 : dateColIndex + 1;
       const dataRange = sheet.getRange(2, 1, lastRow - 1, numCols).getValues();
 
-      // Find first blank cell in Date column AND check for duplicates
+      // Find first blank cell in Date column AND check for duplicates TODAY
       for (let i = 0; i < dataRange.length; i++) {
         const dateValue = dataRange[i][dateColIndex];
         const ticketValue = ticketNumberColIndex !== -1 ? dataRange[i][ticketNumberColIndex] : '';
 
-        // Check for duplicate ticket number
-        if (ticketNumberColIndex !== -1 && String(ticketValue).trim() === String(ticket['Ticket']).trim()) {
-          console.log(`⚠️ Ticket ${ticket['Ticket']} already exists in sheet at row ${i + 2}`);
+        // Format the date from the sheet for comparison
+        let dateStrFromSheet = '';
+        if (dateValue) {
+          if (dateValue instanceof Date) {
+            dateStrFromSheet = Utilities.formatDate(dateValue, Session.getScriptTimeZone(), DATE_FORMAT_FOR_TRACKER);
+          } else {
+            dateStrFromSheet = String(dateValue).trim();
+          }
+        }
+
+        // Check for duplicate: same ticket number AND same date (TODAY)
+        if (ticketNumberColIndex !== -1 &&
+            String(ticketValue).trim() === String(ticket['Ticket']).trim() &&
+            dateStrFromSheet === todayStrTracker) {
+          console.log(`⚠️ Ticket ${ticket['Ticket']} already uploaded TODAY (${todayStrTracker}) at row ${i + 2}`);
           return {
             success: true,
             row: i + 2,

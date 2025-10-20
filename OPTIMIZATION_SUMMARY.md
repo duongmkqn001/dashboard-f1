@@ -17,10 +17,10 @@
 - **After:** Lock acquired only once at the beginning
 - **Result:** No more double-locking delays
 
-### 4. **Integrated Duplicate Check**
-- **Before:** Only checked Supabase, not the sheet itself
-- **After:** Checks for duplicates while finding blank Date row (no extra cost)
-- **Result:** Catches duplicates even if Supabase check fails
+### 4. **Smart Duplicate Check (CRITICAL FIX)**
+- **Before:** Checked if ticket number exists ANYWHERE in sheet (wrong!)
+- **After:** Checks if ticket was uploaded TODAY (same ticket + same date)
+- **Result:** Allows same ticket to be uploaded on different dates (correct behavior!)
 
 ### 5. **Reduced Lock Timeout**
 - **Before:** 30 second timeout
@@ -81,7 +81,7 @@ IMPROVEMENT: ~150-500ms faster + NO DUPLICATES
 7. Read Date + Ticket Number columns (ONE read)
    ↓
 8. Loop through rows:
-   ├─ Check if ticket already exists → Return if found
+   ├─ Check if ticket uploaded TODAY (same ticket + same date) → Return if found
    └─ Find first blank Date cell → Use as target row
    ↓
 9. Insert data to target row (nearest blank Date line)
