@@ -53,67 +53,60 @@ function doGet(e) {
 
     console.log(`🔄 Processing ticket ${ticketId} - Start time: ${startTime.toISOString()}`);
 
-    // Check if ticket is already imported to avoid duplicate processing
-    const isAlreadyImported = checkIfTicketImported(ticketId);
-    if (isAlreadyImported) {
-      console.log(`✅ Ticket ${ticketId} already imported, skipping`);
+    // Use lock immediately to prevent race conditions
+    const lock = LockService.getScriptLock();
+    try {
+      // Shorter lock timeout to prevent delays
+      lock.waitLock(10000); // 10 seconds instead of 30
+
+      // Check if ticket is already imported to avoid duplicate processing
+      const isAlreadyImported = checkIfTicketImported(ticketId);
+      if (isAlreadyImported) {
+        console.log(`✅ Ticket ${ticketId} already imported, skipping`);
+
+        const response = {
+          status: 'success',
+          message: 'Ticket already imported',
+          ticketId: ticketId,
+          alreadyImported: true
+        };
+
+        return createResponse(response, e.parameter.callback);
+      }
+
+      // Fetch ticket data from tickets_export_v view
+      const ticketData = fetchTicketFromView(ticketId);
+      if (!ticketData) {
+        throw new Error('Ticket not found in export view. Check if ticket meets export criteria (has time_start, time_end, ticket_status_id, agent_handle_ticket).');
+      }
+
+      console.log(`📊 Fetched ticket data for ${ticketId}: ${ticketData['Ticket']}`);
+
+      // CRITICAL: Mark as imported BEFORE adding to sheet to prevent race conditions
+      markTicketAsImported(ticketId);
+
+      // Add ticket to Google Sheet with enhanced error handling
+      const sheetResult = addSingleTicketToSheet(ticketData);
+
+      const endTime = new Date();
+      const processingTime = endTime - startTime;
+      console.log(`✅ Successfully processed ticket ${ticketId} in ${processingTime}ms`);
 
       const response = {
         status: 'success',
-        message: 'Ticket already imported',
-        ticketId: ticketId,
-        alreadyImported: true
+        ticketNumber: ticketData['Ticket'],
+        processingTime: processingTime,
+        sheetRow: sheetResult.row,
+        sheetName: sheetResult.sheetName
       };
 
-      const callback = e.parameter.callback;
-      if (callback) {
-        return ContentService
-          .createTextOutput(callback + '(' + JSON.stringify(response) + ')')
-          .setMimeType(ContentService.MimeType.JAVASCRIPT);
-      }
-      return ContentService
-        .createTextOutput(JSON.stringify(response))
-        .setMimeType(ContentService.MimeType.JSON);
+      return createResponse(response, e.parameter.callback);
+
+    } finally {
+      // Always release the lock
+      lock.releaseLock();
     }
 
-    // Fetch ticket data from tickets_export_v view
-    const ticketData = fetchTicketFromView(ticketId);
-    if (!ticketData) {
-      throw new Error('Ticket not found in export view. Check if ticket meets export criteria (has time_start, time_end, ticket_status_id, agent_handle_ticket).');
-    }
-
-    console.log(`📊 Fetched ticket data for ${ticketId}: ${ticketData['Ticket']}`);
-
-    // Add ticket to Google Sheet with enhanced error handling
-    const sheetResult = addSingleTicketToSheet(ticketData);
-
-    // Mark ticket as imported in Supabase
-    markTicketAsImported(ticketId);
-
-    const endTime = new Date();
-    const processingTime = endTime - startTime;
-    console.log(`✅ Successfully processed ticket ${ticketId} in ${processingTime}ms`);
-
-    const response = {
-      status: 'success',
-      ticketNumber: ticketData['Ticket'],
-      processingTime: processingTime,
-      sheetRow: sheetResult.row,
-      sheetName: sheetResult.sheetName
-    };
-
-    // Support JSONP callback for CORS bypass
-    const callback = e.parameter.callback;
-    if (callback) {
-      return ContentService
-        .createTextOutput(callback + '(' + JSON.stringify(response) + ')')
-        .setMimeType(ContentService.MimeType.JAVASCRIPT);
-    }
-
-    // Regular JSON response
-    return ContentService
-      .createTextOutput(JSON.stringify(response))
-      .setMimeType(ContentService.MimeType.JSON);
   } catch (error) {
     const endTime = new Date();
     const processingTime = endTime - startTime;
@@ -127,18 +120,20 @@ function doGet(e) {
       errorType: error.name || 'UnknownError'
     };
 
-    // Support JSONP callback even for errors
-    const callback = e.parameter.callback;
-    if (callback) {
-      return ContentService
-        .createTextOutput(callback + '(' + JSON.stringify(errorResponse) + ')')
-        .setMimeType(ContentService.MimeType.JAVASCRIPT);
-    }
-
-    return ContentService
-      .createTextOutput(JSON.stringify(errorResponse))
-      .setMimeType(ContentService.MimeType.JSON);
+    return createResponse(errorResponse, e.parameter.callback);
   }
+}
+
+/********************** HELPER FUNCTION FOR RESPONSES **********************/
+function createResponse(responseData, callback) {
+  if (callback) {
+    return ContentService
+      .createTextOutput(callback + '(' + JSON.stringify(responseData) + ')')
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+  return ContentService
+    .createTextOutput(JSON.stringify(responseData))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 /********************** CHECK IF TICKET ALREADY IMPORTED **********************/
@@ -209,111 +204,116 @@ function addSingleTicketToSheet(ticket) {
   const sheet = ss.getSheetByName(sheetName);
   if (!sheet) throw new Error(`Sheet not found: ${sheetName}`);
 
-  // Use lock to prevent concurrent access conflicts
-  const lock = LockService.getScriptLock();
-  try {
-    // Wait up to 30 seconds for the lock
-    lock.waitLock(30000);
+  // No lock here - lock is already acquired in doGet()
+  const header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
+  const headerTrimmed = header.map(h => String(h).trim());
+  const formulaColumnsSet = new Set(FORMULA_COLUMNS.map(c => c.trim()));
 
-    const header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-    const headerTrimmed = header.map(h => String(h).trim());
-    const formulaColumnsSet = new Set(FORMULA_COLUMNS.map(c => c.trim()));
+  const colIndex = (name) => {
+    const i = headerTrimmed.indexOf(name);
+    return i;
+  };
 
-    const colIndex = (name) => {
-      const i = headerTrimmed.indexOf(name);
-      return i;
-    };
+  const today = new Date();
+  const todayStrTracker = Utilities.formatDate(today, Session.getScriptTimeZone(), DATE_FORMAT_FOR_TRACKER);
+  const todayMMDDYYYY = Utilities.formatDate(today, Session.getScriptTimeZone(), DATE_COMPLETED_FORMAT);
 
-    const today = new Date();
-    const todayStrTracker = Utilities.formatDate(today, Session.getScriptTimeZone(), DATE_FORMAT_FOR_TRACKER);
-    const todayMMDDYYYY = Utilities.formatDate(today, Session.getScriptTimeZone(), DATE_COMPLETED_FORMAT);
+  // Find the nearest blank row by checking Date column
+  const dateColIndex = colIndex(TRACKER_COLUMNS.DATE);
+  const ticketNumberColIndex = colIndex(TRACKER_COLUMNS.TICKET_NUMBER);
+  let targetRow = -1;
 
-    // Find the nearest blank row by checking Date column (keeping old logic)
-    const dateColIndex = colIndex(TRACKER_COLUMNS.DATE);
-    let targetRow = -1;
+  if (dateColIndex !== -1) {
+    const lastRow = sheet.getLastRow();
+    if (lastRow > 1) {
+      // Read both Date and Ticket Number columns in one call for efficiency
+      const numCols = ticketNumberColIndex !== -1 ? Math.max(dateColIndex, ticketNumberColIndex) + 1 : dateColIndex + 1;
+      const dataRange = sheet.getRange(2, 1, lastRow - 1, numCols).getValues();
 
-    if (dateColIndex !== -1) {
-      const lastRow = sheet.getLastRow();
-      if (lastRow > 1) {
-        const dateColumn = sheet.getRange(2, dateColIndex + 1, lastRow - 1, 1).getValues(); // Skip header row
+      // Find first blank cell in Date column AND check for duplicates
+      for (let i = 0; i < dataRange.length; i++) {
+        const dateValue = dataRange[i][dateColIndex];
+        const ticketValue = ticketNumberColIndex !== -1 ? dataRange[i][ticketNumberColIndex] : '';
 
-        // Find first blank cell in Date column
-        for (let i = 0; i < dateColumn.length; i++) {
-          if (!dateColumn[i][0] || String(dateColumn[i][0]).trim() === '') {
-            targetRow = i + 2; // +2 because: +1 for 0-index, +1 for header row
-            break;
-          }
+        // Check for duplicate ticket number
+        if (ticketNumberColIndex !== -1 && String(ticketValue).trim() === String(ticket['Ticket']).trim()) {
+          console.log(`⚠️ Ticket ${ticket['Ticket']} already exists in sheet at row ${i + 2}`);
+          return {
+            success: true,
+            row: i + 2,
+            sheetName: sheetName,
+            ticketNumber: ticket['Ticket'],
+            alreadyExists: true
+          };
         }
-      }
 
-      // If no blank row found, append to end
-      if (targetRow === -1) {
-        targetRow = lastRow + 1;
-      }
-    } else {
-      // If Date column not found, append to end
-      targetRow = sheet.getLastRow() + 1;
-    }
-
-    console.log(`Adding ticket ${ticket['Ticket']} to row ${targetRow} in sheet ${sheetName}`);
-
-    // Prepare data for insertion
-    const newRowData = new Array(header.length).fill('');
-
-    // Get index of 'Ticket Status' column to determine 'Date Completed' position
-    const ticketStatusIndex = colIndex(TRACKER_COLUMNS.TICKET_STATUS);
-    let dateCompletedIndex = -1;
-    if (ticketStatusIndex !== -1) {
-      dateCompletedIndex = ticketStatusIndex + 1;
-      // Fill Date Completed in the correct position
-      newRowData[dateCompletedIndex] = todayMMDDYYYY;
-    }
-
-    // Map ticket data to sheet columns (using correct column names)
-    const dataToMap = {
-      [TRACKER_COLUMNS.DATE]: todayStrTracker,
-      [TRACKER_COLUMNS.TICKET_NUMBER]: ticket['Ticket'] || '',
-      [TRACKER_COLUMNS.START_TIME]: ticket['Start Time'] || '',
-      [TRACKER_COLUMNS.END_TIME]: ticket['End Time'] || '',
-      [TRACKER_COLUMNS.NAME]: ticket['Name'] || '',
-      [TRACKER_COLUMNS.ACCOUNT]: ticket['Account'] || '',
-      [TRACKER_COLUMNS.TICKET_TYPE]: ticket['Ticket Type'] || '',
-      [TRACKER_COLUMNS.SUPPLIER]: ticket['Supplier'] || '',
-      [TRACKER_COLUMNS.PO]: ticket['PO'] || '',
-      [TRACKER_COLUMNS.TICKET_STATUS]: ticket['Ticket Status'] || '',
-    };
-
-    for (const colName in dataToMap) {
-      // Only fill data if column exists and is not a formula column
-      if (dataToMap.hasOwnProperty(colName) && !formulaColumnsSet.has(colName)) {
-        const idx = colIndex(colName);
-        if (idx !== -1) {
-          newRowData[idx] = dataToMap[colName] ?? '';
+        // Find first blank Date cell
+        if (targetRow === -1 && (!dateValue || String(dateValue).trim() === '')) {
+          targetRow = i + 2; // +2 because: +1 for 0-index, +1 for header row
         }
       }
     }
 
-    // Insert data at the target row (nearest blank row)
-    const range = sheet.getRange(targetRow, 1, 1, newRowData.length);
-    range.setValues([newRowData]);
-
-    console.log(`Successfully added ticket ${ticket['Ticket']} to row ${targetRow}`);
-
-    // Return success information
-    return {
-      success: true,
-      row: targetRow,
-      sheetName: sheetName,
-      ticketNumber: ticket['Ticket']
-    };
-
-  } catch (error) {
-    console.error('Error in addSingleTicketToSheet:', error);
-    throw error;
-  } finally {
-    // Always release the lock
-    lock.releaseLock();
+    // If no blank row found, append to end
+    if (targetRow === -1) {
+      targetRow = lastRow + 1;
+    }
+  } else {
+    // If Date column not found, append to end
+    targetRow = sheet.getLastRow() + 1;
   }
+
+  console.log(`Adding ticket ${ticket['Ticket']} to row ${targetRow} in sheet ${sheetName}`);
+
+  // Prepare data for insertion
+  const newRowData = new Array(header.length).fill('');
+
+  // Get index of 'Ticket Status' column to determine 'Date Completed' position
+  const ticketStatusIndex = colIndex(TRACKER_COLUMNS.TICKET_STATUS);
+  let dateCompletedIndex = -1;
+  if (ticketStatusIndex !== -1) {
+    dateCompletedIndex = ticketStatusIndex + 1;
+    // Fill Date Completed in the correct position
+    newRowData[dateCompletedIndex] = todayMMDDYYYY;
+  }
+
+  // Map ticket data to sheet columns (using correct column names)
+  const dataToMap = {
+    [TRACKER_COLUMNS.DATE]: todayStrTracker,
+    [TRACKER_COLUMNS.TICKET_NUMBER]: ticket['Ticket'] || '',
+    [TRACKER_COLUMNS.START_TIME]: ticket['Start Time'] || '',
+    [TRACKER_COLUMNS.END_TIME]: ticket['End Time'] || '',
+    [TRACKER_COLUMNS.NAME]: ticket['Name'] || '',
+    [TRACKER_COLUMNS.ACCOUNT]: ticket['Account'] || '',
+    [TRACKER_COLUMNS.TICKET_TYPE]: ticket['Ticket Type'] || '',
+    [TRACKER_COLUMNS.SUPPLIER]: ticket['Supplier'] || '',
+    [TRACKER_COLUMNS.PO]: ticket['PO'] || '',
+    [TRACKER_COLUMNS.TICKET_STATUS]: ticket['Ticket Status'] || '',
+  };
+
+  for (const colName in dataToMap) {
+    // Only fill data if column exists and is not a formula column
+    if (dataToMap.hasOwnProperty(colName) && !formulaColumnsSet.has(colName)) {
+      const idx = colIndex(colName);
+      if (idx !== -1) {
+        newRowData[idx] = dataToMap[colName] ?? '';
+      }
+    }
+  }
+
+  // Insert data at the target row
+  const range = sheet.getRange(targetRow, 1, 1, newRowData.length);
+  range.setValues([newRowData]);
+
+  console.log(`Successfully added ticket ${ticket['Ticket']} to row ${targetRow}`);
+
+  // Return success information
+  return {
+    success: true,
+    row: targetRow,
+    sheetName: sheetName,
+    ticketNumber: ticket['Ticket']
+  };
 }
 
 /********************** UPDATE SUPABASE - MARK IMPORTED **********************/

@@ -878,9 +878,22 @@
                     mosStatusIcon = '<div class="text-red-600 text-xs mt-1">❌ MoS Rejected</div>';
                 }
 
+                // Check if ticket can be sent to leader
+                // Don't allow if: already sent to leader, already started, or already has a status
+                const canSendToLeader = !item.need_leader_support && !item.time_start && !item.ticket_status_id;
+                const leaderButtonDisabled = !canSendToLeader ? 'disabled opacity-50 cursor-not-allowed' : '';
+                const leaderButtonTitle = !canSendToLeader ?
+                    (item.need_leader_support ? 'Already sent to leader' :
+                     item.time_start ? 'Cannot send started ticket to leader' :
+                     'Cannot send ticket with status to leader') :
+                    'Send to leader for help';
+
                 return `
                     <div class="flex flex-col gap-1">
-                        <button onclick="sendToLeader(${item.id})" class="px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-medium rounded transition-colors">
+                        <button onclick="sendToLeader(${item.id})"
+                                class="px-3 py-1 bg-yellow-500 hover:bg-yellow-600 text-white text-xs font-medium rounded transition-colors ${leaderButtonDisabled}"
+                                ${!canSendToLeader ? 'disabled' : ''}
+                                title="${leaderButtonTitle}">
                             Send to leader →
                         </button>
                         <button onclick="requestMos(${item.id})" class="px-3 py-1 bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-medium rounded transition-colors">
@@ -1974,6 +1987,32 @@
 
         async function sendToLeader(ticketId) {
             try {
+                // First, check if ticket can be sent to leader
+                const { data: ticket, error: fetchError } = await supabaseClient
+                    .from('tickets')
+                    .select('need_leader_support, time_start, ticket_status_id, ticket')
+                    .eq('id', ticketId)
+                    .single();
+
+                if (fetchError) throw fetchError;
+
+                // Validate ticket state
+                if (ticket.need_leader_support) {
+                    showMessage('Ticket đã được gửi đến leader rồi', 'warning');
+                    return;
+                }
+
+                if (ticket.time_start) {
+                    showMessage('Không thể gửi ticket đã bắt đầu đến leader', 'warning');
+                    return;
+                }
+
+                if (ticket.ticket_status_id) {
+                    showMessage('Không thể gửi ticket đã có trạng thái đến leader', 'warning');
+                    return;
+                }
+
+                // Update ticket to send to leader
                 const { error } = await supabaseClient
                     .from('tickets')
                     .update({ need_leader_support: true })
@@ -4021,7 +4060,7 @@
         // Log question and response to Google Sheets for feedback tracking
         async function logQuestionToSheet(question, response, type = 'general', rating = '') {
             try {
-                const FEEDBACK_SHEET_URL = 'https://script.google.com/macros/s/AKfycbxFbzeEHUENpnk7d4u46R_FunBDJcQMN9PrlFt8D46Gg5rk1C41eo0Ya68uIW8Dfu1h/exec';
+                const FEEDBACK_SHEET_URL = 'https://script.google.com/macros/s/AKfycbzDXf9HPZi9NiJy-f8Enw9ZINljy2njMSWcZFXnrKCDzRPpAwwipIsTTMjP3lTtPZM07A/exec';
                 const SECRET_TOKEN = '14092000';
 
                 const params = new URLSearchParams({
