@@ -853,12 +853,19 @@ function createGuideStepEditor(type, stepData = {}) {
                 [dom.viewerAgentNameInput, dom.viewerManualSupplierNameInput].forEach(el => el.addEventListener('input', updateFinalOutput));
                 dom.viewerSuIdInput.addEventListener('input', debounce(async (e) => {
                     const suid = e.target.value.trim();
-                    if (!suid) { dom.viewerManualSupplierContainer.classList.add('hidden'); dom.viewerManualSupplierNameInput.value = ''; updateFinalOutput(); return; }
+                    if (!suid) {
+                        // Bug Fix #2: Always show supplier name field
+                        dom.viewerManualSupplierContainer.classList.remove('hidden');
+                        dom.viewerManualSupplierNameInput.value = '';
+                        updateFinalOutput();
+                        return;
+                    }
                     const companyName = await searchSupplierName(suid);
-                    dom.viewerManualSupplierContainer.classList.toggle('hidden', !!companyName);
+                    // Bug Fix #2: Always show supplier name field, regardless of whether supplier is found
+                    dom.viewerManualSupplierContainer.classList.remove('hidden');
                     dom.viewerManualSupplierNameInput.value = companyName || '';
                     updateFinalOutput();
-                }, 500)); 
+                }, 500));
 
                 [dom.mainIssueInput, dom.sendToCustomerCheckbox, dom.addLabelReminderCheckbox, dom.addOptionalFieldCheckbox, dom.addInternalCommentCheckbox, dom.addFollowUpCheckbox, dom.needGreetingCheckbox, dom.emailCarrierCheckbox].forEach(el => el.addEventListener('input', updateFormVisibility));
                 ['customer-email', 'customer-name', 'customer-order', 'customer-brand'].forEach(id => document.getElementById(id).addEventListener('input', updateCustomerEmailPreview));
@@ -1352,11 +1359,39 @@ function createGuideStepEditor(type, stepData = {}) {
             function showCopyFeedback(element) { element.classList.remove('opacity-0'); setTimeout(() => element.classList.add('opacity-0'), 2000); }
             async function searchSupplierName(suid) {
                 if (!suid) return null;
-                let { data: supplier } = await supabase.from('suppliers').select('suname').eq('suid', suid).maybeSingle();
-                if (supplier) return supplier.suname;
-                let { data: child } = await supabase.from('children').select('parentSuid').eq('suchildid', suid).maybeSingle();
-                if (child?.parentSuid) { let { data: parent } = await supabase.from('suppliers').select('suname').eq('suid', child.parentSuid).maybeSingle(); if (parent) return parent.suname; }
-                return null;
+                let parentSuid = suid; // Assume the provided suid is the parent by default
+
+                try {
+                    // Step 1: ALWAYS check the 'children' table first (Bug Fix #1)
+                    const { data: childData, error: childError } = await supabase
+                        .from('children')
+                        .select('parentSuid')
+                        .eq('suchildid', suid)
+                        .maybeSingle();
+
+                    // If a child record is found, use its parentSuid
+                    if (!childError && childData) {
+                        parentSuid = childData.parentSuid;
+                    }
+
+                    // Step 2: Now, use the determined parentSuid to find the supplier name
+                    const { data: supplierData, error: supplierError } = await supabase
+                        .from('suppliers')
+                        .select('suname')
+                        .eq('suid', parentSuid)
+                        .maybeSingle();
+
+                    if (supplierError && supplierError.code !== 'PGRST116') {
+                        console.error('Error fetching supplier name for suid:', parentSuid, supplierError);
+                        return null;
+                    }
+
+                    return supplierData ? supplierData.suname : null;
+
+                } catch (error) {
+                    console.error('Error in searchSupplierName:', error);
+                    return null;
+                }
             }
             function openGuideModal(modalId, outputId, guideData, buttonId) {
                  return new Promise(r => { 

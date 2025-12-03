@@ -274,7 +274,17 @@
                 allPlaceholders = placeholders.data || [];
                 allSignatures = signatures.data || [];
                 allProjects = projects.data || [];
-                (settings.data || []).forEach(s => { allSettings[s.key] = s.value; });
+                (settings.data || []).forEach(s => { allSettings[s.key] = s; });
+
+                // Debug logging for admin data
+                console.log('🔍 fetchAllAdminData() completed:');
+                console.log('  - Total templates loaded:', allTemplates.length);
+                console.log('  - Templates with emailCarrier:', allTemplates.filter(t => t.emailCarrier).length);
+                console.log('  - Templates with carrierEmailSubject:', allTemplates.filter(t => t.carrierEmailSubject).length);
+                console.log('  - All templates:', allTemplates.map(t => ({ id: t.id, name: t.name, emailCarrier: t.emailCarrier, carrierEmailSubject: t.carrierEmailSubject })));
+                console.log('  - Total signatures loaded:', allSignatures.length);
+                console.log('  - Total placeholders loaded:', allPlaceholders.length);
+                console.log('  - Total projects loaded:', allProjects.length);
 
                 const brandData = allPlaceholders.find(p => p.key === 'brand');
                 if (brandData && brandData.options) {
@@ -1238,13 +1248,28 @@
                  popupCurrentTemplateId = item.dataset.templateId;
                  const template = allTemplates.find(t => t.id === popupCurrentTemplateId);
 
+                 // Debug logging for template detection
+                 console.log('🔍 Template Click Debug:');
+                 console.log('  - Template ID:', popupCurrentTemplateId);
+                 console.log('  - Template Object:', template);
+                 console.log('  - Template Name:', template?.name);
+                 console.log('  - Has emailCarrier field?', template?.emailCarrier);
+                 console.log('  - Has carrierEmailSubject field?', template?.carrierEmailSubject);
+                 console.log('  - Has bolNamingMethod field?', template?.bolNamingMethod);
+                 console.log('  - Template content:', template?.content?.substring(0, 100));
+
                  // If template requires carrier email, show that modal first
                  if (template && template.emailCarrier) {
+                     console.log('✅ Opening carrier email modal...');
                      const result = await openCarrierEmailModal(template, true);
                      // Only continue to template if user clicked "Continue"
                      if (result !== 'continue') {
+                         console.log('❌ User cancelled carrier email modal');
                          return; // User cancelled
                      }
+                     console.log('✅ User clicked continue, proceeding to template viewer');
+                 } else {
+                     console.log('⚠️ Template does NOT have emailCarrier enabled, skipping carrier modal');
                  }
 
                  // Then show the template viewer
@@ -1255,61 +1280,151 @@
         async function showTemplateViewer(templateId, ticketData) {
             const template = allTemplates.find(t => t.id === templateId);
             if (!template) return;
-            
+
+            // Detect if this is a WDN project
+            const isWDNProject = template.projects?.name === 'WDN';
+
             popupWelcomeScreen.classList.add('hidden');
-            popupTemplateViewer.innerHTML = `
-                <h3 id="viewer-title" class="text-2xl font-bold mb-2 text-headings"></h3>
-                <p id="viewer-category" class="text-sm text-secondary mb-4"></p>
-                <div class="mb-4 p-4 bg-button border border-secondary rounded-lg space-y-4">
-                    <div>
-                        <h4 class="font-semibold text-lg mb-2 text-blue-400">1. Thông tin Người nhận & Người gửi</h4>
-                        <div class="space-y-3 pl-2">
-                             <div>
-                                <label for="viewer-agent-name" class="block text-sm font-medium text-secondary">Tên riêng Người nhận</label>
-                                <input type="text" id="viewer-agent-name" class="mt-1 w-full p-2 border rounded-md">
-                            </div>
-                            <div>
-                                <label for="viewer-su-id" class="block text-sm font-medium text-secondary">Mã Nhà Cung Cấp (SuID)</label>
-                                <input type="text" id="viewer-su-id" class="mt-1 w-full p-2 border rounded-md">
-                            </div>
-                            <div id="viewer-manual-supplier-container" class="hidden">
-                                <label for="viewer-manual-supplier-name" class="block text-sm font-medium text-red-500">Không tìm thấy ID, nhập tên NCC</label>
-                                <input type="text" id="viewer-manual-supplier-name" class="mt-1 w-full p-2 border-red-500 rounded-md">
+
+            // Render different UI based on project type
+            if (isWDNProject) {
+                // WDN Project Format - for customer/carrier emails (no supplier fields)
+                popupTemplateViewer.innerHTML = `
+                    <h3 id="viewer-title" class="text-2xl font-bold mb-2 text-headings"></h3>
+                    <p id="viewer-category" class="text-sm text-secondary mb-4"></p>
+
+                    <!-- Optional Description Section -->
+                    <div id="template-description-section" class="mb-4 hidden">
+                        <button id="toggle-description-btn" class="flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors">
+                            <span id="description-icon">▶</span>
+                            <span>📋 Xem Mô tả Template</span>
+                        </button>
+                        <div id="template-description-content" class="hidden mt-2 p-3 bg-section border border-secondary rounded-lg text-sm text-secondary whitespace-pre-wrap"></div>
+                    </div>
+
+                    <div class="mb-4 p-4 bg-button border border-secondary rounded-lg space-y-4">
+                        <div>
+                            <h4 class="font-semibold text-lg mb-2 text-blue-400">1. Thông tin Người nhận</h4>
+                            <div class="space-y-3 pl-2">
+                                 <div>
+                                    <label for="viewer-agent-name" class="block text-sm font-medium text-secondary">Tên riêng Người nhận (Customer/Carrier)</label>
+                                    <input type="text" id="viewer-agent-name" class="mt-1 w-full p-2 border rounded-md" placeholder="Nhập tên người nhận">
+                                </div>
                             </div>
                         </div>
+                        <div>
+                            <h4 class="font-semibold text-lg mb-2 text-blue-400">2. Tùy chỉnh Nội dung chính</h4>
+                            <div id="placeholders-container" class="space-y-4 pl-2"></div>
+                            <div id="optionals-container" class="mt-4 space-y-2 pl-2"></div>
+                            <div id="dynamic-optional-field-container" class="mt-4 space-y-3 pl-2"></div>
+                        </div>
                     </div>
-                    <div>
-                        <h4 class="font-semibold text-lg mb-2 text-blue-400">2. Tùy chỉnh Nội dung chính</h4>
-                        <div id="placeholders-container" class="space-y-4 pl-2"></div>
-                        <div id="optionals-container" class="mt-4 space-y-2 pl-2"></div>
-                        <div id="dynamic-optional-field-container" class="mt-4 space-y-3 pl-2"></div>
-                    </div>
-                </div>
-                <div class="mt-6">
-                    <div class="flex justify-between items-center mb-2">
-                        <h4 class="font-semibold text-lg text-headings">Nội dung cuối cùng</h4>
-                        <button id="copy-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
-                            Sao chép & Tiếp tục
+                    <div class="mt-6">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="font-semibold text-lg text-headings">Nội dung cuối cùng</h4>
+                            <button id="copy-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
+                                Sao chép & Tiếp tục
+                            </button>
+                        </div>
+                        <div id="final-output" class="w-full p-4 border border-secondary rounded-lg bg-section min-h-[250px] whitespace-pre-wrap"></div>
+                        <div id="copy-feedback" class="mt-2 text-green-400 font-medium opacity-0">Đã sao chép!</div>
+                    </div>`;
+            } else {
+                // Default Format - for supplier emails
+                popupTemplateViewer.innerHTML = `
+                    <h3 id="viewer-title" class="text-2xl font-bold mb-2 text-headings"></h3>
+                    <p id="viewer-category" class="text-sm text-secondary mb-4"></p>
+
+                    <!-- Optional Description Section -->
+                    <div id="template-description-section" class="mb-4 hidden">
+                        <button id="toggle-description-btn" class="flex items-center gap-2 text-sm font-medium text-blue-400 hover:text-blue-300 transition-colors">
+                            <span id="description-icon">▶</span>
+                            <span>📋 Xem Mô tả Template</span>
                         </button>
+                        <div id="template-description-content" class="hidden mt-2 p-3 bg-section border border-secondary rounded-lg text-sm text-secondary whitespace-pre-wrap"></div>
                     </div>
-                    <div id="final-output" class="w-full p-4 border border-secondary rounded-lg bg-section min-h-[250px] whitespace-pre-wrap"></div>
-                    <div id="copy-feedback" class="mt-2 text-green-400 font-medium opacity-0">Đã sao chép!</div>
-                </div>`;
+
+                    <div class="mb-4 p-4 bg-button border border-secondary rounded-lg space-y-4">
+                        <div>
+                            <h4 class="font-semibold text-lg mb-2 text-blue-400">1. Thông tin Người nhận & Người gửi</h4>
+                            <div class="space-y-3 pl-2">
+                                 <div>
+                                    <label for="viewer-agent-name" class="block text-sm font-medium text-secondary">Tên riêng Người nhận</label>
+                                    <input type="text" id="viewer-agent-name" class="mt-1 w-full p-2 border rounded-md">
+                                </div>
+                                <div>
+                                    <label for="viewer-su-id" class="block text-sm font-medium text-secondary">Mã Nhà Cung Cấp (SuID)</label>
+                                    <input type="text" id="viewer-su-id" class="mt-1 w-full p-2 border rounded-md">
+                                </div>
+                                <div id="viewer-manual-supplier-container" class="hidden">
+                                    <label for="viewer-manual-supplier-name" class="block text-sm font-medium text-secondary">Tên Nhà Cung Cấp</label>
+                                    <input type="text" id="viewer-manual-supplier-name" class="mt-1 w-full p-2 border rounded-md" placeholder="Nhập tên NCC nếu không tìm thấy">
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-lg mb-2 text-blue-400">2. Tùy chỉnh Nội dung chính</h4>
+                            <div id="placeholders-container" class="space-y-4 pl-2"></div>
+                            <div id="optionals-container" class="mt-4 space-y-2 pl-2"></div>
+                            <div id="dynamic-optional-field-container" class="mt-4 space-y-3 pl-2"></div>
+                        </div>
+                    </div>
+                    <div class="mt-6">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="font-semibold text-lg text-headings">Nội dung cuối cùng</h4>
+                            <button id="copy-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
+                                Sao chép & Tiếp tục
+                            </button>
+                        </div>
+                        <div id="final-output" class="w-full p-4 border border-secondary rounded-lg bg-section min-h-[250px] whitespace-pre-wrap"></div>
+                        <div id="copy-feedback" class="mt-2 text-green-400 font-medium opacity-0">Đã sao chép!</div>
+                    </div>`;
+            }
             popupTemplateViewer.classList.remove('hidden');
 
             document.getElementById('viewer-title').textContent = template.name;
             document.getElementById('viewer-category').textContent = `Dự án: ${template.projects?.name || 'N/A'} / Danh mục: ${template.issue}`;
-            
+
+            // Handle optional description display
+            const descriptionSection = document.getElementById('template-description-section');
+            const descriptionContent = document.getElementById('template-description-content');
+            const toggleDescriptionBtn = document.getElementById('toggle-description-btn');
+            const descriptionIcon = document.getElementById('description-icon');
+
+            if (template.description && template.description.trim()) {
+                // Show description section if template has a description
+                descriptionSection.classList.remove('hidden');
+                descriptionContent.textContent = template.description;
+
+                // Set up toggle functionality
+                toggleDescriptionBtn.addEventListener('click', () => {
+                    const isHidden = descriptionContent.classList.contains('hidden');
+                    if (isHidden) {
+                        descriptionContent.classList.remove('hidden');
+                        descriptionIcon.textContent = '▼';
+                    } else {
+                        descriptionContent.classList.add('hidden');
+                        descriptionIcon.textContent = '▶';
+                    }
+                });
+            } else {
+                // Hide description section if no description exists
+                descriptionSection.classList.add('hidden');
+            }
+
             const placeholderMap = new Map(allPlaceholders.map(p => [p.key, p]));
 
             // Render logic for all placeholders including optional ones
             renderAllPlaceholders(template, placeholderMap);
-            
-            // Auto-fill common fields
-            document.getElementById('viewer-su-id').value = ticketData.suid || '';
-            const supplierName = await findSupplierName(ticketData.suid);
-            document.getElementById('viewer-manual-supplier-container').classList.toggle('hidden', !supplierName);
-            if(supplierName) document.getElementById('viewer-manual-supplier-name').value = supplierName;
+
+            // Auto-fill common fields (only for non-WDN projects)
+            if (!isWDNProject) {
+                document.getElementById('viewer-su-id').value = ticketData.suid || '';
+                const supplierName = await findSupplierName(ticketData.suid);
+                // Bug Fix #2: Always show supplier name field, regardless of whether supplier is found
+                document.getElementById('viewer-manual-supplier-container').classList.remove('hidden');
+                document.getElementById('viewer-manual-supplier-name').value = supplierName || '';
+            }
             
             // Auto-fill placeholders from ticket data
             const prefillMapping = {
@@ -1424,12 +1539,27 @@
 
         function updateFinalOutput() {
             const template = allTemplates.find(t => t.id === popupCurrentTemplateId);
-            if (!template) return;
-            
+
+            // Debug logging for template content
+            console.log('🔍 updateFinalOutput() Debug:');
+            console.log('  - popupCurrentTemplateId:', popupCurrentTemplateId);
+            console.log('  - Template found:', template ? 'YES' : 'NO');
+            console.log('  - Template name:', template?.name);
+            console.log('  - Template content:', template?.content);
+            console.log('  - Template content length:', template?.content?.length);
+
+            if (!template) {
+                console.error('❌ Template not found! Cannot update final output.');
+                return;
+            }
+
             const agentName = document.getElementById('viewer-agent-name').value.trim();
-            const manualSupplierName = document.getElementById('viewer-manual-supplier-name').value.trim();
-            
+            // Safely get supplier name (may not exist in WDN projects)
+            const manualSupplierNameEl = document.getElementById('viewer-manual-supplier-name');
+            const manualSupplierName = manualSupplierNameEl ? manualSupplierNameEl.value.trim() : '';
+
             let content = template.content || '';
+            console.log('  - Content after assignment:', content ? `${content.substring(0, 100)}...` : 'EMPTY');
             let greeting = '';
 
             // Check if template has {{greeting}} placeholder
@@ -1437,10 +1567,18 @@
 
             // Generate greeting text
             if (agentName) {
-                greeting = (allSettings.greeting_person?.value || 'Hi {{name}},').replace('{{name}}', toTitleCase(agentName));
+                const greetingTemplate = (typeof allSettings.greeting_person?.value === 'string')
+                    ? allSettings.greeting_person.value
+                    : 'Hi {{name}},';
+                greeting = greetingTemplate.replace('{{name}}', toTitleCase(agentName));
             } else if (manualSupplierName) {
-                greeting = (allSettings.greeting_team?.value || 'Hi {{name}} Team,').replace('{{name}}', cleanSupplierName(manualSupplierName));
+                const greetingTemplate = (typeof allSettings.greeting_team?.value === 'string')
+                    ? allSettings.greeting_team.value
+                    : 'Hi {{name}} Team,';
+                greeting = greetingTemplate.replace('{{name}}', cleanSupplierName(manualSupplierName));
             }
+
+            console.log('  - Greeting generated:', greeting);
 
             // Handle greeting placeholder replacement
             if (hasGreetingPlaceholder) {
@@ -1462,7 +1600,21 @@
             // Get signature data
             const assigneeAccount = popupCurrentTicket.assignee_account;
             const assigneeName = allAgentsMap.get(assigneeAccount);
+
+            // Debug logging for signature matching
+            console.log('🔍 Signature Matching Debug:');
+            console.log('  - Assignee Account:', assigneeAccount);
+            console.log('  - Assignee Name:', assigneeName);
+            console.log('  - Available Signatures:', allSignatures.map(s => s.name));
+
             const signature = allSignatures.find(s => s.name === assigneeName) || allSignatures.find(s => s.isDefault) || allSignatures[0];
+
+            console.log('  - Matched Signature:', signature ? signature.name : 'None');
+            if (!allSignatures.find(s => s.name === assigneeName)) {
+                console.warn('⚠️ No exact signature match found for agent:', assigneeName);
+                console.warn('   Falling back to:', signature ? signature.name : 'None');
+            }
+
             let signatureText = signature ? `${signature.name}\n${signature.title || ''}\n${signature.department || ''}`.trim() : '';
 
             // Handle signature placeholder replacement
@@ -1492,7 +1644,9 @@
             content = content.replace(/\[\[\/?.*?\]\]/g, ''); // Clean up any remaining tags
 
             content = replacePlaceholdersInText(content);
-            const footerText = (template.includeFooter && allSettings.footer_text?.value) ? allSettings.footer_text.value : '';
+            const footerText = (template.includeFooter && typeof allSettings.footer_text?.value === 'string')
+                ? allSettings.footer_text.value
+                : '';
 
             // Only append signature at the end if it wasn't already in the content as a placeholder
             let finalPlainText;
@@ -1560,9 +1714,13 @@
             const template = allTemplates.find(t => t.id === popupCurrentTemplateId);
             if (!template) return;
 
+            // Check if this is a WDN project
+            const isWDNProject = template.projects?.name === 'WDN';
+
             setTimeout(async () => {
                 if (template.followUpGuide) await openFollowUpGuideModal(template.followUpGuide);
-                if (template.sendToCustomer) await openCustomerEmailModal(template);
+                // For WDN projects, skip customer email modal (templates are already for customers by default)
+                if (template.sendToCustomer && !isWDNProject) await openCustomerEmailModal(template);
                 if (template.addLabelReminder && template.labelName) await openLabelReminderModal(template.labelName);
             }, 400);
         }
@@ -1571,13 +1729,29 @@
             const missingFields = [];
             const viewer = document.getElementById('popup-template-viewer');
 
+            // Get current template to check if it's a WDN project
+            const template = allTemplates.find(t => t.id === popupCurrentTemplateId);
+            const isWDNProject = template?.projects?.name === 'WDN';
+
             // Check if either agent name or supplier name is provided
-            if (!document.getElementById('viewer-agent-name').value.trim() && !document.getElementById('viewer-manual-supplier-name').value.trim()) {
-                missingFields.push('Tên riêng Người nhận hoặc Tên NCC');
+            // For WDN projects, only check agent name (no supplier fields)
+            const agentName = document.getElementById('viewer-agent-name').value.trim();
+            const supplierNameEl = document.getElementById('viewer-manual-supplier-name');
+            const supplierName = supplierNameEl ? supplierNameEl.value.trim() : '';
+
+            if (isWDNProject) {
+                // WDN projects: only require agent name (customer/carrier name)
+                if (!agentName) {
+                    missingFields.push('Tên riêng Người nhận');
+                }
+            } else {
+                // Non-WDN projects: require either agent name or supplier name
+                if (!agentName && !supplierName) {
+                    missingFields.push('Tên riêng Người nhận hoặc Tên NCC');
+                }
             }
 
-            // Get the current template to check for special placeholders
-            const template = allTemplates.find(t => t.id === popupCurrentTemplateId);
+            // Use the template variable already defined above to check for special placeholders
             const templateContent = template ? template.content || '' : '';
 
             // Define placeholders that should be ignored in validation (auto-filled or optional)
@@ -1738,6 +1912,16 @@
         // Carrier email modal function - Updated to match adminview logic
         async function openCarrierEmailModal(template, isBeforeTemplate = false) {
             return new Promise(async (resolve) => {
+                // Debug logging for carrier email modal
+                console.log('🔍 openCarrierEmailModal() called:');
+                console.log('  - Template parameter:', template);
+                console.log('  - Template ID:', template?.id);
+                console.log('  - Template Name:', template?.name);
+                console.log('  - carrierEmailSubject:', template?.carrierEmailSubject);
+                console.log('  - bolNamingMethod:', template?.bolNamingMethod);
+                console.log('  - content:', template?.content?.substring(0, 100));
+                console.log('  - isBeforeTemplate:', isBeforeTemplate);
+
                 const modal = document.getElementById('carrier-email-modal');
                 const carrierSelect = document.getElementById('carrier-name');
                 const carrierEmailInput = document.getElementById('carrier-email-address');
@@ -1765,6 +1949,11 @@
                     const selectedOption = carrierSelect.options[carrierSelect.selectedIndex];
                     const carrierName = selectedOption?.text || '';
 
+                    // Don't update preview if no carrier is selected (Issue #2 Fix)
+                    if (!carrierName || carrierName === '-- Select Carrier --') {
+                        return;
+                    }
+
                     // Generate email subject with proper placeholder replacement
                     const subjectTemplate = template.carrierEmailSubject || '{{ticket}} - Pickup Request PO {{PO}}';
                     const emailSubject = subjectTemplate
@@ -1784,28 +1973,59 @@
                     // Generate email body using template content
                     let emailBody = template.content || '';
 
-                    // Auto-fill greeting placeholder
-                    const agentName = document.getElementById('viewer-agent-name')?.value.trim() || '';
-                    const manualSupplierName = document.getElementById('viewer-manual-supplier-name')?.value.trim() || '';
+                    // Auto-fill greeting placeholder (Issue #1 Fix: Check if elements exist first)
+                    const agentNameEl = document.getElementById('viewer-agent-name');
+                    const manualSupplierNameEl = document.getElementById('viewer-manual-supplier-name');
+                    const agentName = agentNameEl?.value.trim() || '';
+                    const manualSupplierName = manualSupplierNameEl?.value.trim() || '';
                     let greeting = '';
                     if (agentName) {
-                        greeting = (allSettings.greeting_person?.value || 'Hi {{name}},').replace('{{name}}', toTitleCase(agentName));
+                        const greetingTemplate = (typeof allSettings.greeting_person?.value === 'string')
+                            ? allSettings.greeting_person.value
+                            : 'Hi {{name}},';
+                        greeting = greetingTemplate.replace('{{name}}', toTitleCase(agentName));
                     } else if (manualSupplierName) {
-                        greeting = (allSettings.greeting_team?.value || 'Hi {{name}} Team,').replace('{{name}}', cleanSupplierName(manualSupplierName));
+                        const greetingTemplate = (typeof allSettings.greeting_team?.value === 'string')
+                            ? allSettings.greeting_team.value
+                            : 'Hi {{name}} Team,';
+                        greeting = greetingTemplate.replace('{{name}}', cleanSupplierName(manualSupplierName));
                     }
 
-                    // Auto-fill signature placeholder
+                    // Auto-fill signature placeholder (Issue #1 Fix: Always use assignee account)
                     const assigneeAccount = popupCurrentTicket?.assignee_account;
                     const assigneeName = allAgentsMap.get(assigneeAccount);
-                    const signature = allSignatures.find(s => s.name === assigneeName) || allSignatures.find(s => s.isDefault) || allSignatures[0];
-                    let signatureText = signature ? `${signature.name}\n${signature.title || ''}\n${signature.department || ''}`.trim() : '';
 
+                    // Debug logging for signature matching in carrier email
+                    console.log('🔍 Carrier Email Signature Matching Debug:');
+                    console.log('  - popupCurrentTicket:', popupCurrentTicket);
+                    console.log('  - Assignee Account:', assigneeAccount);
+                    console.log('  - Assignee Name:', assigneeName);
+                    console.log('  - allSignatures array:', allSignatures);
+                    console.log('  - Available Signature Names:', allSignatures.map(s => s.name));
+
+                    const signature = allSignatures.find(s => s.name === assigneeName) || allSignatures.find(s => s.isDefault) || allSignatures[0];
+
+                    console.log('  - Matched Signature Object:', signature);
+                    console.log('  - Matched Signature Name:', signature ? signature.name : 'None');
+                    if (!allSignatures.find(s => s.name === assigneeName)) {
+                        console.warn('⚠️ No exact signature match found for agent:', assigneeName);
+                        console.warn('   Falling back to:', signature ? signature.name : 'None');
+                    }
+
+                    let signatureText = signature ? `${signature.name}\n${signature.title || ''}\n${signature.department || ''}`.trim() : '';
+                    console.log('  - Signature Text Generated:', signatureText);
+                    console.log('  - Email body BEFORE replacement:', emailBody);
+
+                    // Replace all placeholders in email body (Issue #1 Fix: Ensure signature is replaced)
                     emailBody = emailBody
                         .replace(/\{\{ticket\}\}/g, ticket)
                         .replace(/\{\{PO\}\}/g, po)
                         .replace(/\{\{carrier\}\}/g, carrierName)
                         .replace(/\{\{greeting\}\}/g, greeting)
                         .replace(/\{\{signature\}\}/g, signatureText);
+
+                    console.log('  - Email body AFTER replacement:', emailBody);
+                    console.log('  - Still contains {{signature}}?', emailBody.includes('{{signature}}'));
 
                     // Update outputs
                     subjectOutput.textContent = emailSubject;
@@ -1836,8 +2056,30 @@
                     document.getElementById('copy-carrier-body-btn').onclick = () => copyToClipboard(bodyOutput?.dataset.plainText || '', 'carrier-copy-feedback');
                 }
 
-                // Initial preview update
-                updateCarrierPreview();
+                // IMPORTANT: Templates with emailCarrier=true are DUAL-PURPOSE templates
+                // - template.content contains the SUPPLIER email content
+                // - The carrier email modal shows this supplier content for reference
+                // - The modal also provides carrier-specific fields (subject, BOL naming)
+                //
+                // Therefore, we should ALWAYS show the email body preview (template.content)
+                // regardless of whether the modal opens before or after the template viewer.
+                // The only difference is whether we clear it first if no carrier is selected.
+
+                console.log('📋 Carrier Email Modal - Email Body Preview Logic:');
+                console.log('  - Template is dual-purpose (supplier + carrier email)');
+                console.log('  - Email body shows supplier email content (template.content)');
+                console.log('  - isBeforeTemplate:', isBeforeTemplate);
+
+                // Clear outputs initially (will be populated when carrier is selected)
+                subjectOutput.textContent = '';
+                bolNamingOutput.textContent = '';
+                if (bodyOutput) {
+                    bodyOutput.innerHTML = '';
+                    bodyOutput.dataset.plainText = '';
+                }
+
+                // Note: Preview will update when user selects carrier or modifies fields
+                // The updateCarrierPreview() function will populate the email body with template.content
 
                 // Show/hide buttons based on context
                 if (isBeforeTemplate) {
