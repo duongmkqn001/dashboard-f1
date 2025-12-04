@@ -285,6 +285,8 @@
                 console.log('  - Total signatures loaded:', allSignatures.length);
                 console.log('  - Total placeholders loaded:', allPlaceholders.length);
                 console.log('  - Total projects loaded:', allProjects.length);
+                console.log('  - Settings loaded:', allSettings);
+                console.log('  - Footer text value:', allSettings.footer_text?.value?.value);
 
                 const brandData = allPlaceholders.find(p => p.key === 'brand');
                 if (brandData && brandData.options) {
@@ -1562,41 +1564,6 @@
             console.log('  - Content after assignment:', content ? `${content.substring(0, 100)}...` : 'EMPTY');
             let greeting = '';
 
-            // Check if template has {{greeting}} placeholder
-            const hasGreetingPlaceholder = content.includes('{{greeting}}');
-
-            // Generate greeting text
-            if (agentName) {
-                const greetingTemplate = (typeof allSettings.greeting_person?.value === 'string')
-                    ? allSettings.greeting_person.value
-                    : 'Hi {{name}},';
-                greeting = greetingTemplate.replace('{{name}}', toTitleCase(agentName));
-            } else if (manualSupplierName) {
-                const greetingTemplate = (typeof allSettings.greeting_team?.value === 'string')
-                    ? allSettings.greeting_team.value
-                    : 'Hi {{name}} Team,';
-                greeting = greetingTemplate.replace('{{name}}', cleanSupplierName(manualSupplierName));
-            }
-
-            console.log('  - Greeting generated:', greeting);
-
-            // Handle greeting placeholder replacement
-            if (hasGreetingPlaceholder) {
-                // Replace {{greeting}} placeholder with the greeting text
-                content = content.replace(/\{\{greeting\}\}/g, greeting);
-                // Don't add greeting separately since it's already in the content
-                greeting = '';
-            } else {
-                // Check if template needs greeting (default true for backward compatibility)
-                const needsGreeting = template.needGreeting !== false;
-                if (!needsGreeting) {
-                    greeting = '';
-                }
-            }
-
-            // Check if template has {{signature}} placeholder
-            const hasSignaturePlaceholder = content.includes('{{signature}}');
-
             // Get signature data
             const assigneeAccount = popupCurrentTicket.assignee_account;
             const assigneeName = allAgentsMap.get(assigneeAccount);
@@ -1617,20 +1584,55 @@
 
             let signatureText = signature ? `${signature.name}\n${signature.title || ''}\n${signature.department || ''}`.trim() : '';
 
-            // Handle signature placeholder replacement
-            if (hasSignaturePlaceholder) {
-                // Replace {{signature}} placeholder with the signature text
-                content = content.replace(/\{\{signature\}\}/g, signatureText);
+            // Replace {{signature}} placeholder in content (like adminview.js does)
+            content = content.replace(/\{\{signature\}\}/g, signatureText);
+
+            // Get greeting templates
+            // Note: allSettings.X stores the full row { key, value: { value: 'text' } }
+            // So we need to access .value.value to get the actual string
+            const greetingPersonTpl = (typeof allSettings.greeting_person?.value?.value === 'string')
+                ? allSettings.greeting_person.value.value
+                : 'Hi {{name}},';
+            const greetingTeamTpl = (typeof allSettings.greeting_team?.value?.value === 'string')
+                ? allSettings.greeting_team.value.value
+                : 'Hi {{name}} Team,';
+
+            // Handle {{greeting}} placeholder - works similar to greeting logic
+            let greetingReplacement = '';
+            if (agentName) {
+                greetingReplacement = greetingPersonTpl.replace('{{name}}', toTitleCase(agentName));
+            } else if (manualSupplierName) {
+                greetingReplacement = greetingTeamTpl.replace('{{name}}', cleanSupplierName(manualSupplierName));
+            }
+            content = content.replace(/\{\{greeting\}\}/gi, greetingReplacement);
+
+            // Only add greeting if needGreeting is true
+            if (template.needGreeting !== false) {
+                if (agentName) {
+                    greeting = greetingPersonTpl.replace('{{name}}', toTitleCase(agentName));
+                } else if (manualSupplierName) {
+                    greeting = greetingTeamTpl.replace('{{name}}', cleanSupplierName(manualSupplierName));
+                }
             }
 
-            // Process special placeholders {{carrier}} and {{name}} for SUID search logic
-            if (content.includes('{{carrier}}') || content.includes('{{name}}')) {
-                // If agentName is available, replace {{name}} with it
-                if (agentName) {
-                    content = content.replace(/\{\{name\}\}/g, toTitleCase(agentName));
-                }
-                // {{carrier}} placeholder - this would be replaced with actual carrier data
-                // For now, we'll leave it as is for manual replacement
+            console.log('  - Greeting generated:', greeting);
+
+            // Handle Hi {{name}} placeholders in template content - should work exactly like greeting logic
+            if (agentName) {
+                const greetingTemplate = (typeof allSettings.greeting_person?.value?.value === 'string')
+                    ? allSettings.greeting_person.value.value
+                    : 'Hi {{name}},';
+                const hiNameReplacement = greetingTemplate.replace('{{name}}', toTitleCase(agentName));
+                content = content.replace(/Hi\s*\{\{name\}\}/gi, hiNameReplacement);
+            } else if (manualSupplierName) {
+                const greetingTemplate = (typeof allSettings.greeting_team?.value?.value === 'string')
+                    ? allSettings.greeting_team.value.value
+                    : 'Hi {{name}} Team,';
+                const hiNameReplacement = greetingTemplate.replace('{{name}}', cleanSupplierName(manualSupplierName));
+                content = content.replace(/Hi\s*\{\{name\}\}/gi, hiNameReplacement);
+            } else {
+                // If no name available, remove Hi {{name}} placeholders
+                content = content.replace(/Hi\s*\{\{name\}\}/gi, '');
             }
 
             // Process optional sections
@@ -1644,23 +1646,78 @@
             content = content.replace(/\[\[\/?.*?\]\]/g, ''); // Clean up any remaining tags
 
             content = replacePlaceholdersInText(content);
-            const footerText = (template.includeFooter && typeof allSettings.footer_text?.value === 'string')
-                ? allSettings.footer_text.value
-                : '';
 
-            // Only append signature at the end if it wasn't already in the content as a placeholder
+            // Get footer text
+            // Note: allSettings.X stores the full row { key, value: { value: 'text' } }
+            // So we need to access .value.value to get the actual string
+            const footerText = (template.includeFooter && typeof allSettings.footer_text?.value?.value === 'string')
+                ? allSettings.footer_text.value.value
+                : '';
+            const footerPart = (template.includeFooter && footerText) ? `\n\n${footerText}` : '';
+
+            console.log('  - Footer text:', footerText);
+            console.log('  - Template includeFooter:', template.includeFooter);
+
+            // Check if this is a special issue (MOS or Movement) - these don't need greeting/signature
+            const isSpecialIssue = ['mos', 'movement'].includes(template.issue?.toLowerCase() || '');
+
+            // Assemble final output (ALWAYS append closing + signature like adminview.js does)
             let finalPlainText;
-            if (hasSignaturePlaceholder) {
-                // Signature was already replaced in content, don't append it again
-                finalPlainText = `${greeting ? greeting + '\n\n' : ''}${content}${footerText ? `\n\n${footerText}` : ''}`;
+            if (isSpecialIssue) {
+                // Special issues: just the content
+                finalPlainText = content.trim();
             } else {
-                // Append signature at the end as before
-                finalPlainText = `${greeting ? greeting + '\n\n' : ''}${content}${footerText ? `\n\n${footerText}` : ''}\n\nBest regards,\n${signatureText}`;
+                // Normal templates: greeting + content + footer + closing + signature
+                // Use random closing (Best regards, Warm regards, etc.)
+                const closings = ['Best regards', 'Warm regards', 'Kind regards', 'Regards'];
+                const randomClosing = closings[Math.floor(Math.random() * closings.length)];
+                finalPlainText = `${greeting ? greeting + '\n\n' : ''}${content.trim()}${footerPart}\n\n${randomClosing},\n${signatureText}`;
+            }
+
+            console.log('  - Final plain text length:', finalPlainText.length);
+            console.log('  - Final plain text preview:', finalPlainText.substring(0, 200));
+
+            // Format for display
+            finalPlainText = finalPlainText.replace(/(https?:\/\/[^\s]+)([^\s])/g, '$1 $2');
+            const plainTextForCopy = finalPlainText.trim();
+
+            let htmlText = escapeHTML(plainTextForCopy)
+                .replace(/(https?:\/\/[^\s&<>"']+)/g, '<a href="$1" target="_blank" class="text-blue-500 hover:underline">$1</a>')
+                .replace(/\n/g, '<br>');
+
+            // Format footer with HTML support (like adminview.js does)
+            if (!isSpecialIssue && footerText) {
+                let formattedFooter = footerText
+                    .replace(/\n/g, '<br>')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/&lt;b&gt;/g, '<b>')
+                    .replace(/&lt;\/b&gt;/g, '</b>')
+                    .replace(/&lt;i&gt;/g, '<i>')
+                    .replace(/&lt;\/i&gt;/g, '</i>')
+                    .replace(/&lt;u&gt;/g, '<u>')
+                    .replace(/&lt;\/u&gt;/g, '</u>')
+                    .replace(/&lt;br&gt;/g, '<br>');
+
+                const plainFooter = escapeHTML(footerText).replace(/\n/g, '<br>');
+                htmlText = htmlText.replace(plainFooter, formattedFooter);
             }
 
             const finalOutput = document.getElementById('final-output');
-            finalOutput.innerHTML = formatTextForDisplay(finalPlainText, footerText);
-            finalOutput.dataset.plainText = finalPlainText;
+            finalOutput.innerHTML = htmlText;
+            finalOutput.dataset.plainText = plainTextForCopy;
+        }
+
+        // Helper function to escape HTML
+        function escapeHTML(str) {
+            return str.replace(/[&<>"']/g, (match) => ({
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#39;'
+            }[match]));
         }
 
         function replacePlaceholdersInText(text, isForCustomer = false) {
@@ -1690,18 +1747,6 @@
                  });
              }
              return processedText;
-        }
-        
-        function formatTextForDisplay(plainText, footerText) {
-            const escapeHTML = (str) => str.replace(/[&<>"']/g, (match) => ({'&': '&amp;','<': '&lt;','>': '&gt;','"': '&quot;',"'": '&#39;'}[match]));
-            let processedPlainText = plainText.replace(/(https?:\/\/[^\s]+)([^\s])/g, '$1 $2');
-            let html = escapeHTML(processedPlainText).replace(/\n/g, '<br>');
-            if (footerText) {
-                const escapedFooter = escapeHTML(footerText).replace(/\n/g, '<br>');
-                html = html.replace(escapedFooter, `<i>${escapedFooter}</i>`);
-            }
-            const urlRegex = /(https?:\/\/[^\s<>"']+)/g;
-            return html.replace(urlRegex, `<a href="$1" target="_blank" class="text-blue-500 hover:underline">$1</a>`);
         }
 
         async function handleCopyAndContinue() {
@@ -1980,13 +2025,14 @@
                     const manualSupplierName = manualSupplierNameEl?.value.trim() || '';
                     let greeting = '';
                     if (agentName) {
-                        const greetingTemplate = (typeof allSettings.greeting_person?.value === 'string')
-                            ? allSettings.greeting_person.value
+                        // Note: allSettings.X stores the full row { key, value: { value: 'text' } }
+                        const greetingTemplate = (typeof allSettings.greeting_person?.value?.value === 'string')
+                            ? allSettings.greeting_person.value.value
                             : 'Hi {{name}},';
                         greeting = greetingTemplate.replace('{{name}}', toTitleCase(agentName));
                     } else if (manualSupplierName) {
-                        const greetingTemplate = (typeof allSettings.greeting_team?.value === 'string')
-                            ? allSettings.greeting_team.value
+                        const greetingTemplate = (typeof allSettings.greeting_team?.value?.value === 'string')
+                            ? allSettings.greeting_team.value.value
                             : 'Hi {{name}} Team,';
                         greeting = greetingTemplate.replace('{{name}}', cleanSupplierName(manualSupplierName));
                     }
