@@ -882,10 +882,21 @@ function createGuideStepEditor(type, stepData = {}) {
                     copyRichTextToClipboard(dom.finalOutput, dom.copyFeedback);
                     const currentTemplate = getFromCache(CACHE_KEYS.TEMPLATES).find(t => t.id === currentTemplateId);
                     if (!currentTemplate) return;
-                    
+
+                    // Check if this is a WDN project
+                    const currentProjectData = getFromCache(CACHE_KEYS.PROJECTS).find(p => p.id === currentProject);
+                    const isWdnProject = currentProjectData?.name?.toLowerCase() === 'wdn';
+
                     if (currentTemplate.followUpGuide) await openFollowUpGuideModal(currentTemplate.followUpGuide);
                     if (currentTemplate.addLabelReminder && currentTemplate.labelName) await openLabelReminderModal(currentTemplate.labelName);
-                    if (template.sendToCustomer) await openCustomerModal();
+
+                    // For WDN projects, show WDN Supplier Email Modal instead of Customer Email Modal
+                    if (isWdnProject) {
+                        await openWdnSupplierEmailModal(currentTemplate);
+                    } else if (template.sendToCustomer) {
+                        await openCustomerModal();
+                    }
+
                     // Carrier email modal is now opened immediately when template is selected, not here
                     if (template.issue.toLowerCase() === 'movement' && template.addInternalComment && template.internalComment) {
                         await openInternalCommentModal(replaceGeneralPlaceholders(template.internalComment));
@@ -1544,6 +1555,314 @@ function createGuideStepEditor(type, stepData = {}) {
             }
             const openLabelReminderModal = (label) => new Promise(r => { const m = document.getElementById('label-reminder-modal'); document.getElementById('label-reminder-text').textContent = `Remember to add the "${label}" label to the ticket!`; _openModal(m); document.getElementById('close-label-reminder-modal-btn').onclick = () => { _closeModal(m); r(); }; });
             const openCustomerModal = () => new Promise(r => { const m = document.getElementById('customer-email-modal'); ['customer-email', 'customer-name', 'customer-order'].forEach(id=>document.getElementById(id).value=''); updateCustomerEmailPreview(); _openModal(m); document.getElementById('close-customer-modal-btn').onclick = () => { _closeModal(m); r(); }; });
+
+            // WDN Supplier Email Modal
+            const openWdnSupplierEmailModal = (template) => new Promise(r => {
+                const m = document.getElementById('wdn-supplier-email-modal');
+                if (!m) { r(); return; }
+
+                // Set title
+                const titleEl = document.getElementById('wdn-modal-title');
+                if (titleEl) titleEl.textContent = `📧 ${template.name}`;
+
+                // Get output fields
+                const subjectOutput = document.getElementById('wdn-modal-subject-output');
+                const ccOutput = document.getElementById('wdn-modal-cc-output');
+                const ccSection = document.getElementById('wdn-cc-section');
+                const bodyOutput = document.getElementById('wdn-modal-body-output');
+                const noteOutput = document.getElementById('wdn-modal-note-output');
+                const noteSection = document.getElementById('wdn-note-section');
+                const placeholderContainer = document.getElementById('wdn-placeholder-inputs');
+                const emailFromInput = document.getElementById('wdn-modal-email-from');
+
+                // Pre-fill email from
+                if (emailFromInput) emailFromInput.value = template.emailFrom || '';
+
+                // Extract all placeholders from template content, subject, and internal note
+                const allText = [
+                    template.content || '',
+                    template.customerSubject || '',
+                    template.internalComment || ''
+                ].join(' ');
+
+                // Find all {{placeholder}} patterns
+                const placeholderRegex = /\{\{([^}]+)\}\}/g;
+                const foundPlaceholders = new Set();
+                let match;
+                while ((match = placeholderRegex.exec(allText)) !== null) {
+                    foundPlaceholders.add(match[1]);
+                }
+
+                // Create placeholder values object to store user inputs
+                const placeholderValues = {};
+
+                // Extract team name from greeting text for Supplier_Name placeholder
+                // Look for patterns like "Dear Logistics Team," or "Kính gửi Customer Service Team,"
+                let extractedTeamName = '';
+                const templateContent = template.content || '';
+                const greetingPatterns = [
+                    /Dear\s+([^,\n]+?)(?:,|\n)/i,                    // "Dear Logistics Team,"
+                    /Kính gửi\s+([^,\n]+?)(?:,|\n)/i,               // "Kính gửi Team Logistics,"
+                    /Hi\s+([^,\n]+?)(?:,|\n)/i,                      // "Hi Supplier Team,"
+                    /Hello\s+([^,\n]+?)(?:,|\n)/i                    // "Hello Support Team,"
+                ];
+
+                for (const pattern of greetingPatterns) {
+                    const greetingMatch = templateContent.match(pattern);
+                    if (greetingMatch && greetingMatch[1]) {
+                        extractedTeamName = greetingMatch[1].trim();
+                        // Remove {{Supplier_Name}} or similar placeholder if it's part of the greeting
+                        extractedTeamName = extractedTeamName.replace(/\{\{[^}]+\}\}/g, '').trim();
+                        if (extractedTeamName) break;
+                    }
+                }
+
+                // Auto-fill known placeholders from ticket data
+                const autoFillMap = {
+                    'Order_Number': currentTicketData?.order_number || '',
+                    'Brand': currentTicketData?.brand || '',
+                    'ticket': currentTicketData?.ticket || '',
+                    'Customer_Name': currentTicketData?.customer || '',
+                    'PO': currentTicketData?.po || '',
+                    'Supplier_Name': extractedTeamName  // Pre-fill from greeting
+                };
+
+                // Initialize values
+                foundPlaceholders.forEach(ph => {
+                    placeholderValues[ph] = autoFillMap[ph] || '';
+                });
+
+                // Generate dynamic input fields (exclude Supplier_Name as it has its own input)
+                placeholderContainer.innerHTML = '';
+                foundPlaceholders.forEach(placeholder => {
+                    // Skip Supplier_Name - it has its own dedicated input field
+                    if (placeholder === 'Supplier_Name') return;
+
+                    const isAutoFilled = autoFillMap[placeholder] !== undefined && autoFillMap[placeholder] !== '';
+                    const div = document.createElement('div');
+                    div.innerHTML = `
+                        <label class="block text-sm font-medium">${placeholder.replace(/_/g, ' ')}</label>
+                        <input type="text"
+                               data-placeholder="${placeholder}"
+                               class="wdn-ph-input mt-1 w-full p-2 border border-secondary rounded-lg bg-button ${isAutoFilled ? 'text-green-400' : ''}"
+                               placeholder="Enter ${placeholder.replace(/_/g, ' ')}"
+                               value="${placeholderValues[placeholder] || ''}">
+                    `;
+                    placeholderContainer.appendChild(div);
+                });
+
+                // Get manual supplier name input and pre-fill with extracted team name
+                const manualSupplierInput = document.getElementById('wdn-manual-supplier-name');
+                if (manualSupplierInput) {
+                    manualSupplierInput.value = extractedTeamName;
+                }
+
+                // Function to replace placeholders with current values
+                const replacePlaceholders = (text) => {
+                    if (!text) return '';
+                    let result = text;
+                    placeholderContainer.querySelectorAll('.wdn-ph-input').forEach(input => {
+                        const ph = input.dataset.placeholder;
+                        const val = input.value || `{{${ph}}}`;
+                        result = result.replace(new RegExp(`\\{\\{${ph}\\}\\}`, 'gi'), val);
+                    });
+                    // Also replace Supplier_Name from the manual input
+                    const supplierName = manualSupplierInput?.value || '';
+                    result = result.replace(/\{\{Supplier_Name\}\}/gi, supplierName || '{{Supplier_Name}}');
+                    return result;
+                };
+
+                // Update preview function - compose greeting + body + footer + closing + signature
+                const updatePreview = () => {
+                    // Update subject
+                    const subject = replacePlaceholders(template.customerSubject || '');
+                    if (subjectOutput) {
+                        subjectOutput.textContent = subject;
+                        subjectOutput.dataset.plainText = subject;
+                    }
+
+                    // Update CC (show/hide section based on whether CC exists)
+                    const cc = template.cc || '';
+                    if (ccSection) ccSection.classList.toggle('hidden', !cc);
+                    if (ccOutput) {
+                        ccOutput.textContent = cc;
+                        ccOutput.dataset.plainText = cc;
+                    }
+
+                    // Compose full email body: greeting + content + footer + closing + signature
+                    let content = replacePlaceholders(template.content || '');
+
+                    // Get supplier name for greeting
+                    const supplierName = manualSupplierInput?.value?.trim() || '';
+
+                    // Get settings from cache
+                    const settingsMap = new Map(getFromCache(CACHE_KEYS.SETTINGS).map(s => [s.key, s.value]));
+                    const greetingTeamTpl = settingsMap.get('greeting_team')?.value || 'Hi {{name}} Team,';
+
+                    // Build greeting
+                    let greeting = '';
+                    if (template.needGreeting !== false && supplierName) {
+                        greeting = greetingTeamTpl.replace('{{name}}', supplierName);
+                    }
+
+                    // Handle {{greeting}} placeholder in content
+                    if (supplierName) {
+                        const greetingReplacement = greetingTeamTpl.replace('{{name}}', supplierName);
+                        content = content.replace(/\{\{greeting\}\}/gi, greetingReplacement);
+                    } else {
+                        content = content.replace(/\{\{greeting\}\}/gi, '');
+                    }
+
+                    // Get signature
+                    const signatures = getFromCache(CACHE_KEYS.SIGNATURES);
+                    const selectedSignerId = localStorage.getItem(CACHE_KEYS.SELECTED_SIGNER_ID);
+                    const selectedSignature = signatures.find(s => s.id == selectedSignerId) || signatures[0];
+                    let signatureText = selectedSignature ? `${selectedSignature.name}\n${selectedSignature.title || ''}\n${selectedSignature.department || ''}`.trim() : '';
+
+                    // Replace {{signature}} placeholder in content
+                    content = content.replace(/\{\{signature\}\}/g, signatureText);
+
+                    // Get footer text
+                    const footerText = (template.includeFooter && settingsMap.get('footer_text')?.value) || '';
+                    const footerPart = (template.includeFooter && footerText) ? `\n\n${footerText}` : '';
+
+                    // Random closing
+                    const closings = ['Best regards', 'Warm regards', 'Kind regards', 'Regards'];
+                    const randomClosing = closings[Math.floor(Math.random() * closings.length)];
+
+                    // Assemble final email body
+                    const finalBody = `${greeting ? greeting + '\n\n' : ''}${content.trim()}${footerPart}\n\n${randomClosing},\n${signatureText}`;
+
+                    if (bodyOutput) {
+                        bodyOutput.innerHTML = finalBody.replace(/\n/g, '<br>');
+                        bodyOutput.dataset.plainText = finalBody;
+                    }
+
+                    // Update internal note (show/hide section based on whether note exists)
+                    const note = replacePlaceholders(template.internalComment || '');
+                    if (noteSection) noteSection.classList.toggle('hidden', !template.internalComment);
+                    if (noteOutput) {
+                        noteOutput.innerHTML = note.replace(/\n/g, '<br>');
+                        noteOutput.dataset.plainText = note;
+                    }
+                };
+
+                // Add input listeners for real-time updates
+                placeholderContainer.querySelectorAll('.wdn-ph-input').forEach(input => {
+                    input.addEventListener('input', updatePreview);
+                });
+
+                // Add listener for manual supplier name input
+                if (manualSupplierInput) {
+                    manualSupplierInput.addEventListener('input', updatePreview);
+                }
+
+                // SUID Search functionality
+                const suidSearchInput = document.getElementById('wdn-modal-suid-search');
+                const suidLoading = document.getElementById('wdn-suid-loading');
+                const suidSuccess = document.getElementById('wdn-suid-success');
+                const suidError = document.getElementById('wdn-suid-error');
+                const suidStatus = document.getElementById('wdn-suid-status');
+
+                // Pre-fill SUID from ticket data if available
+                if (suidSearchInput && currentTicketData?.suid) {
+                    suidSearchInput.value = currentTicketData.suid;
+                }
+
+                // Reset SUID status indicators
+                const resetSuidStatus = () => {
+                    suidLoading?.classList.add('hidden');
+                    suidSuccess?.classList.add('hidden');
+                    suidError?.classList.add('hidden');
+                };
+
+                // SUID search with debounce
+                let suidSearchTimeout = null;
+                if (suidSearchInput) {
+                    suidSearchInput.addEventListener('input', (e) => {
+                        const suid = e.target.value.trim();
+
+                        // Clear previous timeout
+                        if (suidSearchTimeout) clearTimeout(suidSearchTimeout);
+
+                        if (!suid) {
+                            resetSuidStatus();
+                            if (suidStatus) suidStatus.textContent = 'Enter SUID to auto-fill supplier name';
+                            return;
+                        }
+
+                        // Show loading
+                        resetSuidStatus();
+                        suidLoading?.classList.remove('hidden');
+                        if (suidStatus) suidStatus.textContent = 'Searching...';
+
+                        // Debounce the search
+                        suidSearchTimeout = setTimeout(async () => {
+                            try {
+                                const supplierName = await searchSupplierName(suid);
+
+                                resetSuidStatus();
+
+                                if (supplierName) {
+                                    // Success - update manual supplier name input
+                                    suidSuccess?.classList.remove('hidden');
+                                    if (suidStatus) suidStatus.textContent = `Found: ${supplierName}`;
+
+                                    // Update the manual supplier name input field
+                                    if (manualSupplierInput) {
+                                        manualSupplierInput.value = supplierName;
+                                        manualSupplierInput.classList.add('text-green-500');
+                                        updatePreview();
+                                    }
+                                } else {
+                                    // Not found
+                                    suidError?.classList.remove('hidden');
+                                    if (suidStatus) suidStatus.textContent = 'Supplier not found for this SUID';
+                                }
+                            } catch (error) {
+                                resetSuidStatus();
+                                suidError?.classList.remove('hidden');
+                                if (suidStatus) suidStatus.textContent = 'Error searching supplier';
+                            }
+                        }, 500); // 500ms debounce
+                    });
+
+                    // Trigger initial search if SUID is pre-filled
+                    if (suidSearchInput.value.trim()) {
+                        suidSearchInput.dispatchEvent(new Event('input'));
+                    }
+                }
+
+                // Initial preview update
+                updatePreview();
+
+                // Helper for copy feedback
+                const showCopyFeedback = () => {
+                    const feedback = document.getElementById('wdn-modal-copy-feedback');
+                    if (feedback) {
+                        feedback.classList.remove('opacity-0');
+                        setTimeout(() => feedback.classList.add('opacity-0'), 1500);
+                    }
+                };
+
+                // Setup copy buttons
+                document.getElementById('copy-wdn-subject-btn').onclick = () => {
+                    navigator.clipboard.writeText(subjectOutput?.dataset?.plainText || '').then(showCopyFeedback);
+                };
+                document.getElementById('copy-wdn-cc-btn').onclick = () => {
+                    navigator.clipboard.writeText(ccOutput?.dataset?.plainText || '').then(showCopyFeedback);
+                };
+                document.getElementById('copy-wdn-body-btn').onclick = () => {
+                    navigator.clipboard.writeText(bodyOutput?.dataset?.plainText || '').then(showCopyFeedback);
+                };
+                document.getElementById('copy-wdn-note-btn').onclick = () => {
+                    navigator.clipboard.writeText(noteOutput?.dataset?.plainText || '').then(showCopyFeedback);
+                };
+
+                _openModal(m);
+                document.getElementById('close-wdn-modal-btn').onclick = () => { _closeModal(m); r(); };
+            });
+
             const openInternalCommentModal = (comment) => new Promise(r => { const m = document.getElementById('internal-comment-modal'); const out = document.getElementById('internal-comment-output'); out.innerHTML = comment.replace(/\n/g, '<br>'); out.dataset.plainText = comment; _openModal(m); document.getElementById('close-internal-comment-modal-btn').onclick = () => { _closeModal(m); r(); }; });
             const showValidationModal = (missing) => { const m=document.getElementById('validation-modal'); document.getElementById('missing-fields-list').innerHTML=missing.map(f=>`<li>${f}</li>`).join(''); _openModal(m); document.getElementById('close-validation-modal-btn').onclick = () => _closeModal(m); };
             function setupSignatureSelection() {
@@ -2847,7 +3166,6 @@ function createGuideStepEditor(type, stepData = {}) {
                         showNotification('Please select an assignment date', 'error');
                         return;
                     }
-                    console.log('📅 Manual assignment - Selected date:', selectedDate);
                     dates = [selectedDate];
                 } else if (dateOption === 'week') {
                     dates = getNext5Weekdays(today);
@@ -2873,17 +3191,14 @@ function createGuideStepEditor(type, stepData = {}) {
                     return;
                 }
 
-                console.log('📋 Manual assignment - Dates to assign:', dates);
+
 
                 // Check for existing assignments and prepare data
                 const assignments = [];
                 const updates = [];
 
                 for (const date of dates) {
-                    console.log('🔍 Checking assignment for date:', date, 'agent:', memberId);
-
                     // Check if assignment already exists for this date and agent
-                    // Use .maybeSingle() instead of .single() to avoid 406 error when no results
                     const { data: existingAssignment, error: checkError } = await supabase
                         .from('schedule_assignments')
                         .select('*')
@@ -2891,14 +3206,9 @@ function createGuideStepEditor(type, stepData = {}) {
                         .eq('agent_id', memberId)
                         .maybeSingle();
 
-                    if (checkError) {
-                        console.error('❌ Error checking existing assignment:', checkError);
-                        throw checkError;
-                    }
+                    if (checkError) throw checkError;
 
                     if (existingAssignment) {
-                        console.log('🔄 Assignment exists, will update:', existingAssignment.id);
-                        // Prepare update
                         updates.push({
                             id: existingAssignment.id,
                             agent_id: memberId,
@@ -2908,8 +3218,6 @@ function createGuideStepEditor(type, stepData = {}) {
                             status: 'assigned'
                         });
                     } else {
-                        console.log('➕ No existing assignment, will create new');
-                        // Prepare insert
                         assignments.push({
                             assignment_date: date,
                             agent_id: memberId,
@@ -2923,31 +3231,20 @@ function createGuideStepEditor(type, stepData = {}) {
 
                 // Perform batch operations
                 if (assignments.length > 0) {
-                    console.log('➕ Inserting assignments:', assignments);
                     const { error: insertError } = await supabase
                         .from('schedule_assignments')
                         .insert(assignments);
-
-                    if (insertError) {
-                        console.error('❌ Insert error:', insertError);
-                        throw insertError;
-                    }
-                    console.log('✅ Assignments inserted successfully');
+                    if (insertError) throw insertError;
                 }
 
-                // Perform updates one by one (Supabase doesn't support batch updates easily)
+                // Perform updates one by one
                 for (const update of updates) {
                     const { id, ...updateData } = update;
-                    console.log('🔄 Updating assignment:', id, updateData);
                     const { error: updateError } = await supabase
                         .from('schedule_assignments')
                         .update(updateData)
                         .eq('id', id);
-
-                    if (updateError) {
-                        console.error('❌ Update error:', updateError);
-                        throw updateError;
-                    }
+                    if (updateError) throw updateError;
                 }
 
                 // Create notification for the assigned user
@@ -2955,15 +3252,6 @@ function createGuideStepEditor(type, stepData = {}) {
 
                 const totalAssignments = assignments.length + updates.length;
                 showNotification(`${totalAssignments} assignment${totalAssignments > 1 ? 's' : ''} created successfully`, 'success');
-
-                // Verify what was actually created
-                console.log('🔍 Verifying created assignments...');
-                const { data: verifyData } = await supabase
-                    .from('schedule_assignments')
-                    .select('assignment_date, agent_id, account_export_name')
-                    .in('assignment_date', dates)
-                    .eq('agent_id', memberId);
-                console.log('✅ Verified assignments in database:', verifyData);
 
                 loadCurrentAssignments();
 
@@ -3094,15 +3382,9 @@ function createGuideStepEditor(type, stepData = {}) {
                         read: false
                     });
 
-                if (notificationError) {
-                    console.error('❌ Error creating notification:', notificationError);
-                    throw notificationError;
-                } else {
-                    console.log('✅ Manual schedule notification created for agent:', memberId, 'account:', accountId);
-                }
+                if (notificationError) throw notificationError;
             } catch (error) {
-                console.error('Error creating notification:', error);
-                throw error; // Re-throw so calling code knows it failed
+                throw error;
             }
         }
 
@@ -3245,8 +3527,6 @@ function createGuideStepEditor(type, stepData = {}) {
 
         function handleAutoAssignmentTypeChange() {
             // This function can be used to update preview logic based on assignment type
-            const selectedType = document.querySelector('input[name="auto-assignment-type"]:checked').value;
-            console.log('Auto assignment type changed to:', selectedType);
         }
 
         async function previewManualAssignment() {
@@ -3559,9 +3839,7 @@ function createGuideStepEditor(type, stepData = {}) {
                     }
                 }
 
-                console.log('5-day auto assignment completed successfully');
             } catch (error) {
-                console.error('Error performing 5-day auto assignment:', error);
                 throw error;
             }
         }
@@ -3596,10 +3874,7 @@ function createGuideStepEditor(type, stepData = {}) {
                         await createManualRescheduleNotification(assignment.agent_id, assignment.account_export_name);
                     }
                 }
-
-                console.log('30-day auto assignment completed successfully');
             } catch (error) {
-                console.error('Error performing 30-day auto assignment:', error);
                 throw error;
             }
         }
@@ -3627,15 +3902,8 @@ function createGuideStepEditor(type, stepData = {}) {
 
                 if (accountError) throw accountError;
 
-                if (!agentList || agentList.length === 0) {
-                    console.log('No active agents in rotation list');
-                    return null;
-                }
-
-                if (!accountList || accountList.length === 0) {
-                    console.log('No active accounts in rotation list');
-                    return null;
-                }
+                if (!agentList || agentList.length === 0) return null;
+                if (!accountList || accountList.length === 0) return null;
 
                 // Get the current rotation state
                 const { data: rotationState, error: stateError } = await supabase
@@ -3711,18 +3979,11 @@ function createGuideStepEditor(type, stepData = {}) {
 
                 if (checkError) throw checkError;
 
-                if (existingAssignments && existingAssignments.length > 0) {
-                    console.log('Assignment already exists for today');
-                    return;
-                }
+                if (existingAssignments && existingAssignments.length > 0) return;
 
                 // Get next assignment using the shared function
                 const nextAssignment = await getNextAutoAssignment();
-
-                if (!nextAssignment) {
-                    console.log('No active schedule found');
-                    return;
-                }
+                if (!nextAssignment) return;
 
                 // Create the assignment
                 const { error: insertError } = await supabase
@@ -3741,12 +4002,9 @@ function createGuideStepEditor(type, stepData = {}) {
                 await createManualRescheduleNotification(nextAssignment.agent_id, nextAssignment.account_export_name);
 
                 // Refresh the UI
-                loadCurrentAssignments(); // This will also refresh the calendar
-
-                console.log('Auto assignment completed successfully');
+                loadCurrentAssignments();
             } catch (error) {
-                console.error('Error performing auto assignment:', error);
-                throw error; // Re-throw so calling functions can handle it
+                throw error;
             }
         }
 

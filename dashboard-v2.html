@@ -240,9 +240,9 @@
     <!-- WDN Supplier Email Modal -->
     <div id="wdn-supplier-email-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
         <div class="modal-content bg-section rounded-lg shadow-xl w-full max-w-4xl p-6 transform scale-95 max-h-[90vh] overflow-y-auto">
-            <h2 class="text-2xl font-bold mb-4 text-cyan-400">📧 Email to Supplier (WDN)</h2>
+            <h2 id="wdn-modal-title" class="text-2xl font-bold mb-4 text-cyan-400">📧 Email to Supplier (WDN)</h2>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <!-- Left Column - Input Fields -->
+                <!-- Left Column - Dynamic Placeholder Inputs -->
                 <div class="space-y-4">
                     <!-- Email From (Warning/Reminder) -->
                     <div class="p-3 bg-amber-900/30 border border-amber-500 rounded-lg">
@@ -251,24 +251,28 @@
                         <p class="text-xs text-amber-400 mt-1">Make sure you're sending from this email account!</p>
                     </div>
 
-                    <div>
-                        <label for="wdn-modal-email-to" class="block text-sm font-medium">Email To (Supplier)</label>
-                        <input type="email" id="wdn-modal-email-to" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button" placeholder="supplier@example.com">
+                    <!-- SUID Search Section -->
+                    <div class="p-3 bg-blue-900/30 border border-blue-500 rounded-lg">
+                        <label for="wdn-modal-suid-search" class="block text-sm font-medium text-blue-400 mb-1">🔍 Search by SUID</label>
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="wdn-modal-suid-search" class="flex-grow p-2 border border-blue-500 rounded-lg bg-button" placeholder="Enter SUID to search supplier...">
+                            <span id="wdn-suid-loading" class="hidden text-blue-400">⏳</span>
+                            <span id="wdn-suid-success" class="hidden text-green-400">✅</span>
+                            <span id="wdn-suid-error" class="hidden text-red-400">❌</span>
+                        </div>
+                        <p id="wdn-suid-status" class="text-xs text-blue-400 mt-1">Enter SUID to auto-fill supplier name</p>
                     </div>
 
-                    <div>
-                        <label for="wdn-modal-supplier-name" class="block text-sm font-medium">Supplier Contact Name</label>
-                        <input type="text" id="wdn-modal-supplier-name" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button" placeholder="Enter supplier contact name">
+                    <!-- Manual Supplier Name Input (fallback when SUID search fails) -->
+                    <div id="wdn-manual-supplier-section" class="p-3 bg-green-900/30 border border-green-500 rounded-lg">
+                        <label for="wdn-manual-supplier-name" class="block text-sm font-medium text-green-400 mb-1">👤 Supplier Contact Name <span class="text-gray-400">(for greeting)</span></label>
+                        <input type="text" id="wdn-manual-supplier-name" class="w-full p-2 border border-green-500 rounded-lg bg-button" placeholder="Enter supplier/team name (e.g., Logistics Team)">
+                        <p class="text-xs text-green-400 mt-1">Auto-filled from template greeting or SUID search. Edit if needed.</p>
                     </div>
 
-                    <div>
-                        <label for="wdn-modal-order" class="block text-sm font-medium">Order Number</label>
-                        <input type="text" id="wdn-modal-order" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button" readonly>
-                    </div>
-
-                    <div>
-                        <label for="wdn-modal-brand" class="block text-sm font-medium">Brand</label>
-                        <input type="text" id="wdn-modal-brand" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button" readonly>
+                    <!-- Dynamic Placeholders Container -->
+                    <div id="wdn-placeholder-inputs" class="space-y-3">
+                        <!-- Placeholder inputs will be dynamically generated here -->
                     </div>
                 </div>
 
@@ -281,20 +285,16 @@
                         <label class="block text-xs font-medium text-secondary mb-1">Subject Line</label>
                         <div class="flex items-center gap-2">
                             <p id="wdn-modal-subject-output" class="flex-grow p-2 bg-section rounded-md text-sm"></p>
-                            <button class="js-copy-btn p-1.5 rounded-md hover:bg-gray-600" title="Copy Subject">
-                                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 12.25-3-3m0 0-3 3m3-3v7.5" /></svg>
-                            </button>
+                            <button id="copy-wdn-subject-btn" class="p-1.5 rounded-md hover:bg-gray-600" title="Copy Subject">📋</button>
                         </div>
                     </div>
 
-                    <!-- CC -->
-                    <div class="border border-secondary p-2 rounded-lg bg-button">
+                    <!-- CC (only shown if template has CC) -->
+                    <div id="wdn-cc-section" class="border border-secondary p-2 rounded-lg bg-button hidden">
                         <label class="block text-xs font-medium text-secondary mb-1">CC Recipients</label>
                         <div class="flex items-center gap-2">
                             <p id="wdn-modal-cc-output" class="flex-grow p-2 bg-section rounded-md text-sm"></p>
-                            <button class="js-copy-btn p-1.5 rounded-md hover:bg-gray-600" title="Copy CC">
-                                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 12.25-3-3m0 0-3 3m3-3v7.5" /></svg>
-                            </button>
+                            <button id="copy-wdn-cc-btn" class="p-1.5 rounded-md hover:bg-gray-600" title="Copy CC">📋</button>
                         </div>
                     </div>
 
@@ -303,20 +303,16 @@
                         <label class="block text-xs font-medium text-secondary mb-1">Email Body</label>
                         <div class="relative">
                             <div id="wdn-modal-body-output" class="w-full p-2 bg-section rounded-lg min-h-[150px] text-sm max-h-48 overflow-y-auto whitespace-pre-wrap"></div>
-                            <button class="js-copy-btn absolute top-1 right-1 p-1.5 rounded-md hover:bg-gray-600" title="Copy Body">
-                                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 12.25-3-3m0 0-3 3m3-3v7.5" /></svg>
-                            </button>
+                            <button id="copy-wdn-body-btn" class="absolute top-1 right-1 p-1.5 rounded-md hover:bg-gray-600" title="Copy Body">📋</button>
                         </div>
                     </div>
 
-                    <!-- Internal Note -->
-                    <div class="border border-amber-600/50 p-2 rounded-lg bg-amber-900/20">
+                    <!-- Internal Note (only shown if template has internal note) -->
+                    <div id="wdn-note-section" class="border border-amber-600/50 p-2 rounded-lg bg-amber-900/20 hidden">
                         <label class="block text-xs font-medium text-amber-400 mb-1">Internal Note (for ticket)</label>
                         <div class="relative">
                             <div id="wdn-modal-note-output" class="w-full p-2 bg-section rounded-lg min-h-[60px] text-sm max-h-24 overflow-y-auto whitespace-pre-wrap"></div>
-                            <button class="js-copy-btn absolute top-1 right-1 p-1.5 rounded-md hover:bg-gray-600" title="Copy Note">
-                                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 12.25-3-3m0 0-3 3m3-3v7.5" /></svg>
-                            </button>
+                            <button id="copy-wdn-note-btn" class="absolute top-1 right-1 p-1.5 rounded-md hover:bg-gray-600" title="Copy Note">📋</button>
                         </div>
                     </div>
                 </div>
@@ -634,7 +630,7 @@
         </div>
     </div>
 
-    <script src="./js/dashboard-v2.js"></script>
+    <script src="./js/dashboard-v2.js?v=20251205"></script>
 </body>
 </html>
 

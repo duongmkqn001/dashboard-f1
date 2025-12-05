@@ -276,17 +276,7 @@
                 allProjects = projects.data || [];
                 (settings.data || []).forEach(s => { allSettings[s.key] = s; });
 
-                // Debug logging for admin data
-                console.log('🔍 fetchAllAdminData() completed:');
-                console.log('  - Total templates loaded:', allTemplates.length);
-                console.log('  - Templates with emailCarrier:', allTemplates.filter(t => t.emailCarrier).length);
-                console.log('  - Templates with carrierEmailSubject:', allTemplates.filter(t => t.carrierEmailSubject).length);
-                console.log('  - All templates:', allTemplates.map(t => ({ id: t.id, name: t.name, emailCarrier: t.emailCarrier, carrierEmailSubject: t.carrierEmailSubject })));
-                console.log('  - Total signatures loaded:', allSignatures.length);
-                console.log('  - Total placeholders loaded:', allPlaceholders.length);
-                console.log('  - Total projects loaded:', allProjects.length);
-                console.log('  - Settings loaded:', allSettings);
-                console.log('  - Footer text value:', allSettings.footer_text?.value?.value);
+
 
                 const brandData = allPlaceholders.find(p => p.key === 'brand');
                 if (brandData && brandData.options) {
@@ -518,7 +508,6 @@
                 if (error) throw error;
                 ticketStatuses = data;
             } catch (error) {
-                console.error('Lỗi khi lấy Ticket Statuses:', error);
                 showMessage('Không thể tải danh sách trạng thái ticket.', 'error');
             }
         }
@@ -528,10 +517,7 @@
                 const { data, error } = await supabaseClient.from('vcn_agent').select('stt, name');
                 if (error) throw error;
                 vcnAgents = data;
-                // VCN agents are now used for user greeting and other purposes
-                console.log('VCN Agents loaded:', vcnAgents.length);
             } catch (error) {
-                console.error('Error when getting VCN Agents:', error);
                 showMessage('Không thể tải danh sách VCN agent.', 'error');
             }
         }
@@ -1250,28 +1236,26 @@
                  popupCurrentTemplateId = item.dataset.templateId;
                  const template = allTemplates.find(t => t.id === popupCurrentTemplateId);
 
-                 // Debug logging for template detection
-                 console.log('🔍 Template Click Debug:');
-                 console.log('  - Template ID:', popupCurrentTemplateId);
-                 console.log('  - Template Object:', template);
-                 console.log('  - Template Name:', template?.name);
-                 console.log('  - Has emailCarrier field?', template?.emailCarrier);
-                 console.log('  - Has carrierEmailSubject field?', template?.carrierEmailSubject);
-                 console.log('  - Has bolNamingMethod field?', template?.bolNamingMethod);
-                 console.log('  - Template content:', template?.content?.substring(0, 100));
+                 // Check if this is a WDN project - open WDN modal directly
+                 const wdnProject = allProjects.find(p => p.name === 'WDN' || p.name?.toUpperCase() === 'WDN');
+                 const projectName = template?.projects?.name || '';
+                 const issueName = template?.issue || '';
+                 const isWDNProject = projectName.toUpperCase() === 'WDN' ||
+                                      issueName.toUpperCase() === 'WDN' ||
+                                      (wdnProject && template?.project_id === wdnProject.id);
+
+                 if (isWDNProject && template) {
+                     // For WDN templates, skip template viewer and open WDN modal directly
+                     await openWdnSupplierEmailModal(template);
+                     return;
+                 }
 
                  // If template requires carrier email, show that modal first
                  if (template && template.emailCarrier) {
-                     console.log('✅ Opening carrier email modal...');
                      const result = await openCarrierEmailModal(template, true);
-                     // Only continue to template if user clicked "Continue"
                      if (result !== 'continue') {
-                         console.log('❌ User cancelled carrier email modal');
                          return; // User cancelled
                      }
-                     console.log('✅ User clicked continue, proceeding to template viewer');
-                 } else {
-                     console.log('⚠️ Template does NOT have emailCarrier enabled, skipping carrier modal');
                  }
 
                  // Then show the template viewer
@@ -1283,8 +1267,13 @@
             const template = allTemplates.find(t => t.id === templateId);
             if (!template) return;
 
-            // Detect if this is a WDN project
-            const isWDNProject = template.projects?.name === 'WDN';
+            // Detect if this is a WDN project - using multiple detection methods
+            const wdnProject = allProjects.find(p => p.name === 'WDN' || p.name?.toUpperCase() === 'WDN');
+            const projectName = template.projects?.name || '';
+            const issueName = template.issue || '';
+            const isWDNProject = projectName.toUpperCase() === 'WDN' ||
+                                 issueName.toUpperCase() === 'WDN' ||
+                                 (wdnProject && template.project_id === wdnProject.id);
 
             popupWelcomeScreen.classList.add('hidden');
 
@@ -1366,6 +1355,9 @@
                     <!-- Copy All Button -->
                     <div class="flex justify-end items-center gap-3">
                         <div id="copy-feedback" class="text-green-400 font-medium opacity-0 transition-opacity">Đã sao chép!</div>
+                        <button id="open-wdn-modal-btn" class="bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
+                            📧 Open WDN Modal
+                        </button>
                         <button id="copy-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg flex items-center gap-2">
                             ✅ Hoàn tất & Tiếp tục
                         </button>
@@ -1413,9 +1405,14 @@
                     <div class="mt-6">
                         <div class="flex justify-between items-center mb-2">
                             <h4 class="font-semibold text-lg text-headings">Nội dung cuối cùng</h4>
-                            <button id="copy-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
-                                Sao chép & Tiếp tục
-                            </button>
+                            <div class="flex items-center gap-2">
+                                <button id="open-wdn-modal-btn" class="hidden bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
+                                    📧 WDN Email
+                                </button>
+                                <button id="copy-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
+                                    Sao chép & Tiếp tục
+                                </button>
+                            </div>
                         </div>
                         <div id="final-output" class="w-full p-4 border border-secondary rounded-lg bg-section min-h-[250px] whitespace-pre-wrap"></div>
                         <div id="copy-feedback" class="mt-2 text-green-400 font-medium opacity-0">Đã sao chép!</div>
@@ -1425,6 +1422,20 @@
 
             document.getElementById('viewer-title').textContent = template.name;
             document.getElementById('viewer-category').textContent = `Dự án: ${template.projects?.name || 'N/A'} / Danh mục: ${template.issue}`;
+
+            // Show WDN Email button for WDN project templates
+            // This button exists in both layouts now, so we always set up the handler
+            const wdnModalBtn = document.getElementById('open-wdn-modal-btn');
+            if (wdnModalBtn) {
+                // Always show and set up the WDN button since WDN templates should use WDN modal
+                wdnModalBtn.onclick = () => {
+                    openWdnSupplierEmailModal(template);
+                };
+                // For non-WDN projects, hide the button
+                if (!isWDNProject) {
+                    wdnModalBtn.classList.add('hidden');
+                }
+            }
 
             // Handle optional description display
             const descriptionSection = document.getElementById('template-description-section');
@@ -1618,19 +1629,7 @@
 
         function updateFinalOutput() {
             const template = allTemplates.find(t => t.id === popupCurrentTemplateId);
-
-            // Debug logging for template content
-            console.log('🔍 updateFinalOutput() Debug:');
-            console.log('  - popupCurrentTemplateId:', popupCurrentTemplateId);
-            console.log('  - Template found:', template ? 'YES' : 'NO');
-            console.log('  - Template name:', template?.name);
-            console.log('  - Template content:', template?.content);
-            console.log('  - Template content length:', template?.content?.length);
-
-            if (!template) {
-                console.error('❌ Template not found! Cannot update final output.');
-                return;
-            }
+            if (!template) return;
 
             const agentName = document.getElementById('viewer-agent-name').value.trim();
             // Safely get supplier name (may not exist in WDN projects)
@@ -1638,27 +1637,12 @@
             const manualSupplierName = manualSupplierNameEl ? manualSupplierNameEl.value.trim() : '';
 
             let content = template.content || '';
-            console.log('  - Content after assignment:', content ? `${content.substring(0, 100)}...` : 'EMPTY');
             let greeting = '';
 
             // Get signature data
             const assigneeAccount = popupCurrentTicket.assignee_account;
             const assigneeName = allAgentsMap.get(assigneeAccount);
-
-            // Debug logging for signature matching
-            console.log('🔍 Signature Matching Debug:');
-            console.log('  - Assignee Account:', assigneeAccount);
-            console.log('  - Assignee Name:', assigneeName);
-            console.log('  - Available Signatures:', allSignatures.map(s => s.name));
-
             const signature = allSignatures.find(s => s.name === assigneeName) || allSignatures.find(s => s.isDefault) || allSignatures[0];
-
-            console.log('  - Matched Signature:', signature ? signature.name : 'None');
-            if (!allSignatures.find(s => s.name === assigneeName)) {
-                console.warn('⚠️ No exact signature match found for agent:', assigneeName);
-                console.warn('   Falling back to:', signature ? signature.name : 'None');
-            }
-
             let signatureText = signature ? `${signature.name}\n${signature.title || ''}\n${signature.department || ''}`.trim() : '';
 
             // Replace {{signature}} placeholder in content (like adminview.js does)
@@ -1692,7 +1676,7 @@
                 }
             }
 
-            console.log('  - Greeting generated:', greeting);
+
 
             // Handle Hi {{name}} placeholders in template content - should work exactly like greeting logic
             if (agentName) {
@@ -1732,9 +1716,6 @@
                 : '';
             const footerPart = (template.includeFooter && footerText) ? `\n\n${footerText}` : '';
 
-            console.log('  - Footer text:', footerText);
-            console.log('  - Template includeFooter:', template.includeFooter);
-
             // Check if this is a special issue (MOS or Movement) - these don't need greeting/signature
             const isSpecialIssue = ['mos', 'movement'].includes(template.issue?.toLowerCase() || '');
 
@@ -1750,9 +1731,6 @@
                 const randomClosing = closings[Math.floor(Math.random() * closings.length)];
                 finalPlainText = `${greeting ? greeting + '\n\n' : ''}${content.trim()}${footerPart}\n\n${randomClosing},\n${signatureText}`;
             }
-
-            console.log('  - Final plain text length:', finalPlainText.length);
-            console.log('  - Final plain text preview:', finalPlainText.substring(0, 200));
 
             // Format for display
             finalPlainText = finalPlainText.replace(/(https?:\/\/[^\s]+)([^\s])/g, '$1 $2');
@@ -1861,19 +1839,25 @@
             const template = allTemplates.find(t => t.id === popupCurrentTemplateId);
             if (!template) return;
 
-            // Check if this is a WDN project
-            const isWDNProject = template.projects?.name === 'WDN';
+            // Check if this is a WDN project - using multiple detection methods
+            const wdnProject = allProjects.find(p => p.name === 'WDN' || p.name?.toUpperCase() === 'WDN');
+            const projectName = template.projects?.name || '';
+            const issueName = template.issue || '';
+            const isWDNProject = projectName.toUpperCase() === 'WDN' ||
+                                 issueName.toUpperCase() === 'WDN' ||
+                                 (wdnProject && template.project_id === wdnProject.id);
 
             setTimeout(async () => {
                 if (template.followUpGuide) await openFollowUpGuideModal(template.followUpGuide);
-                // For WDN projects, show WDN supplier email modal
+
+                // For WDN projects, show WDN supplier email modal (skip customer modal entirely)
                 if (isWDNProject) {
                     await openWdnSupplierEmailModal(template);
-                }
-                // For non-WDN projects with sendToCustomer, show customer email modal
-                if (template.sendToCustomer && !isWDNProject) {
+                } else if (template.sendToCustomer) {
+                    // For non-WDN projects with sendToCustomer, show customer email modal
                     await openCustomerEmailModal(template);
                 }
+
                 if (template.addLabelReminder && template.labelName) await openLabelReminderModal(template.labelName);
             }, 400);
         }
@@ -1884,7 +1868,12 @@
 
             // Get current template to check if it's a WDN project
             const template = allTemplates.find(t => t.id === popupCurrentTemplateId);
-            const isWDNProject = template?.projects?.name === 'WDN';
+            const wdnProject = allProjects.find(p => p.name === 'WDN' || p.name?.toUpperCase() === 'WDN');
+            const projectName = template?.projects?.name || '';
+            const issueName = template?.issue || '';
+            const isWDNProject = projectName.toUpperCase() === 'WDN' ||
+                                 issueName.toUpperCase() === 'WDN' ||
+                                 (wdnProject && template?.project_id === wdnProject.id);
 
             // Check if either agent name or supplier name is provided
             // For WDN projects, only check agent name (no supplier fields)
@@ -1893,7 +1882,7 @@
             const supplierName = supplierNameEl ? supplierNameEl.value.trim() : '';
 
             if (isWDNProject) {
-                // WDN projects: only require agent name (customer/carrier name)
+                // WDN projects: only require agent name (supplier contact name)
                 if (!agentName) {
                     missingFields.push('Tên riêng Người nhận');
                 }
@@ -2065,16 +2054,6 @@
         // Carrier email modal function - Updated to match adminview logic
         async function openCarrierEmailModal(template, isBeforeTemplate = false) {
             return new Promise(async (resolve) => {
-                // Debug logging for carrier email modal
-                console.log('🔍 openCarrierEmailModal() called:');
-                console.log('  - Template parameter:', template);
-                console.log('  - Template ID:', template?.id);
-                console.log('  - Template Name:', template?.name);
-                console.log('  - carrierEmailSubject:', template?.carrierEmailSubject);
-                console.log('  - bolNamingMethod:', template?.bolNamingMethod);
-                console.log('  - content:', template?.content?.substring(0, 100));
-                console.log('  - isBeforeTemplate:', isBeforeTemplate);
-
                 const modal = document.getElementById('carrier-email-modal');
                 const carrierSelect = document.getElementById('carrier-name');
                 const carrierEmailInput = document.getElementById('carrier-email-address');
@@ -2145,41 +2124,19 @@
                         greeting = greetingTemplate.replace('{{name}}', cleanSupplierName(manualSupplierName));
                     }
 
-                    // Auto-fill signature placeholder (Issue #1 Fix: Always use assignee account)
+                    // Auto-fill signature placeholder
                     const assigneeAccount = popupCurrentTicket?.assignee_account;
                     const assigneeName = allAgentsMap.get(assigneeAccount);
-
-                    // Debug logging for signature matching in carrier email
-                    console.log('🔍 Carrier Email Signature Matching Debug:');
-                    console.log('  - popupCurrentTicket:', popupCurrentTicket);
-                    console.log('  - Assignee Account:', assigneeAccount);
-                    console.log('  - Assignee Name:', assigneeName);
-                    console.log('  - allSignatures array:', allSignatures);
-                    console.log('  - Available Signature Names:', allSignatures.map(s => s.name));
-
                     const signature = allSignatures.find(s => s.name === assigneeName) || allSignatures.find(s => s.isDefault) || allSignatures[0];
-
-                    console.log('  - Matched Signature Object:', signature);
-                    console.log('  - Matched Signature Name:', signature ? signature.name : 'None');
-                    if (!allSignatures.find(s => s.name === assigneeName)) {
-                        console.warn('⚠️ No exact signature match found for agent:', assigneeName);
-                        console.warn('   Falling back to:', signature ? signature.name : 'None');
-                    }
-
                     let signatureText = signature ? `${signature.name}\n${signature.title || ''}\n${signature.department || ''}`.trim() : '';
-                    console.log('  - Signature Text Generated:', signatureText);
-                    console.log('  - Email body BEFORE replacement:', emailBody);
 
-                    // Replace all placeholders in email body (Issue #1 Fix: Ensure signature is replaced)
+                    // Replace all placeholders in email body
                     emailBody = emailBody
                         .replace(/\{\{ticket\}\}/g, ticket)
                         .replace(/\{\{PO\}\}/g, po)
                         .replace(/\{\{carrier\}\}/g, carrierName)
                         .replace(/\{\{greeting\}\}/g, greeting)
                         .replace(/\{\{signature\}\}/g, signatureText);
-
-                    console.log('  - Email body AFTER replacement:', emailBody);
-                    console.log('  - Still contains {{signature}}?', emailBody.includes('{{signature}}'));
 
                     // Update outputs
                     subjectOutput.textContent = emailSubject;
@@ -2218,11 +2175,6 @@
                 // Therefore, we should ALWAYS show the email body preview (template.content)
                 // regardless of whether the modal opens before or after the template viewer.
                 // The only difference is whether we clear it first if no carrier is selected.
-
-                console.log('📋 Carrier Email Modal - Email Body Preview Logic:');
-                console.log('  - Template is dual-purpose (supplier + carrier email)');
-                console.log('  - Email body shows supplier email content (template.content)');
-                console.log('  - isBeforeTemplate:', isBeforeTemplate);
 
                 // Clear outputs initially (will be populated when carrier is selected)
                 subjectOutput.textContent = '';
@@ -2294,92 +2246,316 @@
         function openWdnSupplierEmailModal(template) {
             return new Promise(resolve => {
                 const modal = document.getElementById('wdn-supplier-email-modal');
-                if (!modal) { resolve(); return; }
+                if (!modal) {
+                    resolve();
+                    return;
+                }
 
-                // Get input fields
-                const emailFromInput = document.getElementById('wdn-modal-email-from');
-                const emailToInput = document.getElementById('wdn-modal-email-to');
-                const supplierNameInput = document.getElementById('wdn-modal-supplier-name');
-                const orderInput = document.getElementById('wdn-modal-order');
-                const brandInput = document.getElementById('wdn-modal-brand');
+                // Set title
+                const titleEl = document.getElementById('wdn-modal-title');
+                if (titleEl) titleEl.textContent = `📧 ${template.name}`;
 
                 // Get output fields
                 const subjectOutput = document.getElementById('wdn-modal-subject-output');
                 const ccOutput = document.getElementById('wdn-modal-cc-output');
+                const ccSection = document.getElementById('wdn-cc-section');
                 const bodyOutput = document.getElementById('wdn-modal-body-output');
                 const noteOutput = document.getElementById('wdn-modal-note-output');
+                const noteSection = document.getElementById('wdn-note-section');
+                const placeholderContainer = document.getElementById('wdn-placeholder-inputs');
+                const emailFromInput = document.getElementById('wdn-modal-email-from');
 
-                // Pre-fill from template and ticket data
+                // Pre-fill email from
                 if (emailFromInput) emailFromInput.value = template.emailFrom || '';
-                if (emailToInput) emailToInput.value = popupCurrentTicket.supplier_email || popupCurrentTicket.suid || '';
-                if (supplierNameInput) supplierNameInput.value = '';  // User fills this in
-                if (orderInput) orderInput.value = popupCurrentTicket.order_number || '';
-                if (brandInput) brandInput.value = popupCurrentTicket.brand || '';
 
-                // Function to replace WDN-specific placeholders
-                const replaceWdnPlaceholders = (text) => {
+                // Extract all placeholders from template content, subject, and internal note
+                const allText = [
+                    template.content || '',
+                    template.customerSubject || '',
+                    template.internalComment || ''
+                ].join(' ');
+
+                // Find all {{placeholder}} patterns
+                const placeholderRegex = /\{\{([^}]+)\}\}/g;
+                const foundPlaceholders = new Set();
+                let match;
+                while ((match = placeholderRegex.exec(allText)) !== null) {
+                    foundPlaceholders.add(match[1]);
+                }
+
+                // Create placeholder values object to store user inputs
+                const placeholderValues = {};
+
+                // Extract team name from greeting text for Supplier_Name placeholder
+                // Look for patterns like "Dear Logistics Team," or "Kính gửi Customer Service Team,"
+                let extractedTeamName = '';
+                const templateContent = template.content || '';
+                const greetingPatterns = [
+                    /Dear\s+([^,\n]+?)(?:,|\n)/i,                    // "Dear Logistics Team,"
+                    /Kính gửi\s+([^,\n]+?)(?:,|\n)/i,               // "Kính gửi Team Logistics,"
+                    /Hi\s+([^,\n]+?)(?:,|\n)/i,                      // "Hi Supplier Team,"
+                    /Hello\s+([^,\n]+?)(?:,|\n)/i                    // "Hello Support Team,"
+                ];
+
+                for (const pattern of greetingPatterns) {
+                    const greetingMatch = templateContent.match(pattern);
+                    if (greetingMatch && greetingMatch[1]) {
+                        extractedTeamName = greetingMatch[1].trim();
+                        // Remove {{Supplier_Name}} or similar placeholder if it's part of the greeting
+                        extractedTeamName = extractedTeamName.replace(/\{\{[^}]+\}\}/g, '').trim();
+                        if (extractedTeamName) break;
+                    }
+                }
+
+                // Auto-fill known placeholders from ticket data
+                const autoFillMap = {
+                    'Order_Number': popupCurrentTicket?.order_number || '',
+                    'Brand': popupCurrentTicket?.brand || '',
+                    'ticket': popupCurrentTicket?.ticket || '',
+                    'Customer_Name': popupCurrentTicket?.customer || '',
+                    'PO': popupCurrentTicket?.po || '',
+                    'Supplier_Name': extractedTeamName  // Pre-fill from greeting
+                };
+
+                // Initialize values
+                foundPlaceholders.forEach(ph => {
+                    placeholderValues[ph] = autoFillMap[ph] || '';
+                });
+
+                // Generate dynamic input fields (exclude Supplier_Name as it has its own input)
+                placeholderContainer.innerHTML = '';
+                foundPlaceholders.forEach(placeholder => {
+                    // Skip Supplier_Name - it has its own dedicated input field
+                    if (placeholder === 'Supplier_Name') return;
+
+                    const isAutoFilled = autoFillMap[placeholder] !== undefined && autoFillMap[placeholder] !== '';
+                    const div = document.createElement('div');
+                    div.innerHTML = `
+                        <label class="block text-sm font-medium">${placeholder.replace(/_/g, ' ')}</label>
+                        <input type="text"
+                               data-placeholder="${placeholder}"
+                               class="wdn-ph-input mt-1 w-full p-2 border border-secondary rounded-lg bg-button ${isAutoFilled ? 'text-green-400' : ''}"
+                               placeholder="Enter ${placeholder.replace(/_/g, ' ')}"
+                               value="${placeholderValues[placeholder] || ''}">
+                    `;
+                    placeholderContainer.appendChild(div);
+                });
+
+                // Get manual supplier name input and pre-fill with extracted team name
+                const manualSupplierInput = document.getElementById('wdn-manual-supplier-name');
+                if (manualSupplierInput) {
+                    manualSupplierInput.value = extractedTeamName;
+                }
+
+                // Function to replace placeholders with current values
+                const replacePlaceholders = (text) => {
                     if (!text) return '';
                     let result = text;
-                    result = result.replace(/\{\{Supplier_Name\}\}/gi, supplierNameInput?.value || '{{Supplier_Name}}');
-                    result = result.replace(/\{\{Order_Number\}\}/gi, orderInput?.value || '');
-                    result = result.replace(/\{\{Brand\}\}/gi, brandInput?.value || '');
-                    result = result.replace(/\{\{ticket\}\}/gi, popupCurrentTicket?.id?.toString() || '');
+                    // Get latest values from inputs
+                    placeholderContainer.querySelectorAll('.wdn-ph-input').forEach(input => {
+                        const ph = input.dataset.placeholder;
+                        const val = input.value || `{{${ph}}}`;
+                        result = result.replace(new RegExp(`\\{\\{${ph}\\}\\}`, 'gi'), val);
+                    });
+                    // Also replace Supplier_Name from the manual input
+                    const supplierName = manualSupplierInput?.value || '';
+                    result = result.replace(/\{\{Supplier_Name\}\}/gi, supplierName || '{{Supplier_Name}}');
                     return result;
                 };
 
+                // Update preview function - compose greeting + body + footer + closing + signature
                 const updatePreview = () => {
                     // Update subject
-                    const subject = replaceWdnPlaceholders(template.customerSubject || '');
+                    const subject = replacePlaceholders(template.customerSubject || '');
                     if (subjectOutput) {
                         subjectOutput.textContent = subject;
                         subjectOutput.dataset.plainText = subject;
                     }
 
-                    // Update CC
+                    // Update CC (show/hide section based on whether CC exists)
                     const cc = template.cc || '';
+                    if (ccSection) {
+                        ccSection.classList.toggle('hidden', !cc);
+                    }
                     if (ccOutput) {
-                        ccOutput.textContent = cc || '(no CC)';
+                        ccOutput.textContent = cc;
                         ccOutput.dataset.plainText = cc;
                     }
 
-                    // Update body
-                    const body = replaceWdnPlaceholders(template.content || '');
-                    if (bodyOutput) {
-                        bodyOutput.innerHTML = body.replace(/\n/g, '<br>');
-                        bodyOutput.dataset.plainText = body;
+                    // Compose full email body: greeting + content + footer + closing + signature
+                    let content = replacePlaceholders(template.content || '');
+
+                    // Get supplier name for greeting
+                    const supplierName = manualSupplierInput?.value?.trim() || '';
+
+                    // Get greeting template from settings
+                    const greetingTeamTpl = (typeof allSettings.greeting_team?.value?.value === 'string')
+                        ? allSettings.greeting_team.value.value
+                        : 'Hi {{name}} Team,';
+
+                    // Build greeting
+                    let greeting = '';
+                    if (template.needGreeting !== false && supplierName) {
+                        greeting = greetingTeamTpl.replace('{{name}}', supplierName);
                     }
 
-                    // Update internal note
-                    const note = replaceWdnPlaceholders(template.internalComment || '');
+                    // Handle {{greeting}} placeholder in content
+                    if (supplierName) {
+                        const greetingReplacement = greetingTeamTpl.replace('{{name}}', supplierName);
+                        content = content.replace(/\{\{greeting\}\}/gi, greetingReplacement);
+                    } else {
+                        content = content.replace(/\{\{greeting\}\}/gi, '');
+                    }
+
+                    // Get signature
+                    const assigneeAccount = popupCurrentTicket?.assignee_account;
+                    const assigneeName = allAgentsMap.get(assigneeAccount);
+                    const signature = allSignatures.find(s => s.name === assigneeName) || allSignatures.find(s => s.isDefault) || allSignatures[0];
+                    let signatureText = signature ? `${signature.name}\n${signature.title || ''}\n${signature.department || ''}`.trim() : '';
+
+                    // Replace {{signature}} placeholder in content
+                    content = content.replace(/\{\{signature\}\}/g, signatureText);
+
+                    // Get footer text
+                    const footerText = (template.includeFooter && typeof allSettings.footer_text?.value?.value === 'string')
+                        ? allSettings.footer_text.value.value
+                        : '';
+                    const footerPart = (template.includeFooter && footerText) ? `\n\n${footerText}` : '';
+
+                    // Random closing
+                    const closings = ['Best regards', 'Warm regards', 'Kind regards', 'Regards'];
+                    const randomClosing = closings[Math.floor(Math.random() * closings.length)];
+
+                    // Assemble final email body
+                    const finalBody = `${greeting ? greeting + '\n\n' : ''}${content.trim()}${footerPart}\n\n${randomClosing},\n${signatureText}`;
+
+                    if (bodyOutput) {
+                        bodyOutput.innerHTML = finalBody.replace(/\n/g, '<br>');
+                        bodyOutput.dataset.plainText = finalBody;
+                    }
+
+                    // Update internal note (show/hide section based on whether note exists)
+                    const note = replacePlaceholders(template.internalComment || '');
+                    if (noteSection) {
+                        noteSection.classList.toggle('hidden', !template.internalComment);
+                    }
                     if (noteOutput) {
-                        noteOutput.textContent = note || '(no internal note)';
+                        noteOutput.innerHTML = note.replace(/\n/g, '<br>');
                         noteOutput.dataset.plainText = note;
                     }
                 };
 
                 // Add input listeners for real-time updates
-                if (supplierNameInput) {
-                    supplierNameInput.addEventListener('input', updatePreview);
+                placeholderContainer.querySelectorAll('.wdn-ph-input').forEach(input => {
+                    input.addEventListener('input', updatePreview);
+                });
+
+                // Add listener for manual supplier name input
+                if (manualSupplierInput) {
+                    manualSupplierInput.addEventListener('input', updatePreview);
+                }
+
+                // SUID Search functionality
+                const suidSearchInput = document.getElementById('wdn-modal-suid-search');
+                const suidLoading = document.getElementById('wdn-suid-loading');
+                const suidSuccess = document.getElementById('wdn-suid-success');
+                const suidError = document.getElementById('wdn-suid-error');
+                const suidStatus = document.getElementById('wdn-suid-status');
+
+                // Pre-fill SUID from ticket data if available
+                if (suidSearchInput && popupCurrentTicket?.suid) {
+                    suidSearchInput.value = popupCurrentTicket.suid;
+                }
+
+                // Reset SUID status indicators
+                const resetSuidStatus = () => {
+                    suidLoading?.classList.add('hidden');
+                    suidSuccess?.classList.add('hidden');
+                    suidError?.classList.add('hidden');
+                };
+
+                // SUID search with debounce
+                let suidSearchTimeout = null;
+                if (suidSearchInput) {
+                    suidSearchInput.addEventListener('input', (e) => {
+                        const suid = e.target.value.trim();
+
+                        // Clear previous timeout
+                        if (suidSearchTimeout) clearTimeout(suidSearchTimeout);
+
+                        if (!suid) {
+                            resetSuidStatus();
+                            if (suidStatus) suidStatus.textContent = 'Enter SUID to auto-fill supplier name';
+                            return;
+                        }
+
+                        // Show loading
+                        resetSuidStatus();
+                        suidLoading?.classList.remove('hidden');
+                        if (suidStatus) suidStatus.textContent = 'Searching...';
+
+                        // Debounce the search
+                        suidSearchTimeout = setTimeout(async () => {
+                            try {
+                                const supplierName = await findSupplierName(suid);
+
+                                resetSuidStatus();
+
+                                if (supplierName) {
+                                    // Success - update manual supplier name input
+                                    suidSuccess?.classList.remove('hidden');
+                                    if (suidStatus) suidStatus.textContent = `Found: ${supplierName}`;
+
+                                    // Update the manual supplier name input field
+                                    if (manualSupplierInput) {
+                                        manualSupplierInput.value = supplierName;
+                                        manualSupplierInput.classList.add('text-green-400');
+                                        updatePreview();
+                                    }
+                                } else {
+                                    // Not found
+                                    suidError?.classList.remove('hidden');
+                                    if (suidStatus) suidStatus.textContent = 'Supplier not found for this SUID';
+                                }
+                            } catch (error) {
+                                resetSuidStatus();
+                                suidError?.classList.remove('hidden');
+                                if (suidStatus) suidStatus.textContent = 'Error searching supplier';
+                            }
+                        }, 500); // 500ms debounce
+                    });
+
+                    // Trigger initial search if SUID is pre-filled
+                    if (suidSearchInput.value.trim()) {
+                        suidSearchInput.dispatchEvent(new Event('input'));
+                    }
                 }
 
                 // Initial preview update
                 updatePreview();
 
+                // Helper for copy feedback
+                const showCopyFeedback = () => {
+                    const feedback = document.getElementById('wdn-modal-copy-feedback');
+                    if (feedback) {
+                        feedback.classList.remove('opacity-0');
+                        setTimeout(() => feedback.classList.add('opacity-0'), 1500);
+                    }
+                };
+
                 // Setup copy buttons
-                modal.querySelectorAll('.js-copy-btn').forEach(btn => {
-                    btn.onclick = () => {
-                        const container = btn.closest('.border');
-                        const textEl = container?.querySelector('[id$="-output"]');
-                        const text = textEl?.dataset?.plainText || textEl?.textContent || '';
-                        navigator.clipboard.writeText(text).then(() => {
-                            const feedback = document.getElementById('wdn-modal-copy-feedback');
-                            if (feedback) {
-                                feedback.classList.remove('opacity-0');
-                                setTimeout(() => feedback.classList.add('opacity-0'), 1500);
-                            }
-                        });
-                    };
-                });
+                document.getElementById('copy-wdn-subject-btn').onclick = () => {
+                    navigator.clipboard.writeText(subjectOutput?.dataset?.plainText || '').then(showCopyFeedback);
+                };
+                document.getElementById('copy-wdn-cc-btn').onclick = () => {
+                    navigator.clipboard.writeText(ccOutput?.dataset?.plainText || '').then(showCopyFeedback);
+                };
+                document.getElementById('copy-wdn-body-btn').onclick = () => {
+                    navigator.clipboard.writeText(bodyOutput?.dataset?.plainText || '').then(showCopyFeedback);
+                };
+                document.getElementById('copy-wdn-note-btn').onclick = () => {
+                    navigator.clipboard.writeText(noteOutput?.dataset?.plainText || '').then(showCopyFeedback);
+                };
 
                 _openModal(modal);
                 document.getElementById('close-wdn-modal-btn').onclick = () => { _closeModal(modal); resolve(); };
@@ -3336,8 +3512,6 @@
                     const currentTimeMinutes = hours * 60 + minutes; // Convert to minutes since midnight
                     const targetTimeMinutes = 8 * 60 + 28; // 8:28 AM in minutes
 
-                    console.log('🕐 Vietnam time:', hours + ':' + minutes, 'Current minutes:', currentTimeMinutes, 'Target:', targetTimeMinutes);
-
                     // Check if we've already shown the popup today
                     const popupShownKey = `manual_schedule_popup_shown_${today}`;
                     const popupAlreadyShown = localStorage.getItem(popupShownKey) === 'true';
@@ -3346,15 +3520,10 @@
                     // AT 8:28 AM: Show popup (once)
                     // AFTER 8:28 AM: Show banner again
                     if (currentTimeMinutes === targetTimeMinutes && !popupAlreadyShown) {
-                        // Show full-screen popup at exactly 8:28 AM (once per day)
-                        console.log('🎯 Showing manual schedule popup at 8:28 AM');
                         showManualSchedulePopup(assignment);
                         localStorage.setItem(popupShownKey, 'true');
-                        // Also show banner after popup is closed
                         setTimeout(() => showManualRescheduleBanner(assignment), 500);
                     } else {
-                        // Show banner at all other times (before and after 8:28 AM)
-                        console.log('📋 Showing manual schedule banner');
                         showManualRescheduleBanner(assignment);
                     }
                 }
@@ -3852,8 +4021,6 @@
                 const completedTickets = filteredTickets.filter(ticket => ticket.time_end);
                 const allCompleted = completedTickets.length === filteredTickets.length;
 
-                console.log(`Completion check: ${filteredTickets.length} total tickets, ${completedTickets.length} completed, view: ${isLeaderView ? 'leader' : isMosView ? 'mos' : 'normal'}, filter: ${currentTypeFilter}`);
-
                 if (allCompleted) {
                     // Create celebration message with cute icons
                     let message = "🧨👤 Congratulations! All tickets have been completed! 🎉✨";
@@ -3887,21 +4054,12 @@
             const currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
             const selectedAssignee = assigneeSelect.value;
 
-            console.log('🔍 checkAllTicketsCompleted called - selectedAssignee:', selectedAssignee, 'loggedInUser:', currentUser.account_name);
-
             // Check if a specific assignee is selected (not "all")
-            // Celebration triggers when ALL tickets for the selected assignee are completed
-            // The logged-in user can handle tickets for multiple assignee accounts
-            if (!selectedAssignee || selectedAssignee === 'all') {
-                console.log('⏭️ Skipping celebration check - no specific assignee selected or viewing all');
-                return;
-            }
+            if (!selectedAssignee || selectedAssignee === 'all') return;
 
             const isLeaderView = localStorage.getItem('leaderViewMode') === 'true';
             const isMosView = localStorage.getItem('mosViewMode') === 'true';
             const currentTypeFilter = currentTicketTypeFilter || 'all';
-
-            console.log('🎯 Celebration check params:', { isLeaderView, isMosView, currentTypeFilter });
 
             try {
                 // Query ALL tickets for this user to check true completion status
@@ -3920,8 +4078,6 @@
                 const { data: userTickets, error } = await query;
                 if (error) throw error;
 
-                console.log('📊 Total user tickets from DB:', userTickets.length);
-
                 // Filter by ticket type
                 const filteredTickets = userTickets.filter(ticket => {
                     if (currentTypeFilter === 'all') return true;
@@ -3929,23 +4085,14 @@
                     return ticketType === currentTypeFilter;
                 });
 
-                console.log('📊 Filtered tickets:', filteredTickets.length, 'Filter:', currentTypeFilter);
-
                 // Check if user has any tickets in this category
-                if (filteredTickets.length === 0) {
-                    console.log('⏭️ No tickets in this category');
-                    return;
-                }
+                if (filteredTickets.length === 0) return;
 
                 // Check if ALL user's tickets in this category are completed
                 const completedTickets = filteredTickets.filter(ticket => ticket.time_end);
                 const allCompleted = completedTickets.length === filteredTickets.length;
 
-                console.log(`🎊 User completion check for ${selectedAssignee}: ${filteredTickets.length} total tickets, ${completedTickets.length} completed, allCompleted: ${allCompleted}, view: ${isLeaderView ? 'leader' : isMosView ? 'mos' : 'normal'}, filter: ${currentTypeFilter}`);
-
                 if (allCompleted) {
-                    console.log('🎉 ALL TICKETS COMPLETED! Triggering celebration...');
-
                     // Vietnamese celebration messages
                     let message = `🧨👤 Chúc mừng! Đã hoàn thành tất cả ticket cho ${selectedAssignee}! 🎉✨`;
                     let celebrationIcon = "🧨👤";
@@ -3962,43 +4109,29 @@
                         }
                     }
 
-                    console.log('🎊 Celebration message:', message);
-
                     // Show celebration with fireworks effect (only one banner)
                     showFireworksEffect(message);
 
                     // Create a celebration notification for the user
                     try {
-                        // Include assignee account in the key so each assignee gets their own celebration
                         const celebrationNotificationKey = `celebration_sent_${new Date().toDateString()}_${selectedAssignee}_${isLeaderView ? 'leader' : isMosView ? 'mos' : 'normal'}_${currentTypeFilter}`;
                         const notificationAlreadySent = localStorage.getItem(celebrationNotificationKey);
 
-                        console.log('🔑 Celebration key:', celebrationNotificationKey);
-                        console.log('📝 Already sent?', notificationAlreadySent);
-
                         if (!notificationAlreadySent) {
-                            console.log('📤 Inserting celebration notification to DB...');
-                            const { data, error } = await supabaseClient.from('notifications').insert({
+                            const { error } = await supabaseClient.from('notifications').insert({
                                 recipient_id: currentUser.stt,
                                 message: message,
                                 type: 'celebration',
                                 read: false
                             });
 
-                            if (error) {
-                                console.error('❌ Error inserting celebration notification:', error);
-                            } else {
-                                console.log('✅ Celebration notification created successfully!', data);
+                            if (!error) {
                                 localStorage.setItem(celebrationNotificationKey, 'true');
                             }
-                        } else {
-                            console.log('⏭️ Celebration notification already sent today for this category');
                         }
                     } catch (notifError) {
-                        console.error('❌ Exception creating celebration notification:', notifError);
+                        // Silent fail for notification creation
                     }
-                } else {
-                    console.log('⏳ Not all tickets completed yet:', completedTickets.length, '/', filteredTickets.length);
                 }
             } catch (error) {
                 console.error('Error checking user completion status:', error);
@@ -4152,7 +4285,6 @@
             mosNotificationCount = 0;
             mosLastUpdate = 0;
             mosUpdateInProgress = false;
-            console.log('🧹 MOS cache cleared');
         }
 
         function getMosCacheStats() {
