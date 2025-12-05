@@ -607,3 +607,137 @@
                 bottom: 20px;
             }
         }
+
+        /* --- THEME-AWARE WDN MODAL ACCENT COLORS --- */
+        /* These classes provide good contrast across all themes */
+
+        /* Warning/Alert Section (Email From) */
+        .wdn-section-warning { background-color: rgba(251, 191, 36, 0.15); border-color: rgba(251, 191, 36, 0.5); }
+        .wdn-section-warning .wdn-label { color: #fbbf24; }
+        .wdn-section-warning .wdn-hint { color: rgba(251, 191, 36, 0.8); }
+
+        /* Info Section (SUID Search) */
+        .wdn-section-info { background-color: rgba(59, 130, 246, 0.15); border-color: rgba(59, 130, 246, 0.5); }
+        .wdn-section-info .wdn-label { color: #60a5fa; }
+        .wdn-section-info .wdn-hint { color: rgba(96, 165, 250, 0.8); }
+
+        /* Success Section (Supplier Name) */
+        .wdn-section-success { background-color: rgba(34, 197, 94, 0.15); border-color: rgba(34, 197, 94, 0.5); }
+        .wdn-section-success .wdn-label { color: #4ade80; }
+        .wdn-section-success .wdn-hint { color: rgba(74, 222, 128, 0.8); }
+
+        /* Primary Section (Template Instructions) */
+        .wdn-section-primary { background-color: rgba(99, 102, 241, 0.15); border-color: rgba(99, 102, 241, 0.5); }
+        .wdn-section-primary .wdn-label { color: #818cf8; }
+
+        /* Accent Section (Follow-up, Headers) */
+        .wdn-section-accent { border-color: rgba(168, 85, 247, 0.5); }
+        .wdn-accent-text { color: #a855f7; }
+        .wdn-header-text { color: #22d3ee; }
+
+        /* Note Section (Internal Note) */
+        .wdn-section-note { background-color: rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.4); }
+        .wdn-section-note .wdn-label { color: #fcd34d; }
+
+        /* Light theme overrides */
+        html.daylight .wdn-section-warning { background-color: rgba(245, 158, 11, 0.1); }
+        html.daylight .wdn-section-warning .wdn-label { color: #b45309; }
+        html.daylight .wdn-section-warning .wdn-hint { color: #d97706; }
+        html.daylight .wdn-section-info { background-color: rgba(59, 130, 246, 0.1); }
+        html.daylight .wdn-section-info .wdn-label { color: #1d4ed8; }
+        html.daylight .wdn-section-info .wdn-hint { color: #2563eb; }
+        html.daylight .wdn-section-success { background-color: rgba(22, 163, 74, 0.1); }
+        html.daylight .wdn-section-success .wdn-label { color: #15803d; }
+        html.daylight .wdn-section-success .wdn-hint { color: #16a34a; }
+        html.daylight .wdn-section-primary { background-color: rgba(79, 70, 229, 0.1); }
+        html.daylight .wdn-section-primary .wdn-label { color: #4338ca; }
+        html.daylight .wdn-accent-text { color: #7c3aed; }
+        html.daylight .wdn-header-text { color: #0891b2; }
+        html.daylight .wdn-section-note { background-color: rgba(245, 158, 11, 0.08); }
+        html.daylight .wdn-section-note .wdn-label { color: #b45309; }
+
+        /* Blossom Dawn theme overrides */
+        html.blossom-dawn .wdn-section-warning .wdn-label { color: #b45309; }
+        html.blossom-dawn .wdn-section-warning .wdn-hint { color: #d97706; }
+        html.blossom-dawn .wdn-section-info .wdn-label { color: #1d4ed8; }
+        html.blossom-dawn .wdn-section-info .wdn-hint { color: #2563eb; }
+        html.blossom-dawn .wdn-section-success .wdn-label { color: #15803d; }
+        html.blossom-dawn .wdn-section-success .wdn-hint { color: #16a34a; }
+        html.blossom-dawn .wdn-section-primary .wdn-label { color: #4338ca; }
+        html.blossom-dawn .wdn-accent-text { color: #7c3aed; }
+        html.blossom-dawn .wdn-header-text { color: #0891b2; }
+        html.blossom-dawn .wdn-section-note .wdn-label { color: #b45309; }
+
+        /* Blue Sky theme overrides */
+        html.blue-sky .wdn-section-warning .wdn-label { color: #b45309; }
+        html.blue-sky .wdn-section-warning .wdn-hint { color: #d97706; }
+        html.blue-sky .wdn-section-info .wdn-label { color: #1d4ed8; }
+        html.blue-sky .wdn-section-info .wdn-hint { color: #2563eb; }
+        html.blue-sky .wdn-section-success .wdn-label { color: #15803d; }
+        html.blue-sky .wdn-section-success .wdn-hint { color: #16a34a; }
+        html.blue-sky .wdn-section-primary .wdn-label { color: #4338ca; }
+        html.blue-sky .wdn-accent-text { color: #7c3aed; }
+        html.blue-sky .wdn-header-text { color: #0891b2; }
+        html.blue-sky .wdn-section-note .wdn-label { color: #b45309; }
+
+        /* Fresh Mint theme overrides */
+        html.fresh-mint .wdn-section-warning .wdn-label { color: #b45309; }
+        html.fresh-mint .wdn-section-warning .wdn-hint { color: #d97706; }
+        html.fresh-mint .wdn-section-info .wdn-label { color: #1d4ed8; }
+        html.fresh-mint .wdn-section-info .wdn-hint { color: #2563eb; }
+        html.fresh-mint .wdn-section-success .wdn-label { color: #15803d; }
+        html.fresh-mint .wdn-section-success .wdn-hint { color: #16a34a; }
+        html.fresh-mint .wdn-section-primary .wdn-label { color: #4338ca; }
+        html.fresh-mint .wdn-accent-text { color: #7c3aed; }
+        html.fresh-mint .wdn-header-text { color: #0891b2; }
+        html.fresh-mint .wdn-section-note .wdn-label { color: #b45309; }
+
+        /* --- MODAL HEADER COLORS (Theme-Aware) --- */
+        /* These provide colored modal headers that work across all themes */
+
+        /* Validation/Warning Modal Header */
+        .modal-header-warning { color: #fbbf24; }
+
+        /* Customer Email Modal Header (Rose/Pink) */
+        .modal-header-customer { color: #fb7185; }
+
+        /* Carrier Email Modal Header (Orange) */
+        .modal-header-carrier { color: #fb923c; }
+
+        /* Info/Reminder Modal Header (Blue) */
+        .modal-header-info { color: #60a5fa; }
+
+        /* Follow-up/Guide Modal Header (Green) */
+        .modal-header-guide { color: #4ade80; }
+
+        /* Movement Guide Modal Header (Purple) */
+        .modal-header-movement { color: #a855f7; }
+
+        /* Light theme overrides for modal headers */
+        html.daylight .modal-header-warning { color: #d97706; }
+        html.daylight .modal-header-customer { color: #e11d48; }
+        html.daylight .modal-header-carrier { color: #ea580c; }
+        html.daylight .modal-header-info { color: #2563eb; }
+        html.daylight .modal-header-guide { color: #16a34a; }
+        html.daylight .modal-header-movement { color: #7c3aed; }
+
+        html.blossom-dawn .modal-header-warning { color: #d97706; }
+        html.blossom-dawn .modal-header-customer { color: #e11d48; }
+        html.blossom-dawn .modal-header-carrier { color: #ea580c; }
+        html.blossom-dawn .modal-header-info { color: #2563eb; }
+        html.blossom-dawn .modal-header-guide { color: #16a34a; }
+        html.blossom-dawn .modal-header-movement { color: #7c3aed; }
+
+        html.blue-sky .modal-header-warning { color: #d97706; }
+        html.blue-sky .modal-header-customer { color: #e11d48; }
+        html.blue-sky .modal-header-carrier { color: #ea580c; }
+        html.blue-sky .modal-header-info { color: #2563eb; }
+        html.blue-sky .modal-header-guide { color: #16a34a; }
+        html.blue-sky .modal-header-movement { color: #7c3aed; }
+
+        html.fresh-mint .modal-header-warning { color: #d97706; }
+        html.fresh-mint .modal-header-customer { color: #e11d48; }
+        html.fresh-mint .modal-header-carrier { color: #ea580c; }
+        html.fresh-mint .modal-header-info { color: #2563eb; }
+        html.fresh-mint .modal-header-guide { color: #16a34a; }
+        html.fresh-mint .modal-header-movement { color: #7c3aed; }

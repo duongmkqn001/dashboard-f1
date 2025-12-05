@@ -199,23 +199,23 @@
 
     <!-- WORKFLOW MODALS -->
     <div id="validation-modal" class="modal-backdrop fixed inset-0 flex items-center justify-center p-4 hidden opacity-0 z-50">
-        <div class="modal-content bg-section rounded-lg shadow-xl w-full max-w-md p-6 transform scale-95"><h2 class="text-2xl font-bold mb-4 text-yellow-400">Cảnh báo</h2><p class="mb-4">Vui lòng điền đầy đủ các trường thông tin bắt buộc sau:</p><ul id="missing-fields-list" class="list-disc list-inside text-secondary mb-6"></ul><div class="flex justify-end"><button id="close-validation-modal-btn" class="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded-lg">Đã hiểu</button></div></div>
+        <div class="modal-content bg-section rounded-lg shadow-xl w-full max-w-md p-6 transform scale-95"><h2 class="text-2xl font-bold mb-4 modal-header-warning">Cảnh báo</h2><p class="mb-4 text-main">Vui lòng điền đầy đủ các trường thông tin bắt buộc sau:</p><ul id="missing-fields-list" class="list-disc list-inside text-secondary mb-6"></ul><div class="flex justify-end"><button id="close-validation-modal-btn" class="wdn-section-warning border font-bold py-2 px-4 rounded-lg wdn-label">Đã hiểu</button></div></div>
     </div>
     <div id="customer-email-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
         <div class="modal-content bg-section rounded-lg shadow-xl w-full max-w-3xl p-6 transform scale-95">
-            <h2 class="text-2xl font-bold mb-4 text-rose-400">Nhắc nhở: Gửi Email cho Customer</h2>
+            <h2 class="text-2xl font-bold mb-4 modal-header-customer">Nhắc nhở: Gửi Email cho Customer</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="space-y-4">
-                    <div><label for="customer-email" class="block text-sm font-medium">Email Khách hàng</label><input type="email" id="customer-email" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button"></div>
-                    <div><label for="customer-name" class="block text-sm font-medium">Tên Khách hàng</label><input type="text" id="customer-name" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button"></div>
-                    <div><label for="customer-order" class="block text-sm font-medium">Số Đơn hàng</label><input type="text" id="customer-order" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button"></div>
-                    <div><label for="customer-brand" class="block text-sm font-medium">Brand</label><select id="customer-brand" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button"></select></div>
+                    <div><label for="customer-email" class="block text-sm font-medium text-main">Email Khách hàng</label><input type="email" id="customer-email" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button text-main"></div>
+                    <div><label for="customer-name" class="block text-sm font-medium text-main">Tên Khách hàng</label><input type="text" id="customer-name" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button text-main"></div>
+                    <div><label for="customer-order" class="block text-sm font-medium text-main">Số Đơn hàng</label><input type="text" id="customer-order" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button text-main"></div>
+                    <div><label for="customer-brand" class="block text-sm font-medium text-main">Brand</label><select id="customer-brand" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button text-main"></select></div>
                 </div>
                 <div class="space-y-4">
-                     <h3 class="font-semibold">Xem trước Email:</h3>
-                    <div class="border border-secondary p-2 rounded-lg bg-button"><label class="block text-xs font-medium text-secondary mb-1">Email người nhận</label><div class="flex items-center gap-2"><p id="customer-email-address-output" class="flex-grow p-2 bg-section rounded-md text-sm truncate"></p><button class="js-copy-btn p-1.5 rounded-md" title="Sao chép Email"><svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 12.25-3-3m0 0-3 3m3-3v7.5m-6-13.5H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125h3.75m0-3.75v.75" /></svg></button></div></div>
-                    <div class="border border-secondary p-2 rounded-lg bg-button"><label class="block text-xs font-medium text-secondary mb-1">Tiêu đề</label><div class="flex items-center gap-2"><p id="customer-email-subject-output" class="flex-grow p-2 bg-section rounded-md text-sm"></p><button class="js-copy-btn p-1.5 rounded-md" title="Sao chép Tiêu đề"><svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 12.25-3-3m0 0-3 3m3-3v7.5m-6-13.5H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125h3.75m0-3.75v.75" /></svg></button></div></div>
-                    <div class="border border-secondary p-2 rounded-lg bg-button"><label class="block text-xs font-medium text-secondary mb-1">Nội dung</label><div class="relative"><div id="customer-email-body-output" class="w-full p-2 bg-section rounded-lg min-h-[150px] text-sm max-h-40 overflow-y-auto"></div><button class="js-copy-btn absolute top-1 right-1 p-1.5 rounded-md" title="Sao chép Nội dung"><svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 12.25-3-3m0 0-3 3m3-3v7.5m-6-13.5H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125h3.75m0-3.75v.75" /></svg></button></div></div>
+                     <h3 class="font-semibold text-main">Xem trước Email:</h3>
+                    <div class="border border-secondary p-2 rounded-lg bg-button"><label class="block text-xs font-medium text-secondary mb-1">Email người nhận</label><div class="flex items-center gap-2"><p id="customer-email-address-output" class="flex-grow p-2 bg-section rounded-md text-sm truncate text-main"></p><button class="js-copy-btn p-1.5 rounded-md hover:bg-section" title="Sao chép Email"><svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 12.25-3-3m0 0-3 3m3-3v7.5m-6-13.5H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125h3.75m0-3.75v.75" /></svg></button></div></div>
+                    <div class="border border-secondary p-2 rounded-lg bg-button"><label class="block text-xs font-medium text-secondary mb-1">Tiêu đề</label><div class="flex items-center gap-2"><p id="customer-email-subject-output" class="flex-grow p-2 bg-section rounded-md text-sm text-main"></p><button class="js-copy-btn p-1.5 rounded-md hover:bg-section" title="Sao chép Tiêu đề"><svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 12.25-3-3m0 0-3 3m3-3v7.5m-6-13.5H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125h3.75m0-3.75v.75" /></svg></button></div></div>
+                    <div class="border border-secondary p-2 rounded-lg bg-button"><label class="block text-xs font-medium text-secondary mb-1">Nội dung</label><div class="relative"><div id="customer-email-body-output" class="w-full p-2 bg-section rounded-lg min-h-[150px] text-sm max-h-40 overflow-y-auto text-main"></div><button class="js-copy-btn absolute top-1 right-1 p-1.5 rounded-md hover:bg-button" title="Sao chép Nội dung"><svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 12.25-3-3m0 0-3 3m3-3v7.5m-6-13.5H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125h3.75m0-3.75v.75" /></svg></button></div></div>
                 </div>
             </div>
             <div id="customer-copy-feedback" class="h-5 mt-2 text-sm text-green-500 font-medium opacity-0 transition-opacity">Đã sao chép!</div>
@@ -223,16 +223,16 @@
         </div>
     </div>
     <div id="label-reminder-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
-        <div class="modal-content bg-section rounded-lg shadow-xl w-full max-w-md p-6 transform scale-95"><h2 class="text-2xl font-bold mb-4 text-blue-400">Nhắc nhở</h2><p id="label-reminder-text" class="mb-6"></p><div class="flex justify-end"><button id="close-label-reminder-modal-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">OK</button></div></div>
+        <div class="modal-content bg-section rounded-lg shadow-xl w-full max-w-md p-6 transform scale-95"><h2 class="text-2xl font-bold mb-4 modal-header-info">Nhắc nhở</h2><p id="label-reminder-text" class="mb-6 text-main"></p><div class="flex justify-end"><button id="close-label-reminder-modal-btn" class="wdn-section-info border font-bold py-2 px-4 rounded-lg wdn-label">OK</button></div></div>
     </div>
 
     <!-- Follow-up Guide Modal -->
     <div id="follow-up-guide-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
         <div class="modal-content bg-section rounded-lg shadow-xl w-full max-w-2xl p-6 transform scale-95">
-            <h2 class="text-2xl font-bold mb-4 text-green-400">Hướng dẫn Follow-up</h2>
-            <div id="follow-up-guide-output" class="space-y-4 max-h-96 overflow-y-auto mb-6"></div>
+            <h2 class="text-2xl font-bold mb-4 modal-header-guide">Hướng dẫn Follow-up</h2>
+            <div id="follow-up-guide-output" class="space-y-4 max-h-96 overflow-y-auto mb-6 text-main"></div>
             <div class="flex justify-end">
-                <button id="close-follow-up-guide-modal-btn" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg">Đóng</button>
+                <button id="close-follow-up-guide-modal-btn" class="wdn-section-success border font-bold py-2 px-4 rounded-lg wdn-label">Đóng</button>
             </div>
         </div>
     </div>
@@ -240,13 +240,13 @@
     <!-- WDN Supplier Email Modal -->
     <div id="wdn-supplier-email-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
         <div class="modal-content bg-section rounded-lg shadow-xl w-full max-w-4xl p-6 transform scale-95 max-h-[90vh] overflow-y-auto">
-            <h2 id="wdn-modal-title" class="text-2xl font-bold mb-4 text-cyan-400">📧 Email to Supplier (WDN)</h2>
+            <h2 id="wdn-modal-title" class="text-2xl font-bold mb-4 wdn-header-text">📧 Email to Supplier (WDN)</h2>
             <!-- Template Description Section -->
-            <div id="wdn-template-description-section" class="hidden mb-4 p-4 bg-indigo-900/30 border border-indigo-500 rounded-lg">
+            <div id="wdn-template-description-section" class="hidden mb-4 p-4 wdn-section-primary border rounded-lg">
                 <div class="flex items-start gap-3">
                     <span class="text-2xl">📝</span>
                     <div class="flex-grow">
-                        <h3 class="font-semibold text-indigo-300 mb-1">Template Instructions</h3>
+                        <h3 class="font-semibold wdn-label mb-1">Template Instructions</h3>
                         <p id="wdn-template-description-text" class="text-sm text-secondary whitespace-pre-wrap"></p>
                     </div>
                 </div>
@@ -255,29 +255,29 @@
                 <!-- Left Column - Dynamic Placeholder Inputs -->
                 <div class="space-y-4">
                     <!-- Email From (Warning/Reminder) -->
-                    <div class="p-3 bg-amber-900/30 border border-amber-500 rounded-lg">
-                        <label for="wdn-modal-email-from" class="block text-sm font-medium text-amber-400 mb-1">⚠️ Email From (reminder)</label>
-                        <input type="text" id="wdn-modal-email-from" class="w-full p-2 border border-amber-500 rounded-lg bg-button" readonly>
-                        <p class="text-xs text-amber-400 mt-1">Make sure you're sending from this email account!</p>
+                    <div class="p-3 wdn-section-warning border rounded-lg">
+                        <label for="wdn-modal-email-from" class="block text-sm font-medium wdn-label mb-1">⚠️ Email From (reminder)</label>
+                        <input type="text" id="wdn-modal-email-from" class="w-full p-2 border border-secondary rounded-lg bg-button" readonly>
+                        <p class="text-xs wdn-hint mt-1">Make sure you're sending from this email account!</p>
                     </div>
 
                     <!-- SUID Search Section -->
-                    <div class="p-3 bg-blue-900/30 border border-blue-500 rounded-lg">
-                        <label for="wdn-modal-suid-search" class="block text-sm font-medium text-blue-400 mb-1">🔍 Search by SUID</label>
+                    <div class="p-3 wdn-section-info border rounded-lg">
+                        <label for="wdn-modal-suid-search" class="block text-sm font-medium wdn-label mb-1">🔍 Search by SUID</label>
                         <div class="flex items-center gap-2">
-                            <input type="text" id="wdn-modal-suid-search" class="flex-grow p-2 border border-blue-500 rounded-lg bg-button" placeholder="Enter SUID to search supplier...">
-                            <span id="wdn-suid-loading" class="hidden text-blue-400">⏳</span>
-                            <span id="wdn-suid-success" class="hidden text-green-400">✅</span>
-                            <span id="wdn-suid-error" class="hidden text-red-400">❌</span>
+                            <input type="text" id="wdn-modal-suid-search" class="flex-grow p-2 border border-secondary rounded-lg bg-button" placeholder="Enter SUID to search supplier...">
+                            <span id="wdn-suid-loading" class="hidden wdn-label">⏳</span>
+                            <span id="wdn-suid-success" class="hidden text-green-500">✅</span>
+                            <span id="wdn-suid-error" class="hidden text-red-500">❌</span>
                         </div>
-                        <p id="wdn-suid-status" class="text-xs text-blue-400 mt-1">Enter SUID to auto-fill supplier name</p>
+                        <p id="wdn-suid-status" class="text-xs wdn-hint mt-1">Enter SUID to auto-fill supplier name</p>
                     </div>
 
                     <!-- Manual Supplier Name Input (fallback when SUID search fails) -->
-                    <div id="wdn-manual-supplier-section" class="p-3 bg-green-900/30 border border-green-500 rounded-lg">
-                        <label for="wdn-manual-supplier-name" class="block text-sm font-medium text-green-400 mb-1">👤 Supplier Contact Name <span class="text-gray-400">(for greeting)</span></label>
-                        <input type="text" id="wdn-manual-supplier-name" class="w-full p-2 border border-green-500 rounded-lg bg-button" placeholder="Enter supplier/team name (e.g., Logistics Team)">
-                        <p class="text-xs text-green-400 mt-1">Auto-filled from template greeting or SUID search. Edit if needed.</p>
+                    <div id="wdn-manual-supplier-section" class="p-3 wdn-section-success border rounded-lg">
+                        <label for="wdn-manual-supplier-name" class="block text-sm font-medium wdn-label mb-1">👤 Supplier Contact Name <span class="text-secondary">(for greeting)</span></label>
+                        <input type="text" id="wdn-manual-supplier-name" class="w-full p-2 border border-secondary rounded-lg bg-button" placeholder="Enter supplier/team name (e.g., Logistics Team)">
+                        <p class="text-xs wdn-hint mt-1">Auto-filled from template greeting or SUID search. Edit if needed.</p>
                     </div>
 
                     <!-- Dynamic Placeholders Container -->
@@ -288,14 +288,14 @@
 
                 <!-- Right Column - Preview & Copy -->
                 <div class="space-y-4">
-                    <h3 class="font-semibold text-cyan-300">Preview Email:</h3>
+                    <h3 class="font-semibold wdn-header-text">Preview Email:</h3>
 
                     <!-- Subject -->
                     <div class="border border-secondary p-2 rounded-lg bg-button">
                         <label class="block text-xs font-medium text-secondary mb-1">Subject Line</label>
                         <div class="flex items-center gap-2">
-                            <p id="wdn-modal-subject-output" class="flex-grow p-2 bg-section rounded-md text-sm"></p>
-                            <button id="copy-wdn-subject-btn" class="p-1.5 rounded-md hover:bg-gray-600" title="Copy Subject">📋</button>
+                            <p id="wdn-modal-subject-output" class="flex-grow p-2 bg-section rounded-md text-sm text-main"></p>
+                            <button id="copy-wdn-subject-btn" class="p-1.5 rounded-md hover:bg-button" title="Copy Subject">📋</button>
                         </div>
                     </div>
 
@@ -303,8 +303,8 @@
                     <div id="wdn-cc-section" class="border border-secondary p-2 rounded-lg bg-button hidden">
                         <label class="block text-xs font-medium text-secondary mb-1">CC Recipients</label>
                         <div class="flex items-center gap-2">
-                            <p id="wdn-modal-cc-output" class="flex-grow p-2 bg-section rounded-md text-sm"></p>
-                            <button id="copy-wdn-cc-btn" class="p-1.5 rounded-md hover:bg-gray-600" title="Copy CC">📋</button>
+                            <p id="wdn-modal-cc-output" class="flex-grow p-2 bg-section rounded-md text-sm text-main"></p>
+                            <button id="copy-wdn-cc-btn" class="p-1.5 rounded-md hover:bg-button" title="Copy CC">📋</button>
                         </div>
                     </div>
 
@@ -312,17 +312,17 @@
                     <div class="border border-secondary p-2 rounded-lg bg-button">
                         <label class="block text-xs font-medium text-secondary mb-1">Email Body</label>
                         <div class="relative">
-                            <div id="wdn-modal-body-output" class="w-full p-2 bg-section rounded-lg min-h-[150px] text-sm max-h-48 overflow-y-auto whitespace-pre-wrap"></div>
-                            <button id="copy-wdn-body-btn" class="absolute top-1 right-1 p-1.5 rounded-md hover:bg-gray-600" title="Copy Body">📋</button>
+                            <div id="wdn-modal-body-output" class="w-full p-2 bg-section rounded-lg min-h-[150px] text-sm max-h-48 overflow-y-auto whitespace-pre-wrap text-main"></div>
+                            <button id="copy-wdn-body-btn" class="absolute top-1 right-1 p-1.5 rounded-md hover:bg-button" title="Copy Body">📋</button>
                         </div>
                     </div>
 
                     <!-- Internal Note (only shown if template has internal note) -->
-                    <div id="wdn-note-section" class="border border-amber-600/50 p-2 rounded-lg bg-amber-900/20 hidden">
-                        <label class="block text-xs font-medium text-amber-400 mb-1">Internal Note (for ticket)</label>
+                    <div id="wdn-note-section" class="wdn-section-note border p-2 rounded-lg hidden">
+                        <label class="block text-xs font-medium wdn-label mb-1">Internal Note (for ticket)</label>
                         <div class="relative">
-                            <div id="wdn-modal-note-output" class="w-full p-2 bg-section rounded-lg min-h-[60px] text-sm max-h-24 overflow-y-auto whitespace-pre-wrap"></div>
-                            <button id="copy-wdn-note-btn" class="absolute top-1 right-1 p-1.5 rounded-md hover:bg-gray-600" title="Copy Note">📋</button>
+                            <div id="wdn-modal-note-output" class="w-full p-2 bg-section rounded-lg min-h-[60px] text-sm max-h-24 overflow-y-auto whitespace-pre-wrap text-main"></div>
+                            <button id="copy-wdn-note-btn" class="absolute top-1 right-1 p-1.5 rounded-md hover:bg-button" title="Copy Note">📋</button>
                         </div>
                     </div>
                 </div>
@@ -336,10 +336,10 @@
 
     <!-- WDN Follow-up Actions Modal -->
     <div id="wdn-followup-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 hidden opacity-0 z-[60]">
-        <div class="modal-content bg-section rounded-lg shadow-xl w-full max-w-2xl p-6 transform scale-95 border-2 border-purple-500">
+        <div class="modal-content bg-section rounded-lg shadow-xl w-full max-w-2xl p-6 transform scale-95 wdn-section-accent border-2">
             <div class="flex items-center gap-3 mb-4">
                 <span class="text-3xl">📋</span>
-                <h2 class="text-xl font-bold text-purple-400">Follow-up Actions Required</h2>
+                <h2 class="text-xl font-bold wdn-accent-text">Follow-up Actions Required</h2>
             </div>
             <p class="text-sm text-secondary mb-4">Please complete the following actions after sending the email:</p>
             <div id="wdn-followup-actions-list" class="space-y-3 max-h-[60vh] overflow-y-auto mb-4">
@@ -356,28 +356,28 @@
     <!-- Carrier Email Modal -->
     <div id="carrier-email-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
         <div class="modal-content bg-section rounded-lg shadow-xl w-full max-w-3xl p-6 transform scale-95">
-            <h2 class="text-2xl font-bold mb-4 text-orange-400">Email to Carrier (FMOP)</h2>
+            <h2 class="text-2xl font-bold mb-4 modal-header-carrier">Email to Carrier (FMOP)</h2>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div class="space-y-4">
                     <div>
-                        <label for="carrier-ticket" class="block text-sm font-medium">Ticket Number</label>
-                        <input type="text" id="carrier-ticket" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button" placeholder="Enter ticket number">
+                        <label for="carrier-ticket" class="block text-sm font-medium text-main">Ticket Number</label>
+                        <input type="text" id="carrier-ticket" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button text-main" placeholder="Enter ticket number">
                     </div>
                     <div>
-                        <label for="carrier-po" class="block text-sm font-medium">PO Number</label>
-                        <input type="text" id="carrier-po" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button" placeholder="Enter PO number">
+                        <label for="carrier-po" class="block text-sm font-medium text-main">PO Number</label>
+                        <input type="text" id="carrier-po" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button text-main" placeholder="Enter PO number">
                     </div>
                     <div>
-                        <label for="carrier-name" class="block text-sm font-medium">Carrier Name</label>
-                        <select id="carrier-name" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button">
+                        <label for="carrier-name" class="block text-sm font-medium text-main">Carrier Name</label>
+                        <select id="carrier-name" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button text-main">
                             <option value="">Select Carrier...</option>
                         </select>
                     </div>
                     <div>
-                        <label for="carrier-email-address" class="block text-sm font-medium">Carrier Email</label>
+                        <label for="carrier-email-address" class="block text-sm font-medium text-main">Carrier Email</label>
                         <div class="flex items-center gap-2">
-                            <input type="email" id="carrier-email-address" class="flex-grow p-2 border border-secondary rounded-lg bg-button" readonly>
-                            <button id="copy-carrier-email-btn" class="p-2 bg-blue-500 hover:bg-blue-600 text-white rounded-lg" title="Copy Email">
+                            <input type="email" id="carrier-email-address" class="flex-grow p-2 border border-secondary rounded-lg bg-button text-main" readonly>
+                            <button id="copy-carrier-email-btn" class="p-2 wdn-section-info border rounded-lg wdn-label" title="Copy Email">
                                 📋
                             </button>
                         </div>
@@ -387,8 +387,8 @@
                     <div class="border border-secondary p-2 rounded-lg bg-button">
                         <label class="block text-xs font-medium text-secondary mb-1">Email Subject</label>
                         <div class="flex items-center gap-2">
-                            <p id="carrier-email-subject-output" class="flex-grow p-2 bg-section rounded-md text-sm"></p>
-                            <button id="copy-carrier-subject-btn" class="p-1.5 rounded-md" title="Copy Subject">
+                            <p id="carrier-email-subject-output" class="flex-grow p-2 bg-section rounded-md text-sm text-main"></p>
+                            <button id="copy-carrier-subject-btn" class="p-1.5 rounded-md hover:bg-section" title="Copy Subject">
                                 📋
                             </button>
                         </div>
@@ -396,8 +396,8 @@
                     <div class="border border-secondary p-2 rounded-lg bg-button">
                         <label class="block text-xs font-medium text-secondary mb-1">BOL Naming Method</label>
                         <div class="flex items-center gap-2">
-                            <p id="bol-naming-output" class="flex-grow p-2 bg-section rounded-md text-sm"></p>
-                            <button id="copy-bol-naming-btn" class="p-1.5 rounded-md" title="Copy BOL Naming">
+                            <p id="bol-naming-output" class="flex-grow p-2 bg-section rounded-md text-sm text-main"></p>
+                            <button id="copy-bol-naming-btn" class="p-1.5 rounded-md hover:bg-section" title="Copy BOL Naming">
                                 📋
                             </button>
                         </div>
@@ -405,8 +405,8 @@
                     <div class="border border-secondary p-2 rounded-lg bg-button">
                         <label class="block text-xs font-medium text-secondary mb-1">Email Body</label>
                         <div class="flex items-center gap-2">
-                            <div id="carrier-email-body-output" class="flex-grow p-2 bg-section rounded-md text-sm max-h-32 overflow-y-auto"></div>
-                            <button id="copy-carrier-body-btn" class="p-1.5 rounded-md" title="Copy Email Body">
+                            <div id="carrier-email-body-output" class="flex-grow p-2 bg-section rounded-md text-sm max-h-32 overflow-y-auto text-main"></div>
+                            <button id="copy-carrier-body-btn" class="p-1.5 rounded-md hover:bg-section" title="Copy Email Body">
                                 📋
                             </button>
                         </div>
@@ -416,7 +416,7 @@
             <div id="carrier-copy-feedback" class="h-5 mt-2 text-sm text-green-500 font-medium opacity-0 transition-opacity">Đã sao chép!</div>
             <div class="mt-6 flex justify-end gap-3">
                 <button id="close-carrier-modal-btn" class="bg-button hover:brightness-90 text-main font-bold py-2 px-4 rounded-lg">Đóng</button>
-                <button id="continue-to-template-btn" class="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hidden">Tiếp tục đến Template</button>
+                <button id="continue-to-template-btn" class="wdn-section-info border font-bold py-2 px-4 rounded-lg wdn-label hidden">Tiếp tục đến Template</button>
             </div>
         </div>
     </div>
