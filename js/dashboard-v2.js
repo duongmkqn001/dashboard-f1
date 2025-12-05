@@ -2255,6 +2255,19 @@
                 const titleEl = document.getElementById('wdn-modal-title');
                 if (titleEl) titleEl.textContent = `📧 ${template.name}`;
 
+                // Show template description at the top of the modal if available
+                const descriptionSection = document.getElementById('wdn-template-description-section');
+                const descriptionText = document.getElementById('wdn-template-description-text');
+                if (descriptionSection && descriptionText) {
+                    const templateDescription = template.description?.trim();
+                    if (templateDescription) {
+                        descriptionText.innerHTML = templateDescription.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-accent hover:underline">$1</a>');
+                        descriptionSection.classList.remove('hidden');
+                    } else {
+                        descriptionSection.classList.add('hidden');
+                    }
+                }
+
                 // Get output fields
                 const subjectOutput = document.getElementById('wdn-modal-subject-output');
                 const ccOutput = document.getElementById('wdn-modal-cc-output');
@@ -2264,6 +2277,24 @@
                 const noteSection = document.getElementById('wdn-note-section');
                 const placeholderContainer = document.getElementById('wdn-placeholder-inputs');
                 const emailFromInput = document.getElementById('wdn-modal-email-from');
+
+                // Clear all output fields to prevent stale data from previous template
+                if (subjectOutput) {
+                    subjectOutput.textContent = '';
+                    subjectOutput.dataset.plainText = '';
+                }
+                if (ccOutput) {
+                    ccOutput.textContent = '';
+                    ccOutput.dataset.plainText = '';
+                }
+                if (bodyOutput) {
+                    bodyOutput.innerHTML = '';
+                    bodyOutput.dataset.plainText = '';
+                }
+                if (noteOutput) {
+                    noteOutput.innerHTML = '';
+                    noteOutput.dataset.plainText = '';
+                }
 
                 // Pre-fill email from
                 if (emailFromInput) emailFromInput.value = template.emailFrom || '';
@@ -2342,9 +2373,21 @@
                 });
 
                 // Get manual supplier name input and pre-fill with extracted team name
-                const manualSupplierInput = document.getElementById('wdn-manual-supplier-name');
-                if (manualSupplierInput) {
+                // Clone and replace to remove old event listeners
+                const oldManualSupplierInput = document.getElementById('wdn-manual-supplier-name');
+                let manualSupplierInput = oldManualSupplierInput;
+                if (oldManualSupplierInput) {
+                    const newInput = oldManualSupplierInput.cloneNode(true);
+                    oldManualSupplierInput.parentNode.replaceChild(newInput, oldManualSupplierInput);
+                    manualSupplierInput = newInput;
                     manualSupplierInput.value = extractedTeamName;
+                }
+
+                // Clone and replace SUID search input to remove old event listeners
+                const oldSuidInput = document.getElementById('wdn-modal-suid-search');
+                if (oldSuidInput) {
+                    const newSuidInput = oldSuidInput.cloneNode(true);
+                    oldSuidInput.parentNode.replaceChild(newSuidInput, oldSuidInput);
                 }
 
                 // Function to replace placeholders with current values
@@ -2543,6 +2586,62 @@
                     }
                 };
 
+                // Helper function to show WDN follow-up actions modal
+                const showWdnFollowUpActions = () => {
+                    return new Promise(resolveFollowUp => {
+                        const followUpGuide = template.followUpGuide;
+
+                        // Only show follow-up modal if we have followUpGuide steps
+                        // (Template description is now shown at the top of WDN modal instead)
+                        if (!followUpGuide || followUpGuide.length === 0) {
+                            resolveFollowUp();
+                            return;
+                        }
+
+                        const followUpModal = document.getElementById('wdn-followup-modal');
+                        const actionsList = document.getElementById('wdn-followup-actions-list');
+
+                        if (!followUpModal || !actionsList) {
+                            resolveFollowUp();
+                            return;
+                        }
+
+                        // Populate follow-up actions
+                        actionsList.innerHTML = '';
+
+                        // Show follow-up guide steps
+                        followUpGuide.forEach((step, index) => {
+                            const actionItem = document.createElement('div');
+                            actionItem.className = 'p-3 bg-purple-900/20 border border-purple-500/50 rounded-lg';
+                            actionItem.innerHTML = `
+                                <div class="flex items-start gap-3">
+                                    <span class="flex-shrink-0 w-6 h-6 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm font-bold">${index + 1}</span>
+                                    <div class="flex-grow">
+                                        <h4 class="font-semibold text-purple-300">${step.title || 'Action'}</h4>
+                                        <p class="text-sm text-secondary mt-1 whitespace-pre-wrap">${(step.action || step.description || 'No description').replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-accent hover:underline">$1</a>')}</p>
+                                    </div>
+                                </div>
+                            `;
+                            actionsList.appendChild(actionItem);
+                        });
+
+                        // Show the follow-up modal
+                        _openModal(followUpModal);
+
+                        // Handle understood button
+                        document.getElementById('wdn-followup-understood-btn').onclick = () => {
+                            _closeModal(followUpModal);
+                            resolveFollowUp();
+                        };
+                    });
+                };
+
+                // Check if we have follow-up content to show (only followUpGuide now)
+                const hasFollowUpContent = template.followUpGuide?.length > 0;
+
+                // Track if follow-up was already shown
+                let followUpShown = false;
+
                 // Setup copy buttons
                 document.getElementById('copy-wdn-subject-btn').onclick = () => {
                     navigator.clipboard.writeText(subjectOutput?.dataset?.plainText || '').then(showCopyFeedback);
@@ -2553,12 +2652,39 @@
                 document.getElementById('copy-wdn-body-btn').onclick = () => {
                     navigator.clipboard.writeText(bodyOutput?.dataset?.plainText || '').then(showCopyFeedback);
                 };
-                document.getElementById('copy-wdn-note-btn').onclick = () => {
-                    navigator.clipboard.writeText(noteOutput?.dataset?.plainText || '').then(showCopyFeedback);
+                document.getElementById('copy-wdn-note-btn').onclick = async () => {
+                    await navigator.clipboard.writeText(noteOutput?.dataset?.plainText || '');
+                    showCopyFeedback();
+                    // Show follow-up actions after copying internal note
+                    if (!followUpShown && hasFollowUpContent) {
+                        followUpShown = true;
+                        await showWdnFollowUpActions();
+                    }
+                };
+
+                // Handler function to close modal with follow-up check
+                const handleCloseModal = async () => {
+                    // Show follow-up actions before closing if not already shown
+                    if (!followUpShown && hasFollowUpContent) {
+                        followUpShown = true;
+                        await showWdnFollowUpActions();
+                    }
+                    _closeModal(modal);
+                    resolve();
                 };
 
                 _openModal(modal);
-                document.getElementById('close-wdn-modal-btn').onclick = () => { _closeModal(modal); resolve(); };
+
+                // Close button click
+                document.getElementById('close-wdn-modal-btn').onclick = handleCloseModal;
+
+                // Backdrop click (clicking outside the modal content)
+                modal.onclick = async (e) => {
+                    // Only trigger if clicking directly on the backdrop, not on modal content
+                    if (e.target === modal) {
+                        await handleCloseModal();
+                    }
+                };
             });
         }
 
