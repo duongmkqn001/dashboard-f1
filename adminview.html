@@ -199,8 +199,56 @@
                                 <input type="url" id="sop-link" class="w-full p-2 border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-bg-primary))]" placeholder="https://docs.google.com/document/...">
                                 <p class="text-xs text-[rgb(var(--color-text-muted))] mt-1">Add a link to the Standard Operating Procedure document for this POS task</p>
                             </div>
-                            <div>
-                                <label class="block text-sm font-medium text-[rgb(var(--color-text-secondary))] mb-1">Main Content (for Supplier)</label>
+
+                            <!-- WDN Template Builder (Supplier Email) - Primary interface for WDN projects -->
+                            <div id="wdn-template-builder" class="hidden space-y-4 p-4 border-2 border-cyan-400 bg-cyan-50 rounded-lg">
+                                <h4 class="font-semibold text-cyan-800 text-lg flex items-center gap-2">
+                                    <span>📧</span> Supplier Email Template Builder
+                                </h4>
+                                <p class="text-xs text-gray-600">Use placeholders: <code class="placeholder-tag">{{Supplier_Name}}</code>, <code class="placeholder-tag">{{Order_Number}}</code>, <code class="placeholder-tag">{{Brand}}</code></p>
+
+                                <div class="p-3 bg-amber-50 border border-amber-300 rounded-lg">
+                                    <label for="wdn-email-from" class="block text-sm font-medium text-amber-800 mb-1">⚠️ Email From <span class="text-amber-600 font-normal">(reminder - send from this account)</span></label>
+                                    <input type="text" id="wdn-email-from" class="w-full p-2 border border-amber-300 rounded-lg bg-white" placeholder="e.g., wdn-team@company.com">
+                                    <p class="text-xs text-amber-600 mt-1">Make sure you are sending from the correct email account!</p>
+                                </div>
+
+                                <div>
+                                    <label for="wdn-subject" class="block text-sm font-medium text-gray-700 mb-1">Subject Line</label>
+                                    <input type="text" id="wdn-subject" class="w-full p-2 border border-gray-300 rounded-lg bg-white" placeholder="RE: {{Brand}} Order #{{Order_Number}} - Update Required">
+                                </div>
+
+                                <div>
+                                    <label for="wdn-cc" class="block text-sm font-medium text-gray-700 mb-1">CC Recipients <span class="text-gray-400 font-normal">(optional, comma-separated)</span></label>
+                                    <input type="text" id="wdn-cc" class="w-full p-2 border border-gray-300 rounded-lg bg-white" placeholder="team@example.com, manager@example.com">
+                                </div>
+
+                                <div>
+                                    <label for="wdn-email-body" class="block text-sm font-medium text-gray-700 mb-1">Email Body <span class="text-cyan-600 font-normal">(main content)</span></label>
+                                    <div class="flex gap-4">
+                                        <textarea id="wdn-email-body" rows="14" class="w-full p-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-cyan-400" placeholder="Hello {{Supplier_Name}},
+
+I am reaching out regarding order #{{Order_Number}} for {{Brand}}.
+
+[Your email content here...]
+
+Best regards,"></textarea>
+                                        <div id="wdn-component-panel" class="w-48 flex-shrink-0">
+                                            <h4 class="font-semibold mb-2 text-sm text-center text-gray-600">Components</h4>
+                                            <div id="wdn-component-source" class="space-y-2"></div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label for="wdn-internal-note" class="block text-sm font-medium text-gray-700 mb-1">Internal Note <span class="text-gray-400 font-normal">(optional - added to ticket)</span></label>
+                                    <textarea id="wdn-internal-note" rows="3" class="w-full p-2 border border-gray-300 rounded-lg bg-white" placeholder="Internal note for the ticket (not sent to supplier)..."></textarea>
+                                </div>
+                            </div>
+
+                            <!-- Supplier Template Builder - Primary interface for non-WDN projects -->
+                            <div id="supplier-template-builder">
+                                <label id="main-content-label" class="block text-sm font-medium text-[rgb(var(--color-text-secondary))] mb-1">Main Content (for Supplier)</label>
                                 <div class="flex gap-4">
                                     <textarea id="template-content-textarea" rows="12" class="w-full p-2 border border-[rgb(var(--color-border))] rounded-lg bg-[rgb(var(--color-bg-primary))] focus:outline-none focus:ring-2 focus:ring-[rgb(var(--color-accent-primary))]"></textarea>
                                     <div id="component-panel" class="w-48 flex-shrink-0">
@@ -209,8 +257,8 @@
                                     </div>
                                 </div>
                             </div>
-                             <div class="flex flex-col sm:flex-row sm:items-center gap-4">
-                                <label class="flex items-center"><input type="checkbox" id="send-to-customer" class="h-4 w-4 text-[rgb(var(--color-accent-primary))] border-[rgb(var(--color-border))] rounded"><span class="ml-2 text-sm">Send email to Customer</span></label>
+                             <div id="checkbox-row-customer-footer" class="flex flex-col sm:flex-row sm:items-center gap-4">
+                                <label id="send-to-customer-label" class="flex items-center"><input type="checkbox" id="send-to-customer" class="h-4 w-4 text-[rgb(var(--color-accent-primary))] border-[rgb(var(--color-border))] rounded"><span class="ml-2 text-sm">Send email to Customer</span></label>
                                 <label class="flex items-center"><input type="checkbox" id="include-footer" class="h-4 w-4 text-[rgb(var(--color-accent-primary))] border-[rgb(var(--color-border))] rounded"><span class="ml-2 text-sm">Include Footer</span></label>
                             </div>
                             <div>
@@ -234,6 +282,10 @@
                                 <div>
                                     <label for="customer-subject" class="block text-sm font-medium text-gray-700 mb-1">Customer Email Subject</label>
                                     <input type="text" id="customer-subject" class="w-full p-2 border border-gray-300 rounded-lg" placeholder="Information On Your {{Brand}} Order #{{Order_Number}}">
+                                </div>
+                                <div>
+                                    <label for="customer-cc" class="block text-sm font-medium text-gray-700 mb-1">CC Recipients <span class="text-gray-400 font-normal">(optional, comma-separated)</span></label>
+                                    <input type="text" id="customer-cc" class="w-full p-2 border border-gray-300 rounded-lg" placeholder="team@example.com, manager@example.com">
                                 </div>
                                 <div>
                                     <label for="customer-body" class="block text-sm font-medium text-gray-700 mb-1">Customer Email Body</label>

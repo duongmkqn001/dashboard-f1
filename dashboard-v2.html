@@ -237,6 +237,97 @@
         </div>
     </div>
 
+    <!-- WDN Supplier Email Modal -->
+    <div id="wdn-supplier-email-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
+        <div class="modal-content bg-section rounded-lg shadow-xl w-full max-w-4xl p-6 transform scale-95 max-h-[90vh] overflow-y-auto">
+            <h2 class="text-2xl font-bold mb-4 text-cyan-400">📧 Email to Supplier (WDN)</h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Left Column - Input Fields -->
+                <div class="space-y-4">
+                    <!-- Email From (Warning/Reminder) -->
+                    <div class="p-3 bg-amber-900/30 border border-amber-500 rounded-lg">
+                        <label for="wdn-modal-email-from" class="block text-sm font-medium text-amber-400 mb-1">⚠️ Email From (reminder)</label>
+                        <input type="text" id="wdn-modal-email-from" class="w-full p-2 border border-amber-500 rounded-lg bg-button" readonly>
+                        <p class="text-xs text-amber-400 mt-1">Make sure you're sending from this email account!</p>
+                    </div>
+
+                    <div>
+                        <label for="wdn-modal-email-to" class="block text-sm font-medium">Email To (Supplier)</label>
+                        <input type="email" id="wdn-modal-email-to" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button" placeholder="supplier@example.com">
+                    </div>
+
+                    <div>
+                        <label for="wdn-modal-supplier-name" class="block text-sm font-medium">Supplier Contact Name</label>
+                        <input type="text" id="wdn-modal-supplier-name" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button" placeholder="Enter supplier contact name">
+                    </div>
+
+                    <div>
+                        <label for="wdn-modal-order" class="block text-sm font-medium">Order Number</label>
+                        <input type="text" id="wdn-modal-order" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button" readonly>
+                    </div>
+
+                    <div>
+                        <label for="wdn-modal-brand" class="block text-sm font-medium">Brand</label>
+                        <input type="text" id="wdn-modal-brand" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button" readonly>
+                    </div>
+                </div>
+
+                <!-- Right Column - Preview & Copy -->
+                <div class="space-y-4">
+                    <h3 class="font-semibold text-cyan-300">Preview Email:</h3>
+
+                    <!-- Subject -->
+                    <div class="border border-secondary p-2 rounded-lg bg-button">
+                        <label class="block text-xs font-medium text-secondary mb-1">Subject Line</label>
+                        <div class="flex items-center gap-2">
+                            <p id="wdn-modal-subject-output" class="flex-grow p-2 bg-section rounded-md text-sm"></p>
+                            <button class="js-copy-btn p-1.5 rounded-md hover:bg-gray-600" title="Copy Subject">
+                                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 12.25-3-3m0 0-3 3m3-3v7.5" /></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- CC -->
+                    <div class="border border-secondary p-2 rounded-lg bg-button">
+                        <label class="block text-xs font-medium text-secondary mb-1">CC Recipients</label>
+                        <div class="flex items-center gap-2">
+                            <p id="wdn-modal-cc-output" class="flex-grow p-2 bg-section rounded-md text-sm"></p>
+                            <button class="js-copy-btn p-1.5 rounded-md hover:bg-gray-600" title="Copy CC">
+                                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 12.25-3-3m0 0-3 3m3-3v7.5" /></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Email Body -->
+                    <div class="border border-secondary p-2 rounded-lg bg-button">
+                        <label class="block text-xs font-medium text-secondary mb-1">Email Body</label>
+                        <div class="relative">
+                            <div id="wdn-modal-body-output" class="w-full p-2 bg-section rounded-lg min-h-[150px] text-sm max-h-48 overflow-y-auto whitespace-pre-wrap"></div>
+                            <button class="js-copy-btn absolute top-1 right-1 p-1.5 rounded-md hover:bg-gray-600" title="Copy Body">
+                                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 12.25-3-3m0 0-3 3m3-3v7.5" /></svg>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Internal Note -->
+                    <div class="border border-amber-600/50 p-2 rounded-lg bg-amber-900/20">
+                        <label class="block text-xs font-medium text-amber-400 mb-1">Internal Note (for ticket)</label>
+                        <div class="relative">
+                            <div id="wdn-modal-note-output" class="w-full p-2 bg-section rounded-lg min-h-[60px] text-sm max-h-24 overflow-y-auto whitespace-pre-wrap"></div>
+                            <button class="js-copy-btn absolute top-1 right-1 p-1.5 rounded-md hover:bg-gray-600" title="Copy Note">
+                                <svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 12.25-3-3m0 0-3 3m3-3v7.5" /></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="wdn-modal-copy-feedback" class="h-5 mt-2 text-sm text-green-500 font-medium opacity-0 transition-opacity">Đã sao chép!</div>
+            <div class="mt-6 flex justify-end gap-3">
+                <button id="close-wdn-modal-btn" class="bg-button hover:brightness-90 text-main font-bold py-2 px-4 rounded-lg">Đóng</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Carrier Email Modal -->
     <div id="carrier-email-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
         <div class="modal-content bg-section rounded-lg shadow-xl w-full max-w-3xl p-6 transform scale-95">

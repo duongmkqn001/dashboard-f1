@@ -90,12 +90,23 @@
                 sopLinkField: document.getElementById('sop-link-field'), sopLinkInput: document.getElementById('sop-link'),
                 templateContentTextarea: document.getElementById('template-content-textarea'), componentSource: document.getElementById('component-source'),
                 sendToCustomerCheckbox: document.getElementById('send-to-customer'),
+                sendToCustomerLabel: document.getElementById('send-to-customer-label'),
                 includeFooterCheckbox: document.getElementById('include-footer'), addLabelReminderCheckbox: document.getElementById('add-label-reminder'),
                 labelNameInput: document.getElementById('label-name'), addOptionalFieldCheckbox: document.getElementById('add-optional-field'),
                 optionalFieldNameInput: document.getElementById('optional-field-name'), addFollowUpCheckbox: document.getElementById('add-follow-up'),
                 needGreetingCheckbox: document.getElementById('need-greeting'), emailCarrierCheckbox: document.getElementById('email-carrier'),
                 customerTemplateFields: document.getElementById('customer-template-fields'), customerSubjectInput: document.getElementById('customer-subject'),
-                customerBodyInput: document.getElementById('customer-body'), carrierEmailFields: document.getElementById('carrier-email-fields'),
+                customerCcInput: document.getElementById('customer-cc'), customerBodyInput: document.getElementById('customer-body'), carrierEmailFields: document.getElementById('carrier-email-fields'),
+                mainContentLabel: document.getElementById('main-content-label'),
+                // WDN Template Builder elements
+                wdnTemplateBuilder: document.getElementById('wdn-template-builder'),
+                supplierTemplateBuilder: document.getElementById('supplier-template-builder'),
+                wdnEmailFromInput: document.getElementById('wdn-email-from'),
+                wdnSubjectInput: document.getElementById('wdn-subject'),
+                wdnCcInput: document.getElementById('wdn-cc'),
+                wdnEmailBodyInput: document.getElementById('wdn-email-body'),
+                wdnInternalNoteInput: document.getElementById('wdn-internal-note'),
+                wdnComponentSource: document.getElementById('wdn-component-source'),
                 carrierEmailSubjectInput: document.getElementById('carrier-email-subject'), bolNamingMethodInput: document.getElementById('bol-naming-method'),
                 internalCommentFields: document.getElementById('internal-comment-fields'),
                 addInternalCommentCheckbox: document.getElementById('add-internal-comment'), internalCommentInputContainer: document.getElementById('internal-comment-input-container'),
@@ -310,9 +321,18 @@
                     dom.labelNameInput.value = template.labelName || '';
                     dom.optionalFieldNameInput.value = template.optionalFieldNames || '';
                     dom.customerSubjectInput.value = template.customerSubject || '';
+                    dom.customerCcInput.value = template.cc || '';
                     dom.customerBodyInput.value = template.customerBody || '';
                     dom.carrierEmailSubjectInput.value = template.carrierEmailSubject || '';
                     dom.bolNamingMethodInput.value = template.bolNamingMethod || '';
+
+                    // Load WDN-specific fields
+                    if (dom.wdnEmailFromInput) dom.wdnEmailFromInput.value = template.emailFrom || '';
+                    if (dom.wdnSubjectInput) dom.wdnSubjectInput.value = template.customerSubject || '';
+                    if (dom.wdnCcInput) dom.wdnCcInput.value = template.cc || '';
+                    if (dom.wdnEmailBodyInput) dom.wdnEmailBodyInput.value = template.content || '';
+                    if (dom.wdnInternalNoteInput) dom.wdnInternalNoteInput.value = template.internalComment || '';
+
                     if (template.movementGuide) template.movementGuide.forEach(step => dom.movementGuideStepsContainer.appendChild(createGuideStepEditor('movement', step)));
                     if (template.followUpGuide) template.followUpGuide.forEach(step => dom.followUpGuideStepsContainer.appendChild(createGuideStepEditor('follow-up', step)));
                 } else {
@@ -320,6 +340,13 @@
                     dom.formTitle.textContent = `Create New Template for ${currentProjectName}`;
                     dom.templateIdInput.value = '';
                     if (currentIssue) dom.mainIssueInput.value = currentIssue;
+
+                    // Clear WDN fields for new templates
+                    if (dom.wdnEmailFromInput) dom.wdnEmailFromInput.value = '';
+                    if (dom.wdnSubjectInput) dom.wdnSubjectInput.value = '';
+                    if (dom.wdnCcInput) dom.wdnCcInput.value = '';
+                    if (dom.wdnEmailBodyInput) dom.wdnEmailBodyInput.value = '';
+                    if (dom.wdnInternalNoteInput) dom.wdnInternalNoteInput.value = '';
                 }
                 setupInteractiveEditor(templateContent);
                 updateFormVisibility();
@@ -730,9 +757,18 @@ function createGuideStepEditor(type, stepData = {}) {
                     e.preventDefault();
                     const issue = dom.mainIssueInput.value.trim();
                     const name = dom.templateNameInput.value.trim();
-                    const content = serializeEditorContent();
-                    if (!issue || !name || !content) return showValidationModal(['Main Issue', 'Template Name', 'Main Content']);
-                    
+
+                    // Check if this is a WDN project
+                    const currentProjectData = getFromCache(CACHE_KEYS.PROJECTS).find(p => p.id === currentProject);
+                    const isWdnProject = currentProjectData?.name?.toLowerCase() === 'wdn';
+
+                    // For WDN projects, get content from WDN email body; otherwise from supplier content
+                    const content = isWdnProject
+                        ? (dom.wdnEmailBodyInput?.value?.trim() || '')
+                        : serializeEditorContent();
+
+                    if (!issue || !name || !content) return showValidationModal(['Main Issue', 'Template Name', isWdnProject ? 'Email Body' : 'Main Content']);
+
                     const getGuideData = (container, isSimple = false) => {
                         return Array.from(container.querySelectorAll('.guide-step-editor')).map(editor => {
                             const stepTitle = editor.querySelector('.guide-step-title').value.trim();
@@ -749,21 +785,36 @@ function createGuideStepEditor(type, stepData = {}) {
                             return stepData;
                         }).filter(Boolean);
                     };
-                    
+
+                    // Build template data - use WDN fields for WDN projects
                     const templateData = {
                         project: currentProject, issue, name, content,
                         description: dom.templateDescriptionInput.value.trim(),
                         sop_link: dom.sopLinkInput.value.trim() || null,
                         updated_at: new Date().toISOString(),
-                        sendToCustomer: dom.sendToCustomerCheckbox.checked, includeFooter: dom.includeFooterCheckbox.checked,
-                        addLabelReminder: dom.addLabelReminderCheckbox.checked, addInternalComment: dom.addInternalCommentCheckbox.checked,
+                        sendToCustomer: isWdnProject ? true : dom.sendToCustomerCheckbox.checked,
+                        includeFooter: dom.includeFooterCheckbox.checked,
+                        addLabelReminder: dom.addLabelReminderCheckbox.checked,
+                        addInternalComment: dom.addInternalCommentCheckbox.checked,
                         hasOptionalField: dom.addOptionalFieldCheckbox.checked,
                         needGreeting: dom.needGreetingCheckbox.checked,
                         emailCarrier: dom.emailCarrierCheckbox.checked,
                         labelName: dom.labelNameInput.value.trim() || null,
-                        internalComment: dom.internalCommentBodyInput.value.trim() || null,
+                        // For WDN: use WDN internal note field; for others: use movement internal comment
+                        internalComment: isWdnProject
+                            ? (dom.wdnInternalNoteInput?.value?.trim() || null)
+                            : (dom.internalCommentBodyInput.value.trim() || null),
                         optionalFieldNames: dom.optionalFieldNameInput.value.trim() || null,
-                        customerSubject: dom.customerSubjectInput.value.trim() || null,
+                        // For WDN: use WDN subject/cc fields; for others: use customer fields
+                        customerSubject: isWdnProject
+                            ? (dom.wdnSubjectInput?.value?.trim() || null)
+                            : (dom.customerSubjectInput.value.trim() || null),
+                        cc: isWdnProject
+                            ? (dom.wdnCcInput?.value?.trim() || null)
+                            : (dom.customerCcInput.value.trim() || null),
+                        emailFrom: isWdnProject
+                            ? (dom.wdnEmailFromInput?.value?.trim() || null)
+                            : null,
                         customerBody: dom.customerBodyInput.value.trim() || null,
                         carrierEmailSubject: dom.carrierEmailSubjectInput.value.trim() || null,
                         bolNamingMethod: dom.bolNamingMethodInput.value.trim() || null,
@@ -1569,11 +1620,31 @@ function createGuideStepEditor(type, stepData = {}) {
             function serializeEditorContent() { return dom.templateContentTextarea.value; }
             function updateFormVisibility() {
                 const isMovement = dom.mainIssueInput.value.trim().toLowerCase() === 'movement';
-                // Check if current project is POS
+                // Check if current project is POS or WDN
                 const currentProjectData = getFromCache(CACHE_KEYS.PROJECTS).find(p => p.id === currentProject);
                 const isPosProject = currentProjectData?.name?.toLowerCase().includes('pos') || false;
+                const isWdnProject = currentProjectData?.name?.toLowerCase() === 'wdn';
 
-                dom.customerTemplateFields.classList.toggle('hidden', !dom.sendToCustomerCheckbox.checked);
+                // Toggle between WDN and Supplier template builders
+                if (dom.wdnTemplateBuilder) {
+                    dom.wdnTemplateBuilder.classList.toggle('hidden', !isWdnProject);
+                }
+                if (dom.supplierTemplateBuilder) {
+                    dom.supplierTemplateBuilder.classList.toggle('hidden', isWdnProject);
+                }
+
+                // Hide "Send email to Customer" checkbox for WDN (always true for WDN)
+                if (dom.sendToCustomerLabel) {
+                    dom.sendToCustomerLabel.classList.toggle('hidden', isWdnProject);
+                }
+
+                // For WDN projects, populate the component panel with WDN-specific components
+                if (isWdnProject && dom.wdnComponentSource) {
+                    setupWdnComponents();
+                }
+
+                // Hide customer template fields for WDN (they're integrated in WDN builder)
+                dom.customerTemplateFields.classList.toggle('hidden', isWdnProject || !dom.sendToCustomerCheckbox.checked);
                 dom.carrierEmailFields.classList.toggle('hidden', !dom.emailCarrierCheckbox.checked);
                 dom.labelNameInput.classList.toggle('hidden', !dom.addLabelReminderCheckbox.checked);
                 dom.optionalFieldNameInput.classList.toggle('hidden', !dom.addOptionalFieldCheckbox.checked);
@@ -1582,6 +1653,37 @@ function createGuideStepEditor(type, stepData = {}) {
                 dom.movementGuideEditor.classList.toggle('hidden', !isMovement);
                 dom.followUpGuideEditor.classList.toggle('hidden', !dom.addFollowUpCheckbox.checked);
                 dom.sopLinkField.classList.toggle('hidden', !isPosProject);
+            }
+
+            // Setup WDN-specific drag components
+            function setupWdnComponents() {
+                if (!dom.wdnComponentSource) return;
+                dom.wdnComponentSource.innerHTML = `
+                    <button type="button" class="wdn-component-btn w-full p-2 text-sm rounded-md bg-teal-100 text-teal-800 hover:bg-teal-200 transition-colors" data-placeholder="Supplier_Name">
+                        <span class="font-bold">T</span> Supplier Name
+                    </button>
+                    <button type="button" class="wdn-component-btn w-full p-2 text-sm rounded-md bg-teal-100 text-teal-800 hover:bg-teal-200 transition-colors" data-placeholder="Order_Number">
+                        <span class="font-bold">T</span> Order Number
+                    </button>
+                    <button type="button" class="wdn-component-btn w-full p-2 text-sm rounded-md bg-teal-100 text-teal-800 hover:bg-teal-200 transition-colors" data-placeholder="Brand">
+                        <span class="font-bold">T</span> Brand
+                    </button>
+                    <button type="button" class="wdn-component-btn w-full p-2 text-sm rounded-md bg-amber-100 text-amber-800 hover:bg-amber-200 transition-colors" data-placeholder="ticket">
+                        <span class="font-bold">T</span> Ticket ID
+                    </button>
+                `;
+
+                // Add click handlers for WDN component buttons
+                dom.wdnComponentSource.querySelectorAll('.wdn-component-btn').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const placeholder = btn.dataset.placeholder;
+                        const textarea = dom.wdnEmailBodyInput;
+                        if (textarea) {
+                            insertTextAtCursor(textarea, `{{${placeholder}}}`);
+                            textarea.focus();
+                        }
+                    });
+                });
             }
 
             // --- Template Update Functions ---

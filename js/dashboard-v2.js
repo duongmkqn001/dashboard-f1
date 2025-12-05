@@ -1290,7 +1290,7 @@
 
             // Render different UI based on project type
             if (isWDNProject) {
-                // WDN Project Format - for customer/carrier emails (no supplier fields)
+                // WDN Project Format - Supplier Email Composition Workspace
                 popupTemplateViewer.innerHTML = `
                     <h3 id="viewer-title" class="text-2xl font-bold mb-2 text-headings"></h3>
                     <p id="viewer-category" class="text-sm text-secondary mb-4"></p>
@@ -1304,32 +1304,71 @@
                         <div id="template-description-content" class="hidden mt-2 p-3 bg-section border border-secondary rounded-lg text-sm text-secondary whitespace-pre-wrap"></div>
                     </div>
 
-                    <div class="mb-4 p-4 bg-button border border-secondary rounded-lg space-y-4">
-                        <div>
-                            <h4 class="font-semibold text-lg mb-2 text-blue-400">1. Thông tin Người nhận</h4>
-                            <div class="space-y-3 pl-2">
-                                 <div>
-                                    <label for="viewer-agent-name" class="block text-sm font-medium text-secondary">Tên riêng Người nhận (Customer/Carrier)</label>
-                                    <input type="text" id="viewer-agent-name" class="mt-1 w-full p-2 border rounded-md" placeholder="Nhập tên người nhận">
-                                </div>
-                            </div>
+                    <!-- WDN Supplier Email Composition Form -->
+                    <div class="mb-4 p-4 bg-button border border-cyan-600/30 rounded-lg space-y-4">
+                        <h4 class="font-semibold text-lg text-cyan-400 border-b border-secondary pb-2">📧 Supplier Email Composition</h4>
+
+                        <!-- Email From (Warning/Reminder) -->
+                        <div class="p-3 bg-amber-900/30 border border-amber-500/50 rounded-lg">
+                            <label for="wdn-email-from" class="block text-sm font-medium text-amber-400 mb-1">⚠️ Email From (reminder)</label>
+                            <input type="text" id="wdn-email-from" class="w-full p-2 border border-amber-500 rounded-md bg-section" readonly>
+                            <p class="text-xs text-amber-400 mt-1">Make sure you're sending from this email account!</p>
                         </div>
+
+                        <!-- Email To Row -->
                         <div>
-                            <h4 class="font-semibold text-lg mb-2 text-blue-400">2. Tùy chỉnh Nội dung chính</h4>
-                            <div id="placeholders-container" class="space-y-4 pl-2"></div>
-                            <div id="optionals-container" class="mt-4 space-y-2 pl-2"></div>
-                            <div id="dynamic-optional-field-container" class="mt-4 space-y-3 pl-2"></div>
+                            <label for="wdn-email-to" class="block text-sm font-medium text-secondary mb-1">Email To (Supplier)</label>
+                            <input type="email" id="wdn-email-to" class="w-full p-2 border border-secondary rounded-md bg-section" placeholder="supplier@example.com">
                         </div>
+
+                        <!-- Subject Row -->
+                        <div>
+                            <label for="wdn-email-subject" class="block text-sm font-medium text-secondary mb-1">Subject</label>
+                            <input type="text" id="wdn-email-subject" class="w-full p-2 border border-secondary rounded-md bg-section" placeholder="Email subject line">
+                        </div>
+
+                        <!-- CC Row -->
+                        <div>
+                            <label for="wdn-email-cc" class="block text-sm font-medium text-secondary mb-1">CC <span class="text-gray-500">(comma-separated)</span></label>
+                            <input type="text" id="wdn-email-cc" class="w-full p-2 border border-secondary rounded-md bg-section" placeholder="cc1@example.com, cc2@example.com">
+                        </div>
+
+                        <!-- Supplier Name for placeholders -->
+                        <div>
+                            <label for="viewer-agent-name" class="block text-sm font-medium text-secondary mb-1">Supplier Contact Name <span class="text-gray-500">(for greeting)</span></label>
+                            <input type="text" id="viewer-agent-name" class="w-full p-2 border border-secondary rounded-md bg-section" placeholder="Enter supplier contact name">
+                        </div>
+
+                        <!-- Dynamic Placeholders -->
+                        <div id="placeholders-container" class="space-y-3"></div>
+                        <div id="optionals-container" class="space-y-2"></div>
+                        <div id="dynamic-optional-field-container" class="space-y-3"></div>
                     </div>
-                    <div class="mt-6">
+
+                    <!-- Email Body Preview -->
+                    <div class="mb-4">
                         <div class="flex justify-between items-center mb-2">
-                            <h4 class="font-semibold text-lg text-headings">Nội dung cuối cùng</h4>
-                            <button id="copy-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2">
-                                Sao chép & Tiếp tục
-                            </button>
+                            <h4 class="font-semibold text-lg text-headings">📝 Email Body</h4>
+                            <button id="copy-body-btn" class="text-sm bg-green-600 hover:bg-green-700 text-white font-medium py-1 px-3 rounded-lg">Copy Body</button>
                         </div>
-                        <div id="final-output" class="w-full p-4 border border-secondary rounded-lg bg-section min-h-[250px] whitespace-pre-wrap"></div>
-                        <div id="copy-feedback" class="mt-2 text-green-400 font-medium opacity-0">Đã sao chép!</div>
+                        <div id="final-output" class="w-full p-4 border border-secondary rounded-lg bg-section min-h-[200px] whitespace-pre-wrap"></div>
+                    </div>
+
+                    <!-- Internal Note Section -->
+                    <div class="mb-4 p-4 bg-amber-900/20 border border-amber-600/30 rounded-lg">
+                        <div class="flex justify-between items-center mb-2">
+                            <h4 class="font-semibold text-lg text-amber-400">📋 Internal Note (for ticket)</h4>
+                            <button id="copy-internal-note-btn" class="text-sm bg-amber-600 hover:bg-amber-700 text-white font-medium py-1 px-3 rounded-lg">Copy Note</button>
+                        </div>
+                        <div id="wdn-internal-note-output" class="w-full p-3 border border-amber-600/30 rounded-lg bg-section min-h-[60px] whitespace-pre-wrap text-sm"></div>
+                    </div>
+
+                    <!-- Copy All Button -->
+                    <div class="flex justify-end items-center gap-3">
+                        <div id="copy-feedback" class="text-green-400 font-medium opacity-0 transition-opacity">Đã sao chép!</div>
+                        <button id="copy-btn" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg flex items-center gap-2">
+                            ✅ Hoàn tất & Tiếp tục
+                        </button>
                     </div>`;
             } else {
                 // Default Format - for supplier emails
@@ -1419,15 +1458,53 @@
             // Render logic for all placeholders including optional ones
             renderAllPlaceholders(template, placeholderMap);
 
-            // Auto-fill common fields (only for non-WDN projects)
-            if (!isWDNProject) {
+            // Auto-fill common fields based on project type
+            if (isWDNProject) {
+                // WDN Project: Populate supplier email composition fields
+                const wdnEmailFrom = document.getElementById('wdn-email-from');
+                const wdnEmailTo = document.getElementById('wdn-email-to');
+                const wdnEmailSubject = document.getElementById('wdn-email-subject');
+                const wdnEmailCc = document.getElementById('wdn-email-cc');
+                const viewerAgentName = document.getElementById('viewer-agent-name');
+                const wdnInternalNoteOutput = document.getElementById('wdn-internal-note-output');
+
+                // Pre-fill from ticket and template data
+                // Note: For WDN, email goes to supplier, not customer
+                if (wdnEmailFrom) wdnEmailFrom.value = template.emailFrom || '';
+                if (wdnEmailTo) wdnEmailTo.value = ticketData.supplier_email || ticketData.suid || '';  // Supplier email or SUID
+                if (viewerAgentName) viewerAgentName.value = '';  // Supplier contact name - user fills this in
+                if (wdnEmailSubject) wdnEmailSubject.value = template.customerSubject || '';
+                if (wdnEmailCc) wdnEmailCc.value = template.cc || '';
+                if (wdnInternalNoteOutput) wdnInternalNoteOutput.textContent = template.internalComment || '';
+
+                // Setup copy buttons for WDN fields
+                const copyBodyBtn = document.getElementById('copy-body-btn');
+                const copyInternalNoteBtn = document.getElementById('copy-internal-note-btn');
+
+                if (copyBodyBtn) {
+                    copyBodyBtn.addEventListener('click', () => {
+                        const finalOutput = document.getElementById('final-output');
+                        const text = finalOutput?.innerText || finalOutput?.textContent || '';
+                        copyPlainTextToClipboard(text, document.getElementById('copy-feedback'));
+                    });
+                }
+
+                if (copyInternalNoteBtn) {
+                    copyInternalNoteBtn.addEventListener('click', () => {
+                        const noteOutput = document.getElementById('wdn-internal-note-output');
+                        const text = noteOutput?.textContent || '';
+                        copyPlainTextToClipboard(text, document.getElementById('copy-feedback'));
+                    });
+                }
+            } else {
+                // Non-WDN: Populate supplier fields
                 document.getElementById('viewer-su-id').value = ticketData.suid || '';
                 const supplierName = await findSupplierName(ticketData.suid);
                 // Bug Fix #2: Always show supplier name field, regardless of whether supplier is found
                 document.getElementById('viewer-manual-supplier-container').classList.remove('hidden');
                 document.getElementById('viewer-manual-supplier-name').value = supplierName || '';
             }
-            
+
             // Auto-fill placeholders from ticket data
             const prefillMapping = {
                 po: ticketData.po,
@@ -1707,6 +1784,31 @@
             const finalOutput = document.getElementById('final-output');
             finalOutput.innerHTML = htmlText;
             finalOutput.dataset.plainText = plainTextForCopy;
+
+            // Update WDN-specific fields with placeholder replacements
+            const isWDNProject = template.projects?.name === 'WDN';
+            if (isWDNProject) {
+                // Update subject with placeholder replacements
+                const wdnEmailSubject = document.getElementById('wdn-email-subject');
+                if (wdnEmailSubject && template.customerSubject) {
+                    const processedSubject = replacePlaceholdersInText(template.customerSubject, true);
+                    // Only update if not manually modified (check against original template value)
+                    if (wdnEmailSubject.dataset.originalValue === undefined) {
+                        wdnEmailSubject.dataset.originalValue = template.customerSubject;
+                    }
+                    if (wdnEmailSubject.value === wdnEmailSubject.dataset.originalValue || wdnEmailSubject.value === '') {
+                        wdnEmailSubject.value = processedSubject;
+                    }
+                }
+
+                // Update internal note with placeholder replacements
+                const wdnInternalNoteOutput = document.getElementById('wdn-internal-note-output');
+                if (wdnInternalNoteOutput && template.internalComment) {
+                    const processedNote = replacePlaceholdersInText(template.internalComment, true);
+                    wdnInternalNoteOutput.textContent = processedNote;
+                    wdnInternalNoteOutput.dataset.plainText = processedNote;
+                }
+            }
         }
 
         // Helper function to escape HTML
@@ -1764,8 +1866,14 @@
 
             setTimeout(async () => {
                 if (template.followUpGuide) await openFollowUpGuideModal(template.followUpGuide);
-                // For WDN projects, skip customer email modal (templates are already for customers by default)
-                if (template.sendToCustomer && !isWDNProject) await openCustomerEmailModal(template);
+                // For WDN projects, show WDN supplier email modal
+                if (isWDNProject) {
+                    await openWdnSupplierEmailModal(template);
+                }
+                // For non-WDN projects with sendToCustomer, show customer email modal
+                if (template.sendToCustomer && !isWDNProject) {
+                    await openCustomerEmailModal(template);
+                }
                 if (template.addLabelReminder && template.labelName) await openLabelReminderModal(template.labelName);
             }, 400);
         }
@@ -2182,6 +2290,102 @@
             }
         }
         
+        // WDN Supplier Email Modal
+        function openWdnSupplierEmailModal(template) {
+            return new Promise(resolve => {
+                const modal = document.getElementById('wdn-supplier-email-modal');
+                if (!modal) { resolve(); return; }
+
+                // Get input fields
+                const emailFromInput = document.getElementById('wdn-modal-email-from');
+                const emailToInput = document.getElementById('wdn-modal-email-to');
+                const supplierNameInput = document.getElementById('wdn-modal-supplier-name');
+                const orderInput = document.getElementById('wdn-modal-order');
+                const brandInput = document.getElementById('wdn-modal-brand');
+
+                // Get output fields
+                const subjectOutput = document.getElementById('wdn-modal-subject-output');
+                const ccOutput = document.getElementById('wdn-modal-cc-output');
+                const bodyOutput = document.getElementById('wdn-modal-body-output');
+                const noteOutput = document.getElementById('wdn-modal-note-output');
+
+                // Pre-fill from template and ticket data
+                if (emailFromInput) emailFromInput.value = template.emailFrom || '';
+                if (emailToInput) emailToInput.value = popupCurrentTicket.supplier_email || popupCurrentTicket.suid || '';
+                if (supplierNameInput) supplierNameInput.value = '';  // User fills this in
+                if (orderInput) orderInput.value = popupCurrentTicket.order_number || '';
+                if (brandInput) brandInput.value = popupCurrentTicket.brand || '';
+
+                // Function to replace WDN-specific placeholders
+                const replaceWdnPlaceholders = (text) => {
+                    if (!text) return '';
+                    let result = text;
+                    result = result.replace(/\{\{Supplier_Name\}\}/gi, supplierNameInput?.value || '{{Supplier_Name}}');
+                    result = result.replace(/\{\{Order_Number\}\}/gi, orderInput?.value || '');
+                    result = result.replace(/\{\{Brand\}\}/gi, brandInput?.value || '');
+                    result = result.replace(/\{\{ticket\}\}/gi, popupCurrentTicket?.id?.toString() || '');
+                    return result;
+                };
+
+                const updatePreview = () => {
+                    // Update subject
+                    const subject = replaceWdnPlaceholders(template.customerSubject || '');
+                    if (subjectOutput) {
+                        subjectOutput.textContent = subject;
+                        subjectOutput.dataset.plainText = subject;
+                    }
+
+                    // Update CC
+                    const cc = template.cc || '';
+                    if (ccOutput) {
+                        ccOutput.textContent = cc || '(no CC)';
+                        ccOutput.dataset.plainText = cc;
+                    }
+
+                    // Update body
+                    const body = replaceWdnPlaceholders(template.content || '');
+                    if (bodyOutput) {
+                        bodyOutput.innerHTML = body.replace(/\n/g, '<br>');
+                        bodyOutput.dataset.plainText = body;
+                    }
+
+                    // Update internal note
+                    const note = replaceWdnPlaceholders(template.internalComment || '');
+                    if (noteOutput) {
+                        noteOutput.textContent = note || '(no internal note)';
+                        noteOutput.dataset.plainText = note;
+                    }
+                };
+
+                // Add input listeners for real-time updates
+                if (supplierNameInput) {
+                    supplierNameInput.addEventListener('input', updatePreview);
+                }
+
+                // Initial preview update
+                updatePreview();
+
+                // Setup copy buttons
+                modal.querySelectorAll('.js-copy-btn').forEach(btn => {
+                    btn.onclick = () => {
+                        const container = btn.closest('.border');
+                        const textEl = container?.querySelector('[id$="-output"]');
+                        const text = textEl?.dataset?.plainText || textEl?.textContent || '';
+                        navigator.clipboard.writeText(text).then(() => {
+                            const feedback = document.getElementById('wdn-modal-copy-feedback');
+                            if (feedback) {
+                                feedback.classList.remove('opacity-0');
+                                setTimeout(() => feedback.classList.add('opacity-0'), 1500);
+                            }
+                        });
+                    };
+                });
+
+                _openModal(modal);
+                document.getElementById('close-wdn-modal-btn').onclick = () => { _closeModal(modal); resolve(); };
+            });
+        }
+
         function openCustomerEmailModal(template) {
             return new Promise(resolve => {
                 const modal = document.getElementById('customer-email-modal');
@@ -2189,19 +2393,19 @@
                 const nameInput = document.getElementById('customer-name');
                 const orderInput = document.getElementById('customer-order');
                 const brandSelect = document.getElementById('customer-brand');
-                
+
                 emailInput.value = popupCurrentTicket.customer_contact || '';
                 nameInput.value = (popupCurrentTicket.customer || '').split(' ')[0];
                 orderInput.value = popupCurrentTicket.order_number || '';
-                
+
                 const updatePreview = () => {
                     let subject = replacePlaceholdersInText(template.customerSubject || '', true);
                     let body = replacePlaceholdersInText(template.customerBody || '', true);
-                    
+
                      const subjectOutput = document.getElementById('customer-email-subject-output');
                      const bodyOutput = document.getElementById('customer-email-body-output');
                      const emailOutput = document.getElementById('customer-email-address-output');
-                     
+
                      subjectOutput.textContent = subject;
                      subjectOutput.dataset.plainText = subject;
 
@@ -2211,10 +2415,10 @@
                      emailOutput.textContent = emailInput.value;
                      emailOutput.dataset.plainText = emailInput.value;
                 };
-                
+
                 modal.querySelectorAll('input, select').forEach(el => el.addEventListener('input', updatePreview));
                 updatePreview();
-                
+
                 _openModal(modal);
                 document.getElementById('close-customer-modal-btn').onclick = () => { _closeModal(modal); resolve(); };
             });
@@ -2227,6 +2431,7 @@
                  document.getElementById('close-label-reminder-modal-btn').onclick = () => { _closeModal(modal); resolve(); };
             });
         }
+
         function copyPlainTextToClipboard(text, feedbackElement) {
             navigator.clipboard.writeText(text).then(() => {
                 if (feedbackElement) {
