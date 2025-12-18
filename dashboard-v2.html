@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Integrated Ticket Dashboard Prototype</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./css/dashboard-v2.css">
+</head>
+<body class="antialiased h-full">
+
+    <div id="app-wrapper" class="px-4 sm:px-6 lg:px-8 py-8 flex flex-col h-screen">
+        <div id="fixed-header" class="flex-shrink-0">
+            <header class="mb-8">
+                <div class="flex flex-wrap items-center justify-between gap-4">
+                    <div class="flex items-center gap-6">
+                        <h1 class="text-3xl font-bold text-headings">Ticket Dashboard</h1>
+
+                        <!-- Navigation buttons on same line as h1 -->
+                        <div class="flex items-center gap-2">
+                            <button id="refresh-tickets-btn" class="px-3 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1">
+                                🔄 <span class="hidden sm:inline">Refresh</span>
+                            </button>
+                            <button id="csv-import-btn" class="px-3 py-2 bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1">
+                                📊 <span class="hidden sm:inline">CSV Import</span>
+                            </button>
+                            <button id="admin-panel-btn" class="px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors hidden flex items-center gap-1">
+                                ⚙️ <span class="hidden sm:inline">Admin</span>
+                            </button>
+                            <button id="leader-view-btn" class="px-3 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors hidden flex items-center gap-1">
+                                👑 <span class="hidden sm:inline">Leader View</span>
+                            </button>
+                            <button id="mos-view-btn" class="px-3 py-2 bg-indigo-500 hover:bg-indigo-600 text-white text-sm font-medium rounded-lg transition-colors hidden flex items-center gap-1">
+                                🚢 <span class="hidden sm:inline">MoS Requests</span>
+                                <span id="mos-notification-badge" class="ml-1 px-2 py-1 bg-red-500 text-white text-xs rounded-full hidden">0</span>
+                            </button>
+
+                            <!-- Facebook-style notification bell -->
+                            <div id="notifications-container" class="relative hidden">
+                                <button id="notifications-btn" class="relative p-2 text-gray-600 hover:text-gray-800 transition-colors">
+                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                                    </svg>
+                                    <span id="notification-badge" class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full min-w-[20px] h-5 flex items-center justify-center hidden">0</span>
+                                </button>
+                                <!-- Dropdown notification panel -->
+                                <div id="notifications-dropdown" class="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50 hidden">
+                                    <div class="p-4 border-b border-gray-200">
+                                        <h3 class="text-lg font-semibold text-gray-900">Notifications</h3>
+                                    </div>
+                                    <div id="notifications-list" class="max-h-96 overflow-y-auto">
+                                        <!-- Notifications will be populated here -->
+                                    </div>
+                                    <div class="p-3 border-t border-gray-200 text-center">
+                                        <button id="mark-all-read-btn" class="text-sm text-blue-600 hover:text-blue-800">Mark all as read</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-4">
+                        <!-- Theme Switcher - Collapsible Button -->
+                        <div class="relative">
+                            <button id="theme-toggle-btn" class="flex items-center gap-2 bg-section p-2 rounded-lg border border-secondary hover:bg-button transition-colors">
+                                <span class="text-sm font-medium">🎨</span>
+                                <span id="current-theme-name" class="text-sm font-medium hidden sm:inline">Dark</span>
+                                <svg class="w-4 h-4 transition-transform duration-200" id="theme-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                                </svg>
+                            </button>
+                            <div id="theme-dropdown" class="absolute top-full right-0 mt-2 bg-section border border-secondary rounded-lg shadow-lg p-2 hidden z-50 min-w-[200px]">
+                                <div class="grid grid-cols-1 gap-1">
+                                    <button data-theme="dark" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌙 Dark</button>
+                                    <button data-theme="daylight" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">☀️ Daylight</button>
+                                    <button data-theme="sunset" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌅 Sunset</button>
+                                    <button data-theme="twilight" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌆 Twilight</button>
+                                    <button data-theme="blossom-dawn" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌸 Blossom Dawn</button>
+                                    <button data-theme="blue-sky" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌤️ Blue Sky</button>
+                                    <button data-theme="fresh-mint" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌿 Fresh Mint</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Assignee Selection -->
+                        <div class="flex items-center gap-2 bg-section p-3 rounded-lg border border-secondary min-w-[200px]">
+                            <label for="assignee-select" class="font-semibold text-secondary whitespace-nowrap">Assignee:</label>
+                            <select id="assignee-select" class="border border-secondary text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-40 p-2.5">
+                                <option value="">-- Toàn Bộ --</option>
+                            </select>
+                        </div>
+
+                        <!-- User greeting -->
+                        <div class="flex items-center gap-2 bg-section p-3 rounded-lg border border-secondary min-w-[200px]">
+                            <span id="user-greeting" class="font-semibold text-secondary whitespace-nowrap">Xin chào, </span>
+                        </div>
+
+                        <!-- OT Mode Toggle - Compact -->
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-medium text-orange-600">🔥</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="ot-mode-toggle" class="sr-only peer">
+                                <div class="relative w-10 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-orange-400 peer-checked:to-red-500"></div>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Banner Container for notifications and assignments -->
+            <div id="banner-container" class="mb-4"></div>
+
+            <div id="toolbar" class="mb-8 p-4 bg-section rounded-lg border border-main">
+                <h2 class="text-lg font-semibold text-headings mb-3">Công Cụ</h2>
+                <div class="flex items-center gap-4 mb-3">
+                    <!-- Notification moved to header -->
+                </div>
+                <div id="toolbar-buttons" class="flex flex-wrap gap-2">
+                    <!-- Toolbar buttons will be injected here -->
+                </div>
+            </div>
+        </div>
+
+        <main id="main-content" class="flex-grow flex flex-col min-h-0">
+            <div id="message-area" class="fixed top-5 right-5 z-50 w-full max-w-xs"></div>
+            <div id="loader-container" class="fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 hidden">
+                <div class="loader"></div>
+                <span class="text-secondary font-medium">Đang tải...</span>
+            </div>
+
+            <div id="ticket-scroll-container" class="flex-grow overflow-auto bg-section rounded-lg border border-main">
+                <table class="w-full text-sm text-left text-main">
+                    <thead class="text-xs text-secondary uppercase bg-header-footer">
+                        <tr>
+                            <th scope="col" class="px-4 py-3 text-center" id="start-header">Start</th>
+                            <th scope="col" class="px-4 py-3 text-center" id="end-header">End</th>
+                            <th scope="col" class="px-6 py-3 cursor-pointer group" id="ticket-type-header">
+                                <div class="flex items-center gap-2">
+                                    <span>Ticket</span>
+                                    <span class="text-xs opacity-60 group-hover:opacity-100" id="ticket-type-filter-text">(All)</span>
+                                    <span class="text-xs opacity-60 group-hover:opacity-100">🔄</span>
+                                </div>
+                            </th>
+                            <th scope="col" class="px-6 py-3 text-center" style="min-width: 180px;">Ticket Status</th>
+                            <th scope="col" class="px-6 py-3">Issue Type</th>
+                            <th scope="col" class="px-6 py-3 text-center">Actions</th>
+                            <th scope="col" class="px-6 py-3">PO</th>
+                            <th scope="col" class="px-6 py-3 text-center">Last Update</th>
+                            <th scope="col" class="px-6 py-3 text-center">Need Help</th>
+                            <th scope="col" class="px-6 py-3 text-center" id="mos-actions-header" style="display: none;">MoS Actions</th>
+                            <th scope="col" class="px-6 py-3 text-center" id="mos-details-header" style="display: none;">Request Details</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ticket-table-body" class="divide-y-0"></tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- NEW 3-COLUMN TEMPLATE SELECTION MODAL -->
+    <div id="template-selection-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 hidden z-40">
+        <div class="modal-content bg-popup-main rounded-lg shadow-xl w-full max-w-screen-2xl h-[95vh] flex flex-col transform scale-95 opacity-0">
+            <div class="flex justify-between items-center p-4 border-b border-main flex-shrink-0">
+                <h2 class="text-xl font-bold text-headings">Sử dụng Template</h2>
+                <button id="close-template-selection-modal" class="p-2 rounded-full hover:bg-gray-500/20 text-2xl leading-none">&times;</button>
+            </div>
+            <main class="grid grid-cols-1 lg:grid-cols-4 gap-4 p-4 flex-grow overflow-hidden">
+                <div class="lg:col-span-1 bg-popup-col p-4 rounded-lg flex flex-col overflow-y-auto">
+                     <div class="mb-4">
+                        <h3 class="text-lg font-bold mb-2 text-headings">Dự án</h3>
+                        <div id="popup-project-tabs-container" class="flex flex-wrap gap-2"></div>
+                    </div>
+                    <h3 class="text-lg font-bold mb-2 mt-4 text-headings">Danh mục chính</h3>
+                    <div id="popup-issues-list" class="space-y-1 flex-grow"></div>
+                </div>
+                <div class="lg:col-span-1 bg-popup-col p-4 rounded-lg flex flex-col overflow-y-auto">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg font-bold text-headings">Danh sách Mẫu</h3>
+                    </div>
+                    <input type="text" id="popup-search-input" placeholder="Tìm kiếm tất cả template..." class="w-full p-2 border border-secondary rounded-lg mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <div id="popup-template-list" class="space-y-2 flex-grow"></div>
+                </div>
+                <div class="lg:col-span-2 bg-popup-col p-6 rounded-lg overflow-y-auto">
+                    <div id="popup-workspace">
+                        <div id="popup-welcome-screen" class="flex flex-col items-center justify-center h-full text-center">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-16 w-16 text-secondary mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
+                            <h3 class="text-2xl font-semibold text-headings">Chọn một mẫu</h3>
+                            <p class="text-secondary mt-2">Danh sách các mẫu phù hợp đã được lọc sẵn. Hãy chọn một mẫu từ cột giữa để bắt đầu.</p>
+                        </div>
+                        <div id="popup-template-viewer" class="hidden"></div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- WORKFLOW MODALS -->
+    <div id="validation-modal" class="modal-backdrop fixed inset-0 flex items-center justify-center p-4 hidden opacity-0 z-50">
+        <div class="modal-content bg-section rounded-lg shadow-xl w-full max-w-md p-6 transform scale-95"><h2 class="text-2xl font-bold mb-4 modal-header-warning">Cảnh báo</h2><p class="mb-4 text-main">Vui lòng điền đầy đủ các trường thông tin bắt buộc sau:</p><ul id="missing-fields-list" class="list-disc list-inside text-secondary mb-6"></ul><div class="flex justify-end"><button id="close-validation-modal-btn" class="wdn-section-warning border font-bold py-2 px-4 rounded-lg wdn-label">Đã hiểu</button></div></div>
+    </div>
+    <div id="customer-email-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
+        <div class="modal-content bg-section rounded-lg shadow-xl w-full max-w-3xl p-6 transform scale-95">
+            <h2 class="text-2xl font-bold mb-4 modal-header-customer">Nhắc nhở: Gửi Email cho Customer</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-4">
+                    <div><label for="customer-email" class="block text-sm font-medium text-main">Email Khách hàng</label><input type="email" id="customer-email" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button text-main"></div>
+                    <div><label for="customer-name" class="block text-sm font-medium text-main">Tên Khách hàng</label><input type="text" id="customer-name" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button text-main"></div>
+                    <div><label for="customer-order" class="block text-sm font-medium text-main">Số Đơn hàng</label><input type="text" id="customer-order" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button text-main"></div>
+                    <div><label for="customer-brand" class="block text-sm font-medium text-main">Brand</label><select id="customer-brand" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button text-main"></select></div>
+                </div>
+                <div class="space-y-4">
+                     <h3 class="font-semibold text-main">Xem trước Email:</h3>
+                    <div class="border border-secondary p-2 rounded-lg bg-button"><label class="block text-xs font-medium text-secondary mb-1">Email người nhận</label><div class="flex items-center gap-2"><p id="customer-email-address-output" class="flex-grow p-2 bg-section rounded-md text-sm truncate text-main"></p><button class="js-copy-btn p-1.5 rounded-md hover:bg-section" title="Sao chép Email"><svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 12.25-3-3m0 0-3 3m3-3v7.5m-6-13.5H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125h3.75m0-3.75v.75" /></svg></button></div></div>
+                    <div class="border border-secondary p-2 rounded-lg bg-button"><label class="block text-xs font-medium text-secondary mb-1">Tiêu đề</label><div class="flex items-center gap-2"><p id="customer-email-subject-output" class="flex-grow p-2 bg-section rounded-md text-sm text-main"></p><button class="js-copy-btn p-1.5 rounded-md hover:bg-section" title="Sao chép Tiêu đề"><svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 12.25-3-3m0 0-3 3m3-3v7.5m-6-13.5H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125h3.75m0-3.75v.75" /></svg></button></div></div>
+                    <div class="border border-secondary p-2 rounded-lg bg-button"><label class="block text-xs font-medium text-secondary mb-1">Nội dung</label><div class="relative"><div id="customer-email-body-output" class="w-full p-2 bg-section rounded-lg min-h-[150px] text-sm max-h-40 overflow-y-auto text-main"></div><button class="js-copy-btn absolute top-1 right-1 p-1.5 rounded-md hover:bg-button" title="Sao chép Nội dung"><svg class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 0 0-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 0 1-1.125-1.125v-9.25m12 12.25-3-3m0 0-3 3m3-3v7.5m-6-13.5H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125h3.75m0-3.75v.75" /></svg></button></div></div>
+                </div>
+            </div>
+            <div id="customer-copy-feedback" class="h-5 mt-2 text-sm text-green-500 font-medium opacity-0 transition-opacity">Đã sao chép!</div>
+            <div class="mt-6 flex justify-end gap-3"><button id="close-customer-modal-btn" class="bg-button hover:brightness-90 text-main font-bold py-2 px-4 rounded-lg">Đóng</button></div>
+        </div>
+    </div>
+    <div id="label-reminder-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
+        <div class="modal-content bg-section rounded-lg shadow-xl w-full max-w-md p-6 transform scale-95"><h2 class="text-2xl font-bold mb-4 modal-header-info">Nhắc nhở</h2><p id="label-reminder-text" class="mb-6 text-main"></p><div class="flex justify-end"><button id="close-label-reminder-modal-btn" class="wdn-section-info border font-bold py-2 px-4 rounded-lg wdn-label">OK</button></div></div>
+    </div>
+
+    <!-- Follow-up Guide Modal -->
+    <div id="follow-up-guide-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
+        <div class="modal-content bg-section rounded-lg shadow-xl w-full max-w-2xl p-6 transform scale-95">
+            <h2 class="text-2xl font-bold mb-4 modal-header-guide">Hướng dẫn Follow-up</h2>
+            <div id="follow-up-guide-output" class="space-y-4 max-h-96 overflow-y-auto mb-6 text-main"></div>
+            <div class="flex justify-end">
+                <button id="close-follow-up-guide-modal-btn" class="wdn-section-success border font-bold py-2 px-4 rounded-lg wdn-label">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- WDN Supplier Email Modal -->
+    <div id="wdn-supplier-email-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
+        <div class="modal-content bg-section rounded-lg shadow-xl w-full max-w-4xl p-6 transform scale-95 max-h-[90vh] overflow-y-auto">
+            <h2 id="wdn-modal-title" class="text-2xl font-bold mb-4 wdn-header-text">📧 Email to Supplier (WDN)</h2>
+            <!-- Template Description Section -->
+            <div id="wdn-template-description-section" class="hidden mb-4 p-4 wdn-section-primary border rounded-lg">
+                <div class="flex items-start gap-3">
+                    <span class="text-2xl">📝</span>
+                    <div class="flex-grow">
+                        <h3 class="font-semibold wdn-label mb-1">Template Instructions</h3>
+                        <p id="wdn-template-description-text" class="text-sm text-secondary whitespace-pre-wrap"></p>
+                    </div>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Left Column - Dynamic Placeholder Inputs -->
+                <div class="space-y-4">
+                    <!-- Email From (Warning/Reminder) -->
+                    <div class="p-3 wdn-section-warning border rounded-lg">
+                        <label for="wdn-modal-email-from" class="block text-sm font-medium wdn-label mb-1">⚠️ Email From (reminder)</label>
+                        <input type="text" id="wdn-modal-email-from" class="w-full p-2 border border-secondary rounded-lg bg-button" readonly>
+                        <p class="text-xs wdn-hint mt-1">Make sure you're sending from this email account!</p>
+                    </div>
+
+                    <!-- SUID Search Section -->
+                    <div class="p-3 wdn-section-info border rounded-lg">
+                        <label for="wdn-modal-suid-search" class="block text-sm font-medium wdn-label mb-1">🔍 Search by SUID</label>
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="wdn-modal-suid-search" class="flex-grow p-2 border border-secondary rounded-lg bg-button" placeholder="Enter SUID to search supplier...">
+                            <span id="wdn-suid-loading" class="hidden wdn-label">⏳</span>
+                            <span id="wdn-suid-success" class="hidden text-green-500">✅</span>
+                            <span id="wdn-suid-error" class="hidden text-red-500">❌</span>
+                        </div>
+                        <p id="wdn-suid-status" class="text-xs wdn-hint mt-1">Enter SUID to auto-fill supplier name</p>
+                    </div>
+
+                    <!-- Manual Supplier Name Input (fallback when SUID search fails) -->
+                    <div id="wdn-manual-supplier-section" class="p-3 wdn-section-success border rounded-lg">
+                        <label for="wdn-manual-supplier-name" class="block text-sm font-medium wdn-label mb-1">👤 Supplier Contact Name <span class="text-secondary">(for greeting)</span></label>
+                        <input type="text" id="wdn-manual-supplier-name" class="w-full p-2 border border-secondary rounded-lg bg-button" placeholder="Enter supplier/team name (e.g., Logistics Team)">
+                        <p class="text-xs wdn-hint mt-1">Auto-filled from template greeting or SUID search. Edit if needed.</p>
+                    </div>
+
+                    <!-- Dynamic Placeholders Container -->
+                    <div id="wdn-placeholder-inputs" class="space-y-3">
+                        <!-- Placeholder inputs will be dynamically generated here -->
+                    </div>
+                </div>
+
+                <!-- Right Column - Preview & Copy -->
+                <div class="space-y-4">
+                    <h3 class="font-semibold wdn-header-text">Preview Email:</h3>
+
+                    <!-- Subject -->
+                    <div class="border border-secondary p-2 rounded-lg bg-button">
+                        <label class="block text-xs font-medium text-secondary mb-1">Subject Line</label>
+                        <div class="flex items-center gap-2">
+                            <p id="wdn-modal-subject-output" class="flex-grow p-2 bg-section rounded-md text-sm text-main"></p>
+                            <button id="copy-wdn-subject-btn" class="p-1.5 rounded-md hover:bg-button" title="Copy Subject">📋</button>
+                        </div>
+                    </div>
+
+                    <!-- CC (only shown if template has CC) -->
+                    <div id="wdn-cc-section" class="border border-secondary p-2 rounded-lg bg-button hidden">
+                        <label class="block text-xs font-medium text-secondary mb-1">CC Recipients</label>
+                        <div class="flex items-center gap-2">
+                            <p id="wdn-modal-cc-output" class="flex-grow p-2 bg-section rounded-md text-sm text-main"></p>
+                            <button id="copy-wdn-cc-btn" class="p-1.5 rounded-md hover:bg-button" title="Copy CC">📋</button>
+                        </div>
+                    </div>
+
+                    <!-- Email Body -->
+                    <div class="border border-secondary p-2 rounded-lg bg-button">
+                        <label class="block text-xs font-medium text-secondary mb-1">Email Body</label>
+                        <div class="relative">
+                            <div id="wdn-modal-body-output" class="w-full p-2 bg-section rounded-lg min-h-[150px] text-sm max-h-48 overflow-y-auto whitespace-pre-wrap text-main"></div>
+                            <button id="copy-wdn-body-btn" class="absolute top-1 right-1 p-1.5 rounded-md hover:bg-button" title="Copy Body">📋</button>
+                        </div>
+                    </div>
+
+                    <!-- Internal Note (only shown if template has internal note) -->
+                    <div id="wdn-note-section" class="wdn-section-note border p-2 rounded-lg hidden">
+                        <label class="block text-xs font-medium wdn-label mb-1">Internal Note (for ticket)</label>
+                        <div class="relative">
+                            <div id="wdn-modal-note-output" class="w-full p-2 bg-section rounded-lg min-h-[60px] text-sm max-h-24 overflow-y-auto whitespace-pre-wrap text-main"></div>
+                            <button id="copy-wdn-note-btn" class="absolute top-1 right-1 p-1.5 rounded-md hover:bg-button" title="Copy Note">📋</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="wdn-modal-copy-feedback" class="h-5 mt-2 text-sm text-green-500 font-medium opacity-0 transition-opacity">Đã sao chép!</div>
+            <div class="mt-6 flex justify-end gap-3">
+                <button id="close-wdn-modal-btn" class="bg-button hover:brightness-90 text-main font-bold py-2 px-4 rounded-lg">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- WDN Follow-up Actions Modal -->
+    <div id="wdn-followup-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 hidden opacity-0 z-[60]">
+        <div class="modal-content bg-section rounded-lg shadow-xl w-full max-w-2xl p-6 transform scale-95 wdn-section-accent border-2">
+            <div class="flex items-center gap-3 mb-4">
+                <span class="text-3xl">📋</span>
+                <h2 class="text-xl font-bold wdn-accent-text">Follow-up Actions Required</h2>
+            </div>
+            <p class="text-sm text-secondary mb-4">Please complete the following actions after sending the email:</p>
+            <div id="wdn-followup-actions-list" class="space-y-3 max-h-[60vh] overflow-y-auto mb-4">
+                <!-- Follow-up action items will be populated here -->
+            </div>
+            <div class="flex justify-end gap-3">
+                <button id="wdn-followup-understood-btn" class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-lg flex items-center gap-2">
+                    <span>✓</span> Understood
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Carrier Email Modal -->
+    <div id="carrier-email-modal" class="modal-backdrop fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 hidden opacity-0 z-50">
+        <div class="modal-content bg-section rounded-lg shadow-xl w-full max-w-3xl p-6 transform scale-95">
+            <h2 class="text-2xl font-bold mb-4 modal-header-carrier">Email to Carrier (FMOP)</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="space-y-4">
+                    <div>
+                        <label for="carrier-ticket" class="block text-sm font-medium text-main">Ticket Number</label>
+                        <input type="text" id="carrier-ticket" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button text-main" placeholder="Enter ticket number">
+                    </div>
+                    <div>
+                        <label for="carrier-po" class="block text-sm font-medium text-main">PO Number</label>
+                        <input type="text" id="carrier-po" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button text-main" placeholder="Enter PO number">
+                    </div>
+                    <div>
+                        <label for="carrier-name" class="block text-sm font-medium text-main">Carrier Name</label>
+                        <select id="carrier-name" class="mt-1 w-full p-2 border border-secondary rounded-lg bg-button text-main">
+                            <option value="">Select Carrier...</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="carrier-email-address" class="block text-sm font-medium text-main">Carrier Email</label>
+                        <div class="flex items-center gap-2">
+                            <input type="email" id="carrier-email-address" class="flex-grow p-2 border border-secondary rounded-lg bg-button text-main" readonly>
+                            <button id="copy-carrier-email-btn" class="p-2 wdn-section-info border rounded-lg wdn-label" title="Copy Email">
+                                📋
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="space-y-4">
+                    <div class="border border-secondary p-2 rounded-lg bg-button">
+                        <label class="block text-xs font-medium text-secondary mb-1">Email Subject</label>
+                        <div class="flex items-center gap-2">
+                            <p id="carrier-email-subject-output" class="flex-grow p-2 bg-section rounded-md text-sm text-main"></p>
+                            <button id="copy-carrier-subject-btn" class="p-1.5 rounded-md hover:bg-section" title="Copy Subject">
+                                📋
+                            </button>
+                        </div>
+                    </div>
+                    <div class="border border-secondary p-2 rounded-lg bg-button">
+                        <label class="block text-xs font-medium text-secondary mb-1">BOL Naming Method</label>
+                        <div class="flex items-center gap-2">
+                            <p id="bol-naming-output" class="flex-grow p-2 bg-section rounded-md text-sm text-main"></p>
+                            <button id="copy-bol-naming-btn" class="p-1.5 rounded-md hover:bg-section" title="Copy BOL Naming">
+                                📋
+                            </button>
+                        </div>
+                    </div>
+                    <div class="border border-secondary p-2 rounded-lg bg-button">
+                        <label class="block text-xs font-medium text-secondary mb-1">Email Body</label>
+                        <div class="flex items-center gap-2">
+                            <div id="carrier-email-body-output" class="flex-grow p-2 bg-section rounded-md text-sm max-h-32 overflow-y-auto text-main"></div>
+                            <button id="copy-carrier-body-btn" class="p-1.5 rounded-md hover:bg-section" title="Copy Email Body">
+                                📋
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div id="carrier-copy-feedback" class="h-5 mt-2 text-sm text-green-500 font-medium opacity-0 transition-opacity">Đã sao chép!</div>
+            <div class="mt-6 flex justify-end gap-3">
+                <button id="close-carrier-modal-btn" class="bg-button hover:brightness-90 text-main font-bold py-2 px-4 rounded-lg">Đóng</button>
+                <button id="continue-to-template-btn" class="wdn-section-info border font-bold py-2 px-4 rounded-lg wdn-label hidden">Tiếp tục đến Template</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Supabase Client -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Gradio Client for AI Chat -->
+    <script type="module">
+        import { Client } from "https://cdn.jsdelivr.net/npm/@gradio/client@1.0.1/dist/index.js";
+
+        // Make Client available globally
+        window.GradioClient = Client;
+
+        // Signal that Gradio is ready
+        window.gradioReady = true;
+        window.dispatchEvent(new Event('gradioLoaded'));
+    </script>
+
+    <!-- Authentication Check -->
+    <script>
+        // Check authentication before loading the dashboard
+        window.addEventListener('load', () => {
+            const currentUser = localStorage.getItem('currentUser');
+            if (!currentUser) {
+                window.location.href = 'index.html';
+                return;
+            }
+
+            const user = JSON.parse(currentUser);
+            if (user.status !== 'active') {
+                localStorage.removeItem('currentUser');
+                window.location.href = 'index.html';
+                return;
+            }
+
+            // Update user greeting
+            const userGreeting = document.getElementById('user-greeting');
+            if (userGreeting) {
+                userGreeting.innerHTML = `Xin chào, <span id="user-name">${user.name}</span>`;
+            }
+
+            // Show admin button for leaders/keys
+            const adminBtn = document.getElementById('admin-panel-btn');
+            const leaderViewBtn = document.getElementById('leader-view-btn');
+            const mosViewBtn = document.getElementById('mos-view-btn');
+            const notificationsBtn = document.getElementById('notifications-btn');
+
+            if (user.level === 'leader' || user.level === 'key') {
+                adminBtn.classList.remove('hidden');
+                mosViewBtn.classList.remove('hidden'); // Show MoS view for leaders/keys
+            }
+            if (user.level === 'leader') {
+                leaderViewBtn.classList.remove('hidden');
+            }
+
+            // Show notifications for all users
+            const notificationsContainer = document.getElementById('notifications-container');
+            if (notificationsContainer) {
+                notificationsContainer.classList.remove('hidden');
+            }
+
+            // Add logout functionality to user greeting
+            userGreeting.style.cursor = 'pointer';
+            userGreeting.title = 'Click to logout';
+            userGreeting.onclick = () => {
+                if (confirm('Bạn có chắc chắn muốn đăng xuất?')) {
+                    localStorage.removeItem('currentUser');
+                    window.location.href = 'index.html';
+                }
+            };
+
+            // Add button event listeners
+            document.getElementById('refresh-tickets-btn').onclick = () => {
+                window.location.reload();
+            };
+
+            document.getElementById('csv-import-btn').onclick = () => {
+                window.open('csv-import-enhanced.html', '_blank');
+            };
+
+            if (adminBtn) {
+                adminBtn.onclick = () => {
+                    window.open('adminview.html', '_blank');
+                };
+            }
+
+            if (leaderViewBtn) {
+                // Initialize leader view button text
+                const isLeaderView = localStorage.getItem('leaderViewMode') === 'true';
+                leaderViewBtn.innerHTML = isLeaderView ?
+                    '👤 <span class="hidden sm:inline">Normal View</span>' :
+                    '👑 <span class="hidden sm:inline">Leader View</span>';
+
+                leaderViewBtn.onclick = () => {
+                    // Toggle leader view mode
+                    const currentIsLeaderView = localStorage.getItem('leaderViewMode') === 'true';
+                    localStorage.setItem('leaderViewMode', (!currentIsLeaderView).toString());
+                    localStorage.setItem('mosViewMode', 'false'); // Disable MoS view when switching to leader view
+                    window.location.reload();
+                };
+            }
+
+            if (mosViewBtn) {
+                // Initialize MoS view button text
+                const isMosView = localStorage.getItem('mosViewMode') === 'true';
+                mosViewBtn.innerHTML = isMosView ?
+                    '👤 <span class="hidden sm:inline">Normal View</span>' :
+                    '🚢 <span class="hidden sm:inline">MoS Requests</span>';
+
+                mosViewBtn.onclick = () => {
+                    // Toggle MoS view mode
+                    const currentIsMosView = localStorage.getItem('mosViewMode') === 'true';
+                    localStorage.setItem('mosViewMode', (!currentIsMosView).toString());
+                    localStorage.setItem('leaderViewMode', 'false'); // Disable leader view when switching to MoS view
+                    window.location.reload();
+                };
+            }
+
+            // Setup Facebook-style notification dropdown
+            if (notificationsBtn) {
+                const notificationsDropdown = document.getElementById('notifications-dropdown');
+                const markAllReadBtn = document.getElementById('mark-all-read-btn');
+
+                notificationsBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    notificationsDropdown.classList.toggle('hidden');
+                    if (!notificationsDropdown.classList.contains('hidden')) {
+                        loadNotificationsDropdown();
+                    }
+                };
+
+                // Mark all as read functionality
+                if (markAllReadBtn) {
+                    markAllReadBtn.onclick = async () => {
+                        await markAllNotificationsAsRead();
+                        loadNotificationsDropdown();
+                        updateNotificationCounts();
+                    };
+                }
+
+                // Close dropdown when clicking outside
+                document.addEventListener('click', (e) => {
+                    if (!notificationsBtn.contains(e.target) && !notificationsDropdown.contains(e.target)) {
+                        notificationsDropdown.classList.add('hidden');
+                    }
+                });
+            }
+
+            // OT Mode toggle
+            const otToggle = document.getElementById('ot-mode-toggle');
+            const userName = document.getElementById('user-name');
+
+            otToggle.onchange = () => {
+                if (otToggle.checked) {
+                    userName.innerHTML = `${user.name} 🔥`;
+                    userName.style.animation = 'pulse 1s infinite';
+                } else {
+                    userName.innerHTML = user.name;
+                    userName.style.animation = '';
+                }
+            };
+        });
+    </script>
+
+    <!-- Congratulations Modal -->
+    <div id="congrats-overlay" class="congrats-overlay hidden">
+        <div class="congrats-modal">
+            <h2>🎉 Congratulations! 🎉</h2>
+            <p id="congrats-message">You've completed all your tickets!</p>
+            <button id="congrats-close-btn">Awesome!</button>
+        </div>
+    </div>
+
+    <!-- Fireworks Container -->
+    <div id="fireworks-container" class="fireworks-container"></div>
+
+    <!-- AI Chat Interface -->
+    <div class="chat-icon" id="chat-icon" onclick="toggleChat()">
+        <svg width="30" height="30" fill="white" viewBox="0 0 24 24">
+            <path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h4l4 4 4-4h4c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
+        </svg>
+    </div>
+
+    <div class="chat-container" id="chat-container">
+        <div class="chat-header">
+            <div>
+                <h3 class="font-semibold">🤖 AI Assistant</h3>
+                <p class="text-sm opacity-90">Ask me anything about the dashboard</p>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="zoomChatOut()" class="text-white hover:text-gray-200 p-1" title="Zoom Out">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                        <path d="M7 9h5v1H7z"/>
+                    </svg>
+                </button>
+                <button onclick="zoomChatIn()" class="text-white hover:text-gray-200 p-1" title="Zoom In">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/>
+                        <path d="M7 9h2v2h1V9h2V8H10V6H9v2H7v1z"/>
+                    </svg>
+                </button>
+                <button onclick="toggleChat()" class="text-white hover:text-gray-200 p-1" title="Close">
+                    <svg width="16" height="16" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <div class="chat-messages" id="chat-messages">
+            <div class="message bot">
+                <div class="message-content">
+                    👋 Hello! I'm your AI assistant. I can help you with questions about tickets, templates, dashboard features, and system usage. What would you like to know?
+                </div>
+            </div>
+        </div>
+
+        <div class="typing-indicator" id="typing-indicator">
+            <div class="typing-dots">
+                <span></span>
+                <span></span>
+                <span></span>
+            </div>
+        </div>
+
+        <div class="chat-input-container">
+            <div class="flex gap-2">
+                <input type="text" id="chat-input" placeholder="Type your message..."
+                       class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                       onkeypress="handleChatKeyPress(event)">
+                <button onclick="sendMessage()"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-colors">
+                    <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24">
+                        <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="./js/dashboard-v2.js?v=20251205"></script>
+</body>
+</html>
+

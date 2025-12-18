@@ -1,0 +1,1403 @@
+<!DOCTYPE html>
+<html lang="vi" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nhập dữ liệu CSV</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="./css/dashboard-v2.css">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .loading-spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        @keyframes slide-in {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        .animate-slide-in {
+            animation: slide-in 0.3s ease-out;
+        }
+        #theme-switcher .theme-btn.active {
+            background-color: var(--bg-button-active);
+            color: var(--text-button-active);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body class="min-h-screen bg-main">
+    <!-- Authentication Check -->
+    <script>
+        window.addEventListener('load', () => {
+            const currentUser = localStorage.getItem('currentUser');
+            if (!currentUser) {
+                window.location.href = 'index.html';
+                return;
+            }
+            
+            const user = JSON.parse(currentUser);
+            if (user.status !== 'active') {
+                alert('Bạn không có quyền truy cập trang này');
+                window.location.href = 'dashboard-v2.html';
+                return;
+            }
+        });
+    </script>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Header -->
+        <div class="mb-8">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-3xl font-bold text-headings">Nhập dữ liệu CSV</h1>
+                    <p class="text-secondary mt-2">Nhập và xử lý dữ liệu ticket từ file CSV</p>
+                </div>
+                <div class="flex items-center gap-4">
+                    <!-- Theme Switcher - Collapsible Button -->
+                    <div class="relative">
+                        <button id="theme-toggle-btn" class="flex items-center gap-2 bg-section p-2 rounded-lg border border-secondary hover:bg-button transition-colors">
+                            <span class="text-sm font-medium">🎨</span>
+                            <span id="current-theme-name" class="text-sm font-medium hidden sm:inline">Tối</span>
+                            <svg class="w-4 h-4 transition-transform duration-200" id="theme-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                            </svg>
+                        </button>
+                        <div id="theme-dropdown" class="absolute top-full right-0 mt-2 bg-section border border-secondary rounded-lg shadow-lg p-2 hidden z-50 min-w-[200px]">
+                            <div class="grid grid-cols-1 gap-1">
+                                <button data-theme="dark" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌙 Tối</button>
+                                <button data-theme="daylight" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">☀️ Ban ngày</button>
+                                <button data-theme="sunset" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌅 Hoàng hôn</button>
+                                <button data-theme="twilight" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌆 Chạng vạng</button>
+                                <button data-theme="blossom-dawn" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌸 Bình minh</button>
+                                <button data-theme="blue-sky" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌤️ Trời xanh</button>
+                                <button data-theme="fresh-mint" class="theme-btn text-left text-sm py-2 px-3 rounded-md hover:bg-button transition-colors">🌿 Bạc hà</button>
+                            </div>
+                        </div>
+                    </div>
+                    <button onclick="window.location.href='adminview.html'" class="px-4 py-2 bg-button hover:brightness-110 text-main font-semibold rounded-lg">
+                        ← Quay lại Admin
+                    </button>
+                    <button onclick="logout()" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg">
+                        Đăng xuất
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <!-- Left Panel: Upload & Configuration -->
+            <div class="lg:col-span-1">
+                <div class="bg-section rounded-lg shadow p-6 border border-main">
+                    <h2 class="text-xl font-semibold mb-4 text-headings">1. Tải lên file CSV</h2>
+
+                    <!-- File Upload -->
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-secondary mb-2">
+                            Chọn file CSV
+                        </label>
+                        <input type="file" id="csv-file-input" accept=".csv"
+                               class="block w-full text-sm text-main file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-button file:text-main hover:file:brightness-110">
+                    </div>
+
+                    <!-- Processing Mode Selection -->
+                    <div id="mode-selection" class="mb-6 p-4 bg-yellow-50 dark:bg-yellow-900 rounded-lg border-2 border-yellow-300 hidden">
+                        <div class="mb-4">
+                            <label class="block text-sm font-medium text-secondary mb-2">
+                                ⚙️ Chọn chế độ xử lý dữ liệu:
+                            </label>
+                            <select id="processing-mode" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
+                                <option value="complete-replace">🔄 Logic 1: Xóa toàn bộ bảng và nhập lại từ file</option>
+                                <option value="smart-compare">🧠 Logic 2: So sánh thông minh với database</option>
+                                <option value="add-new-only">➕ Logic 3: Chỉ thêm ticket mới (an toàn)</option>
+                            </select>
+                            <div class="mt-2 text-xs text-gray-600 dark:text-gray-400">
+                                <div id="mode-description" class="p-2 bg-gray-100 dark:bg-gray-800 rounded">
+                                    <strong>Thông minh:</strong> Tự động loại bỏ các ticket đã tồn tại, chỉ hiển thị dữ liệu mới để nhập.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Process Button -->
+                    <button id="process-btn" disabled
+                            class="w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 disabled:text-gray-200 disabled:hover:bg-gray-400 text-white font-semibold rounded-lg transition-colors">
+                        <span id="process-text">Xử lý CSV</span>
+                        <div id="process-spinner" class="loading-spinner ml-2 hidden inline-block"></div>
+                    </button>
+                </div>
+
+                <!-- Progress Panel -->
+                <div id="progress-panel" class="bg-section rounded-lg shadow p-6 mt-6 hidden border border-main">
+                    <h3 class="text-lg font-semibold mb-4 text-headings">Tiến trình xử lý</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center">
+                            <div id="step1-icon" class="w-6 h-6 rounded-full bg-gray-500 flex items-center justify-center mr-3">
+                                <span class="text-xs text-white">1</span>
+                            </div>
+                            <span id="step1-text" class="text-secondary">Đọc file CSV</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div id="step2-icon" class="w-6 h-6 rounded-full bg-gray-500 flex items-center justify-center mr-3">
+                                <span class="text-xs text-white">2</span>
+                            </div>
+                            <span id="step2-text" class="text-secondary">Xử lý dữ liệu</span>
+                        </div>
+                        <div class="flex items-center">
+                            <div id="step3-icon" class="w-6 h-6 rounded-full bg-gray-500 flex items-center justify-center mr-3">
+                                <span class="text-xs text-white">3</span>
+                            </div>
+                            <span id="step3-text" class="text-secondary">Chuẩn bị nhập dữ liệu</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Panel: Results & Preview -->
+            <div class="lg:col-span-2">
+                <div class="bg-section rounded-lg shadow p-6 border border-main">
+                    <h2 class="text-xl font-semibold mb-4 text-headings">Kết quả xử lý</h2>
+
+                    <!-- Status Messages - Hidden, using toast notifications instead -->
+                    <div id="status-messages" class="hidden"></div>
+
+                    <!-- Toast Notification Container -->
+                    <div id="toast-container" class="fixed bottom-4 right-4 z-50 space-y-2 max-w-sm"></div>
+
+                    <!-- Data Preview -->
+                    <div id="data-preview" class="hidden">
+                        <!-- Import Actions -->
+                        <div class="mb-6 p-4 bg-green-50 dark:bg-green-900 rounded-lg border-2 border-green-300">
+                            <div class="mb-4">
+                                <p id="selected-mode-info" class="text-sm font-medium text-green-800 dark:text-green-200 mb-2">
+                                    Chế độ đã chọn: <span id="current-mode-name">Chỉ nhập mới</span>
+                                </p>
+                                <p class="text-xs text-gray-600 dark:text-gray-400">
+                                    <strong>Ticket được bảo vệ (không cập nhật):</strong> Đã start, đã end, có needMos, có ticket_status_id, need_leader_support = true, hoặc đã được handle
+                                </p>
+                            </div>
+                            <div class="flex gap-4">
+                                <button id="import-btn" class="px-6 py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-lg" disabled>
+                                    📥 Nhập vào Database
+                                </button>
+                                <button id="download-btn" class="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg shadow-lg">
+                                    💾 Tải xuống CSV đã xử lý
+                                </button>
+                            </div>
+                        </div>
+
+                        <h3 class="text-lg font-medium mb-3 text-headings">Xem trước dữ liệu đã xử lý</h3>
+                        <div class="overflow-x-auto border border-main rounded-lg">
+                            <table id="preview-table" class="min-w-full divide-y divide-main">
+                                <thead class="bg-header-footer">
+                                    <tr id="preview-header"></tr>
+                                </thead>
+                                <tbody id="preview-body" class="bg-section divide-y divide-main"></tbody>
+                            </table>
+                        </div>
+
+                        <!-- Automatic Duplicate Detection Status -->
+                        <div id="duplicate-status" class="mt-6 hidden">
+                            <div id="duplicate-info" class="p-4 rounded-lg border"></div>
+                        </div>
+                    </div>
+
+                    <!-- Initial State -->
+                    <div id="initial-state" class="text-center py-12">
+                        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        <h3 class="mt-2 text-sm font-medium text-headings">Chưa chọn file</h3>
+                        <p class="mt-1 text-sm text-secondary">Tải lên file CSV để bắt đầu xử lý</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script>
+        // Supabase configuration
+        const SUPABASE_URL = 'https://pfbxtbydrjcmqlrklsdr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmYnh0YnlkcmpjbXFscmtsc2RyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY5ODM2NDksImV4cCI6MjA3MjU1OTY0OX0.bOgnown0UZzstbnYfUSEImwaSGP6lg2FccRg-yDFTPU';
+
+        let supabaseClient;
+        let processedData = [];
+        let selectedImportStrategy = 'add-new-only';
+        
+        try {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+            console.log('Supabase client initialized successfully');
+        } catch (error) {
+            console.error('Error initializing Supabase:', error);
+            alert('Could not initialize Supabase client. Check console for details.');
+        }
+
+        // Test Supabase connection
+        async function testSupabaseConnection() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('agent')
+                    .select('count')
+                    .limit(1);
+
+                if (error) {
+                    console.error('Supabase connection test failed:', error);
+                    showStatus('⚠️ Database connection issue. Please check authentication.', 'error');
+                    return false;
+                }
+                console.log('Supabase connection test successful');
+                return true;
+            } catch (error) {
+                console.error('Supabase connection test error:', error);
+                showStatus('⚠️ Database connection error.', 'error');
+                return false;
+            }
+        }
+
+        // DOM elements
+        const csvFileInput = document.getElementById('csv-file-input');
+        const processBtn = document.getElementById('process-btn');
+        const processText = document.getElementById('process-text');
+        const processSpinner = document.getElementById('process-spinner');
+        const progressPanel = document.getElementById('progress-panel');
+        const statusMessages = document.getElementById('status-messages');
+        const dataPreview = document.getElementById('data-preview');
+        const initialState = document.getElementById('initial-state');
+        const previewTable = document.getElementById('preview-table');
+        const previewHeader = document.getElementById('preview-header');
+        const previewBody = document.getElementById('preview-body');
+        const importBtn = document.getElementById('import-btn');
+        const downloadBtn = document.getElementById('download-btn');
+        const duplicateStatus = document.getElementById('duplicate-status');
+        const duplicateInfo = document.getElementById('duplicate-info');
+        const modeSelection = document.getElementById('mode-selection');
+        const processingMode = document.getElementById('processing-mode');
+        const modeDescription = document.getElementById('mode-description');
+        const currentModeName = document.getElementById('current-mode-name');
+
+        // Event listeners
+        if (csvFileInput) csvFileInput.addEventListener('change', handleFileSelect);
+        if (processBtn) processBtn.addEventListener('click', processCSV);
+        if (importBtn) importBtn.addEventListener('click', importToDatabase);
+        if (downloadBtn) downloadBtn.addEventListener('click', downloadProcessedCSV);
+        if (processingMode) processingMode.addEventListener('change', updateModeDescription);
+
+        // Test database connection on page load
+        window.addEventListener('load', async () => {
+            await testSupabaseConnection();
+        });
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            updateProcessButton();
+
+            if (file) {
+                showStatus(`Selected file: ${file.name}`, 'info');
+                // Show mode selection when file is selected
+                if (modeSelection) {
+                    modeSelection.classList.remove('hidden');
+                }
+            } else {
+                // Hide mode selection when no file
+                if (modeSelection) {
+                    modeSelection.classList.add('hidden');
+                }
+            }
+        }
+
+        // Mode description updater
+        function updateModeDescription() {
+            if (!modeDescription || !processingMode) return;
+
+            const mode = processingMode.value;
+            const descriptions = {
+                'complete-replace': '<strong>Logic 1 - Xóa toàn bộ bảng:</strong> Xóa hoàn toàn tất cả dữ liệu trong bảng tickets (giữ lại cấu trúc bảng), sau đó nhập toàn bộ dữ liệu từ file CSV. ⚠️ <span class="text-red-600">Cẩn thận - sẽ mất TẤT CẢ dữ liệu hiện tại!</span>',
+                'smart-compare': '<strong>Logic 2 - So sánh thông minh:</strong> So sánh file với database. <span class="text-green-600">✓ Giữ lại:</span> Ticket đặc biệt (đang xử lý, cần leader, hoặc không cần action). <span class="text-blue-600">+ Thêm:</span> Ticket mới. <span class="text-gray-600">= Bỏ qua:</span> Ticket trùng lặp. <span class="text-red-600">- Xóa:</span> Ticket có trong DB nhưng không có trong file và chưa được xử lý.',
+                'add-new-only': '<strong>Logic 3 - Chỉ thêm mới:</strong> <span class="text-green-600">✓ An toàn 100%</span> - Chỉ thêm những ticket mới từ file CSV. <span class="text-blue-600">+ Thêm:</span> Ticket chưa có trong database. <span class="text-gray-600">= Bỏ qua:</span> Ticket đã tồn tại. <span class="text-green-600">🛡️ Không xóa gì cả!</span>'
+            };
+
+            const modeNames = {
+                'complete-replace': 'Logic 1: Xóa toàn bộ bảng',
+                'smart-compare': 'Logic 2: So sánh thông minh',
+                'add-new-only': 'Logic 3: Chỉ thêm mới (An toàn)'
+            };
+
+            modeDescription.innerHTML = descriptions[mode] || descriptions['add-new-only'];
+
+            // Update current mode name in preview
+            if (currentModeName) {
+                currentModeName.textContent = modeNames[mode] || modeNames['add-new-only'];
+            }
+        }
+
+        function updateProcessButton() {
+            if (!csvFileInput || !processBtn) return;
+            const hasFile = csvFileInput.files.length > 0;
+            processBtn.disabled = !hasFile;
+        }
+
+        function logout() {
+            localStorage.removeItem('currentUser');
+            window.location.href = 'index.html';
+        }
+
+        // Toast notification functions
+        function showStatus(message, type = 'info') {
+            const toastContainer = document.getElementById('toast-container');
+            if (!toastContainer) return;
+
+            const toast = document.createElement('div');
+            toast.className = `p-4 rounded-lg shadow-lg text-sm transform transition-all duration-300 ${getToastClasses(type)} animate-slide-in`;
+
+            const icon = getToastIcon(type);
+            toast.innerHTML = `
+                <div class="flex items-center gap-3">
+                    <span class="text-xl">${icon}</span>
+                    <span class="flex-1">${message}</span>
+                    <button onclick="this.parentElement.parentElement.remove()" class="text-gray-500 hover:text-gray-700 font-bold">✕</button>
+                </div>
+            `;
+
+            toastContainer.appendChild(toast);
+
+            // Auto-dismiss after 5 seconds (except for errors which stay for 8 seconds)
+            const dismissTime = type === 'error' ? 8000 : 5000;
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                toast.style.transform = 'translateX(100%)';
+                setTimeout(() => toast.remove(), 300);
+            }, dismissTime);
+        }
+
+        function getToastClasses(type) {
+            switch (type) {
+                case 'success': return 'bg-green-500 text-white';
+                case 'error': return 'bg-red-500 text-white';
+                case 'warning': return 'bg-yellow-500 text-white';
+                default: return 'bg-blue-500 text-white';
+            }
+        }
+
+        function getToastIcon(type) {
+            switch (type) {
+                case 'success': return '✅';
+                case 'error': return '❌';
+                case 'warning': return '⚠️';
+                default: return 'ℹ️';
+            }
+        }
+
+        function clearStatus() {
+            const toastContainer = document.getElementById('toast-container');
+            if (toastContainer) toastContainer.innerHTML = '';
+        }
+
+        // Main processing function
+        async function processCSV() {
+            if (!csvFileInput.files[0]) {
+                showStatus('Please select a file', 'error');
+                return;
+            }
+
+            setProcessing(true);
+            clearStatus();
+            showProgressPanel();
+
+            try {
+                // Step 1: Parse CSV
+                updateStep(1, 'processing', 'Đang đọc file CSV...');
+                const csvData = await parseCSVFile(csvFileInput.files[0]);
+                if (csvData.length === 0) {
+                    throw new Error("File CSV trống hoặc không thể đọc được. Vui lòng kiểm tra định dạng file.");
+                }
+                updateStep(1, 'complete', 'Đọc CSV thành công');
+                showStatus(`Đã đọc ${csvData.length} dòng từ CSV`, 'success');
+
+                // Step 2: Process data (Basic only - AI removed)
+                updateStep(2, 'processing', 'Đang xử lý dữ liệu...');
+                const processedRows = await processBasic(csvData);
+                updateStep(2, 'complete', 'Xử lý dữ liệu hoàn tất');
+                showStatus(`Đã xử lý ${processedRows.length} dòng`, 'success');
+
+                // Step 3: Prepare for import based on selected mode
+                updateStep(3, 'processing', 'Đang chuẩn bị dữ liệu theo chế độ đã chọn...');
+                const preparedData = await prepareForImport(processedRows);
+
+                // Get selected processing mode
+                const selectedMode = processingMode ? processingMode.value : 'add-new-only';
+
+                // Process data based on selected mode
+                const { finalData, duplicateCount, totalCount, modeInfo, importStrategy } = await processDataByMode(preparedData, selectedMode);
+                processedData = finalData;
+                selectedImportStrategy = importStrategy || 'add-new-only';
+
+                updateStep(3, 'complete', 'Chuẩn bị dữ liệu hoàn tất');
+                showStatus(`Đã chuẩn bị ${processedData.length} dòng để nhập (${modeInfo})`, 'success');
+
+                // Show duplicate status and preview
+                showDuplicateStatus(duplicateCount, totalCount, selectedMode);
+                showDataPreview(processedData);
+                if (importBtn) importBtn.disabled = false;
+
+            } catch (error) {
+                console.error('Processing error:', error);
+                showStatus(`Lỗi: ${error.message}`, 'error');
+                updateStep(getCurrentStep(), 'error', 'Xử lý thất bại');
+            } finally {
+                setProcessing(false);
+            }
+        }
+
+        // Process data based on selected mode
+        async function processDataByMode(data, mode) {
+            if (!supabaseClient) {
+                console.warn('Supabase client not initialized, using all data');
+                return {
+                    finalData: data,
+                    duplicateCount: 0,
+                    totalCount: data.length,
+                    modeInfo: 'Không thể kết nối database'
+                };
+            }
+
+            try {
+                // Use ticket numbers as unique identifiers, not issue_id
+                const ticketNumbers = data.map(row => row.ticket).filter(t => t);
+                if (ticketNumbers.length === 0) {
+                    return {
+                        finalData: data,
+                        duplicateCount: 0,
+                        totalCount: data.length,
+                        modeInfo: 'Không có ticket number để kiểm tra'
+                    };
+                }
+
+                // Check for existing tickets in database by ticket number
+                const { data: existingTickets, error } = await supabaseClient
+                    .from('tickets')
+                    .select('ticket')
+                    .in('ticket', ticketNumbers);
+
+                if (error) {
+                    console.error('Error checking for duplicates:', error);
+                    showStatus('⚠️ Không thể kiểm tra trùng lặp, tiếp tục với tất cả dữ liệu', 'warning');
+                    return {
+                        finalData: data,
+                        duplicateCount: 0,
+                        totalCount: data.length,
+                        modeInfo: 'Lỗi kiểm tra database'
+                    };
+                }
+
+                const existingTicketNumbers = new Set(existingTickets.map(t => String(t.ticket)));
+
+                // Process based on the two unique logics
+                switch (mode) {
+                    case 'complete-replace':
+                        // Logic 1: Delete entire table and import from file
+                        // All data will be imported (no filtering needed)
+                        const completeReplaceData = data.map(row => ({
+                            ...row,
+                            _isDuplicate: existingTicketNumbers.has(String(row.ticket))
+                        }));
+                        return {
+                            finalData: completeReplaceData,
+                            duplicateCount: 0, // No duplicates since we're replacing everything
+                            totalCount: data.length,
+                            modeInfo: 'xóa toàn bộ bảng và nhập lại',
+                            importStrategy: 'complete-replace'
+                        };
+
+                    case 'smart-compare':
+                        // Logic 2: Smart comparison with database
+                        // All data with duplicate marking for smart comparison
+                        const smartCompareData = data.map(row => ({
+                            ...row,
+                            _isDuplicate: existingTicketNumbers.has(String(row.ticket))
+                        }));
+                        return {
+                            finalData: smartCompareData,
+                            duplicateCount: data.length - data.filter(row => !existingTicketNumbers.has(String(row.ticket))).length,
+                            totalCount: data.length,
+                            modeInfo: 'so sánh thông minh với database',
+                            importStrategy: 'smart-compare'
+                        };
+
+                    case 'add-new-only':
+                        // Logic 3: Only add new tickets (filter out duplicates)
+                        const newOnlyData = data.filter(row => !existingTicketNumbers.has(String(row.ticket)));
+                        return {
+                            finalData: newOnlyData,
+                            duplicateCount: data.length - newOnlyData.length,
+                            totalCount: data.length,
+                            modeInfo: 'chỉ thêm ticket mới',
+                            importStrategy: 'add-new-only'
+                        };
+
+                    default:
+                        // Default to add-new-only (safest option)
+                        const defaultData = data.filter(row => !existingTicketNumbers.has(String(row.ticket)));
+                        return {
+                            finalData: defaultData,
+                            duplicateCount: data.length - defaultData.length,
+                            totalCount: data.length,
+                            modeInfo: 'chỉ thêm ticket mới (mặc định)',
+                            importStrategy: 'add-new-only'
+                        };
+                }
+
+            } catch (error) {
+                console.error('Error in processDataByMode:', error);
+                showStatus('⚠️ Lỗi khi xử lý dữ liệu, tiếp tục với tất cả dữ liệu', 'warning');
+                return {
+                    finalData: data,
+                    duplicateCount: 0,
+                    totalCount: data.length,
+                    modeInfo: 'lỗi xử lý'
+                };
+            }
+        }
+
+        // Show duplicate status function
+        function showDuplicateStatus(duplicateCount, totalCount, mode = 'smart-filter') {
+            if (!duplicateStatus || !duplicateInfo) return;
+
+            const modeMessages = {
+                'smart-filter': {
+                    noDuplicates: 'Tất cả bản ghi đều là dữ liệu mới và sẵn sàng để nhập.',
+                    hasDuplicates: `Đã tự động loại bỏ ${duplicateCount} bản ghi trùng lặp. Còn lại ${totalCount - duplicateCount} bản ghi mới sẽ được nhập.`
+                },
+                'include-duplicates': {
+                    noDuplicates: 'Tất cả bản ghi đều là dữ liệu mới.',
+                    hasDuplicates: `Hiển thị tất cả ${totalCount} bản ghi (${duplicateCount} trùng lặp, ${totalCount - duplicateCount} mới). Bạn có thể chọn chiến lược nhập phù hợp.`
+                },
+                'duplicates-only': {
+                    noDuplicates: 'Không có dữ liệu trùng lặp để cập nhật.',
+                    hasDuplicates: `Hiển thị ${duplicateCount} bản ghi trùng lặp để cập nhật.`
+                },
+                'preview-all': {
+                    noDuplicates: 'Tất cả bản ghi đều là dữ liệu mới. Bạn có thể xem trước và lựa chọn.',
+                    hasDuplicates: `Hiển thị tất cả ${totalCount} bản ghi với trạng thái rõ ràng (${duplicateCount} trùng lặp, ${totalCount - duplicateCount} mới).`
+                }
+            };
+
+            const messages = modeMessages[mode] || modeMessages['smart-filter'];
+
+            if (duplicateCount === 0 || (mode === 'duplicates-only' && duplicateCount === 0)) {
+                duplicateInfo.className = 'p-4 rounded-lg border bg-green-50 border-green-200';
+                duplicateInfo.innerHTML = `
+                    <div class="flex items-center">
+                        <svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        <span class="text-green-800 font-medium">✅ ${mode === 'duplicates-only' ? 'Không có dữ liệu trùng lặp' : 'Không có dữ liệu trùng lặp'}</span>
+                    </div>
+                    <p class="text-green-700 text-sm mt-1">${messages.noDuplicates}</p>
+                `;
+            } else {
+                const colorClass = mode === 'duplicates-only' ? 'orange' : 'blue';
+                duplicateInfo.className = `p-4 rounded-lg border bg-${colorClass}-50 border-${colorClass}-200`;
+                duplicateInfo.innerHTML = `
+                    <div class="flex items-center">
+                        <svg class="w-5 h-5 text-${colorClass}-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <span class="text-${colorClass}-800 font-medium">🔄 ${mode === 'smart-filter' ? 'Đã lọc dữ liệu trùng lặp tự động' : 'Thông tin dữ liệu'}</span>
+                    </div>
+                    <p class="text-${colorClass}-700 text-sm mt-1">${messages.hasDuplicates}</p>
+                `;
+            }
+
+            duplicateStatus.classList.remove('hidden');
+        }
+
+        // CSV parsing function
+        function parseCSVFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    try {
+                        const text = event.target.result;
+                        const rows = parseRobustCSV(text);
+                        
+                        if (rows.length < 2) {
+                            return reject(new Error('CSV must have a header and at least one data row.'));
+                        }
+
+                        const headers = rows[0];
+                        const data = rows.slice(1).map(values => {
+                            if (values.length === headers.length) {
+                                const row = {};
+                                headers.forEach((header, index) => {
+                                    row[header] = values[index];
+                                });
+                                return row;
+                            } else {
+                                console.warn(`Skipping malformed row. Expected ${headers.length} columns, but got ${values.length}.`, values);
+                                showStatus(`Warning: Skipping malformed row. Check console for details.`, 'warning');
+                                return null;
+                            }
+                        }).filter(Boolean); // Filter out null rows
+
+                        resolve(data);
+                    } catch (e) {
+                        reject(e);
+                    }
+                };
+                reader.onerror = (error) => reject(error);
+                reader.readAsText(file);
+            });
+        }
+
+        /**
+         * A robust CSV parser that handles quoted fields, newlines within fields, and escaped quotes.
+         * @param {string} text The full CSV text.
+         * @returns {string[][]} An array of arrays, where each inner array represents a row.
+         */
+        function parseRobustCSV(text) {
+            const rows = [];
+            let currentRow = [];
+            let currentField = '';
+            let inQuotedField = false;
+
+            text = text.replace(/\r\n/g, '\n'); // Normalize line endings
+
+            for (let i = 0; i < text.length; i++) {
+                const char = text[i];
+
+                if (inQuotedField) {
+                    if (char === '"') {
+                        // Check for escaped quote
+                        if (i < text.length - 1 && text[i + 1] === '"') {
+                            currentField += '"';
+                            i++; // Skip next quote
+                        } else {
+                            inQuotedField = false;
+                        }
+                    } else {
+                        currentField += char;
+                    }
+                } else {
+                    switch (char) {
+                        case ',':
+                            currentRow.push(currentField);
+                            currentField = '';
+                            break;
+                        case '\n':
+                            currentRow.push(currentField);
+                            rows.push(currentRow);
+                            currentRow = [];
+                            currentField = '';
+                            break;
+                        case '"':
+                            if (currentField.length === 0) {
+                                inQuotedField = true;
+                            } else {
+                                currentField += char; // Treat as part of an unquoted field
+                            }
+                            break;
+                        default:
+                            currentField += char;
+                    }
+                }
+            }
+
+            // Add the last field and row if the file doesn't end with a newline
+            if (currentField.length > 0 || currentRow.length > 0) {
+                currentRow.push(currentField);
+                rows.push(currentRow);
+            }
+
+            return rows;
+        }
+
+        // This function is no longer needed for the robust parser.
+        function parseCSVLine(line) {
+            return;
+        }
+
+        // AI processing function removed - no longer needed
+
+        // Basic processing function (without AI)
+        async function processBasic(csvData) {
+            const processedRows = [];
+
+            for (const row of csvData) {
+                const description = row['Description'] || '';
+
+                // For basic processing, fill description directly into description_eng
+                const processedRow = {
+                    ...row,
+                    description_eng: description, // Fill description directly into description_eng
+                    description_vie: '', // Leave Vietnamese field empty for basic processing
+                    supplier_agent_need: false,
+                    supplier_agent: '',
+                    ticket: row['Issue key'] || '',
+                    po: row['Custom field (PO Number(s))'] || '',
+                    suid: extractSUID(row['Custom field (Supplier)'] || ''),
+                    su_name: extractSupplierName(row['Custom field (Supplier)'] || ''),
+                    order_number: row['Custom field (Order ID(s))'] || '',
+                    po_nocs: extractPODigits(row['Custom field (PO Number(s))'] || ''),
+                    customer: extractCustomerName(row['Custom field (Customer Name)'] || ''),
+                    customer_contact: row['Custom field (Customer Contact(s))'] || '',
+                    issue_id: row['Issue id'] || '',
+                    agent_account: row['Assignee'] || '',
+                    assignee_account: row['Assignee'] || '', // Add assignee_account field
+                    issue_type: row['Customer Request Type'] || ''
+                };
+
+                processedRows.push(processedRow);
+            }
+
+            return processedRows;
+        }
+
+        // AI processing functions removed - no longer needed
+
+        // Helper functions for data extraction
+        function extractSUID(supplierField) {
+            const match = supplierField.match(/^(\d+)/);
+            return match ? match[1] : '';
+        }
+
+        function extractSupplierName(supplierField) {
+            const parts = supplierField.split(' - ');
+            return parts.length > 1 ? parts[1] : '';
+        }
+
+        function extractPODigits(poField) {
+            const match = poField.match(/(?:CS|CA)(\d{9})/);
+            return match ? match[1] : '';
+        }
+
+        function extractCustomerName(customerField) {
+            if (!customerField) return '';
+            return customerField.split(',')[0].trim();
+        }
+
+        async function getAgentSTT(assigneeAccount) {
+            if (!supabaseClient || !assigneeAccount) return '';
+            try {
+                const { data, error } = await supabaseClient
+                    .from('agent')
+                    .select('stt')
+                    .eq('agent_account', assigneeAccount)
+                    .maybeSingle();
+
+                if (error) {
+                    if (error.code === 'PGRST301' || error.message.includes('401')) {
+                        console.warn('Authentication issue accessing agent table:', error);
+                        showStatus('⚠️ Authentication issue. Please check database permissions.', 'warning');
+                    } else {
+                        throw error;
+                    }
+                    return '';
+                }
+                return data ? data.stt : '';
+            } catch (error) {
+                console.error('Error fetching agent STT:', error);
+                showStatus('⚠️ Error fetching agent data. Using default values.', 'warning');
+                return '';
+            }
+        }
+
+        async function getIssueType(assigneeAccount, customerRequestType) {
+            if (!supabaseClient || !assigneeAccount || !customerRequestType) return '';
+            try {
+                const { data: agentData, error: agentError } = await supabaseClient
+                    .from('agent')
+                    .select('team')
+                    .eq('agent_account', assigneeAccount)
+                    .maybeSingle();
+
+                if (agentError) {
+                    if (agentError.code === 'PGRST301' || agentError.message.includes('401')) {
+                        console.warn('Authentication issue accessing agent table:', agentError);
+                        showStatus('⚠️ Authentication issue. Please check database permissions.', 'warning');
+                    } else {
+                        throw agentError;
+                    }
+                    return '';
+                }
+                if (!agentData) return '';
+
+                let taskName = customerRequestType;
+                if (customerRequestType === 'Update Tracking Number') {
+                    taskName = 'Update tracking number/Order Status';
+                } else if (customerRequestType === 'Email Request') {
+                    taskName = 'Carrier Inquiry';
+                }
+
+                const { data: kpiData, error: kpiError } = await supabaseClient
+                    .from('kpi_per_task')
+                    .select('id')
+                    .eq('team', agentData.team)
+                    .eq('task_name', taskName)
+                    .limit(1) // Ensure we only get one result
+                    .maybeSingle();
+
+                if (kpiError) {
+                    if (kpiError.code === 'PGRST301' || kpiError.message.includes('401')) {
+                        console.warn('Authentication issue accessing kpi_per_task table:', kpiError);
+                        showStatus('⚠️ Authentication issue. Please check database permissions.', 'warning');
+                    } else {
+                        throw kpiError;
+                    }
+                    return '';
+                }
+                return kpiData ? kpiData.id : '';
+            } catch (error) {
+                console.error('Error fetching issue type:', error);
+                showStatus('⚠️ Error fetching issue type data. Using default values.', 'warning');
+                return '';
+            }
+        }
+
+        // Data preparation and UI functions
+        async function prepareForImport(processedRows) {
+            return processedRows.map(row => ({
+                ticket: row.ticket,
+                po: row.po,
+                suid: row.suid,
+                su_name: row.su_name,
+                supplier_agent_need: row.supplier_agent_need,
+                supplier_agent: row.supplier_agent,
+                order_number: row.order_number,
+                po_nocs: row.po_nocs,
+                customer: row.customer,
+                customer_contact: row.customer_contact,
+                agent_account: row.agent_account,
+                issue_type: row.issue_type,
+                issue_id: row.issue_id,
+                description_eng: row.description_eng,
+                description_vie: row.description_vie
+            }));
+        }
+
+        function showDataPreview(data) {
+            if (!dataPreview || !initialState || !previewHeader || !previewBody) return;
+            if (data.length === 0) {
+                showStatus('No data to preview', 'warning');
+                initialState.classList.remove('hidden');
+                dataPreview.classList.add('hidden');
+                return;
+            }
+
+            initialState.classList.add('hidden');
+            dataPreview.classList.remove('hidden');
+
+            const headers = Object.keys(data[0]);
+            // Filter out description columns and internal flags to save space
+            const visibleHeaders = headers.filter(h =>
+                h !== 'description_eng' &&
+                h !== 'description_vie' &&
+                !h.startsWith('_')
+            );
+
+            // Add status column if we have duplicate info
+            const hasStatusInfo = data.some(row => row._status || row._isDuplicate !== undefined);
+            if (hasStatusInfo) {
+                visibleHeaders.unshift('Trạng thái');
+            }
+
+            previewHeader.innerHTML = visibleHeaders.map(header =>
+                `<th class="px-3 py-2 text-left text-xs font-medium text-secondary uppercase tracking-wider">${header}</th>`
+            ).join('');
+
+            const previewRows = data.slice(0, 10);
+            previewBody.innerHTML = previewRows.map(row => {
+                const rowClass = row._isDuplicate ? 'bg-yellow-50 dark:bg-yellow-900' : '';
+                return `<tr class="hover:bg-gray-50 dark:hover:bg-gray-700 ${rowClass}">${visibleHeaders.map(header => {
+                    let cellContent = '';
+                    let cellClass = `px-3 py-2 text-xs text-main whitespace-nowrap`;
+
+                    if (header === 'Trạng thái') {
+                        if (row._status) {
+                            cellContent = row._status;
+                            cellClass += row._isDuplicate ? ' text-orange-600 font-medium' : ' text-green-600 font-medium';
+                        } else if (row._isDuplicate !== undefined) {
+                            cellContent = row._isDuplicate ? 'Trùng lặp' : 'Mới';
+                            cellClass += row._isDuplicate ? ' text-orange-600 font-medium' : ' text-green-600 font-medium';
+                        }
+                    } else {
+                        cellContent = row[header] || '';
+                    }
+
+                    return `<td class="${cellClass}">${cellContent}</td>`;
+                }).join('')}</tr>`;
+            }).join('');
+
+            if (data.length > 10) {
+                showStatus(`Showing first 10 rows of ${data.length} total rows`, 'info');
+            }
+        }
+
+        async function importToDatabase() {
+            if (!supabaseClient) {
+                showStatus('Supabase client not initialized.', 'error');
+                return;
+            }
+            if (processedData.length === 0) {
+                showStatus('No data to import', 'error');
+                return;
+            }
+
+            const strategy = selectedImportStrategy;
+            const strategyNames = {
+                'complete-replace': 'Logic 1: Xóa toàn bộ bảng và nhập lại từ file',
+                'smart-compare': 'Logic 2: So sánh thông minh với database',
+                'add-new-only': 'Logic 3: Chỉ thêm ticket mới (An toàn)'
+            };
+
+            if (!confirm(`Bạn có chắc chắn muốn nhập ${processedData.length} bản ghi bằng chiến lược: ${strategyNames[strategy]}?`)) {
+                return;
+            }
+
+            try {
+                showStatus(`Đang nhập dữ liệu bằng ${strategyNames[strategy]}...`, 'info');
+                setProcessing(true);
+
+                switch (strategy) {
+                    case 'complete-replace':
+                        await importCompleteReplace();
+                        break;
+                    case 'smart-compare':
+                        await importSmartCompare();
+                        break;
+                    case 'add-new-only':
+                        await importAddNewOnly();
+                        break;
+                    default:
+                        await importAddNewOnly();
+                        break;
+                }
+
+                if (importBtn) {
+                    importBtn.disabled = true;
+                    importBtn.textContent = 'Import Complete';
+                }
+
+            } catch (error) {
+                console.error('Import error:', error);
+                showStatus(`❌ Import failed: ${error.message}`, 'error');
+            } finally {
+                setProcessing(false);
+            }
+        }
+
+        // Logic 1: Complete Replace - Delete entire table but keep structure, then import data from file
+        async function importCompleteReplace() {
+            showStatus('🗑️ Logic 1: Deleting all existing tickets (keeping table structure)...', 'info');
+
+            // Delete all tickets but keep table structure
+            const { error: deleteError } = await supabaseClient
+                .from('tickets')
+                .delete()
+                .neq('id', 0); // Delete all rows
+
+            if (deleteError) throw deleteError;
+
+            showStatus('📥 Inserting all data from CSV file...', 'info');
+
+            const ticketData = prepareTicketData(processedData);
+            const { error: insertError } = await supabaseClient
+                .from('tickets')
+                .insert(ticketData);
+
+            if (insertError) throw insertError;
+
+            showStatus(`✅ Logic 1 Complete: Replaced entire table with ${processedData.length} new records from file`, 'success');
+        }
+
+        // Logic 2: Smart Compare - Compare file with database and handle accordingly
+        async function importSmartCompare() {
+            showStatus('🧠 Logic 2: Starting smart comparison with database...', 'info');
+
+            // Get ALL existing tickets from database (not just those in CSV)
+            const { data: allExistingTickets, error: fetchAllError } = await supabaseClient
+                .from('tickets')
+                .select('*');
+
+            if (fetchAllError) throw fetchAllError;
+
+            // Get ticket numbers from CSV file
+            const csvTicketNumbers = new Set(processedData.map(row => row.ticket).filter(t => t));
+
+            // Map existing tickets by ticket number
+            const existingMap = new Map(allExistingTickets.map(t => [t.ticket, t]));
+
+            const toInsert = [];      // New tickets from CSV
+            const toUpdate = [];      // Existing tickets to update
+            const toDelete = [];      // Tickets to delete from DB
+            let skippedSpecial = 0;   // Special tickets skipped
+            let skippedDuplicates = 0; // Duplicate tickets skipped
+
+            // Step 1: Process CSV data
+            showStatus('📊 Step 1: Processing CSV tickets...', 'info');
+            for (const row of processedData) {
+                const existing = existingMap.get(row.ticket);
+
+                if (!existing) {
+                    // New ticket - add to insert list
+                    toInsert.push(row);
+                } else {
+                    // Check if it's a special case
+                    const isNoActionNeeded = existing.time_end != null &&
+                        (existing.notes && existing.notes.includes('No action needed'));
+
+                    const isSpecial =
+                        existing.needMos != null ||                    // Needs MOS approval
+                        existing.ticket_status_id != null ||          // Has status assigned
+                        existing.need_leader_support === true ||      // Needs leader help
+                        existing.time_start != null ||                // Ticket has been started
+                        existing.time_end != null ||                  // Ticket has been completed
+                        existing.agent_handle_ticket != null ||       // Ticket has been handled
+                        isNoActionNeeded;                             // Ticket marked as no action needed
+
+                    if (isSpecial) {
+                        // Skip special tickets - keep them as is
+                        skippedSpecial++;
+                        const reason = isNoActionNeeded ? 'no action needed' :
+                                     existing.need_leader_support ? 'needs leader support' :
+                                     existing.time_end ? 'completed' :
+                                     existing.time_start ? 'in progress' : 'special status';
+                        console.log(`Keeping special ticket ${row.ticket} - ${reason}`);
+                    } else {
+                        // Duplicate - do nothing (skip)
+                        skippedDuplicates++;
+                        console.log(`Skipping duplicate ticket ${row.ticket} - already exists and not special`);
+                    }
+                }
+            }
+
+            // Step 2: Find tickets to delete (exist in DB but not in file, and not special)
+            showStatus('🗑️ Step 2: Finding tickets to delete...', 'info');
+            for (const existingTicket of allExistingTickets) {
+                if (!csvTicketNumbers.has(existingTicket.ticket)) {
+                    // Ticket exists in DB but not in CSV file
+                    const isNoActionNeeded = existingTicket.time_end != null &&
+                        (existingTicket.notes && existingTicket.notes.includes('No action needed'));
+
+                    const isSpecial =
+                        existingTicket.needMos != null ||
+                        existingTicket.ticket_status_id != null ||
+                        existingTicket.need_leader_support === true ||
+                        existingTicket.time_start != null ||
+                        existingTicket.time_end != null ||
+                        existingTicket.agent_handle_ticket != null ||
+                        isNoActionNeeded;
+
+                    if (!isSpecial) {
+                        // Not special and not in file - delete it
+                        toDelete.push(existingTicket);
+                    }
+                }
+            }
+
+            // Step 3: Execute operations
+            let deletedCount = 0;
+            if (toDelete.length > 0) {
+                showStatus(`🗑️ Step 3a: Deleting ${toDelete.length} unprocessed tickets not in file...`, 'info');
+                const idsToDelete = toDelete.map(t => t.id);
+                const { error: deleteError } = await supabaseClient
+                    .from('tickets')
+                    .delete()
+                    .in('id', idsToDelete);
+
+                if (deleteError) throw deleteError;
+                deletedCount = toDelete.length;
+            }
+
+            if (toInsert.length > 0) {
+                showStatus(`➕ Step 3b: Adding ${toInsert.length} new tickets from file...`, 'info');
+                const insertData = prepareTicketData(toInsert);
+                const { error: insertError } = await supabaseClient
+                    .from('tickets')
+                    .insert(insertData);
+
+                if (insertError) throw insertError;
+            }
+
+            const statusMessage = `✅ Logic 2 Complete: ➕${toInsert.length} added, 🗑️${deletedCount} deleted, ✋${skippedSpecial} special kept, ⏭️${skippedDuplicates} duplicates skipped`;
+            showStatus(statusMessage, 'success');
+        }
+
+        // Logic 3: Add New Only - Only add new tickets, never delete anything
+        async function importAddNewOnly() {
+            showStatus('➕ Logic 3: Adding only new tickets (100% safe)...', 'info');
+
+            // Get ticket numbers from CSV
+            const csvTicketNumbers = processedData.map(row => row.ticket).filter(t => t);
+
+            // Get existing ticket numbers from database
+            const { data: existingTickets, error: fetchError } = await supabaseClient
+                .from('tickets')
+                .select('ticket')
+                .in('ticket', csvTicketNumbers);
+
+            if (fetchError) throw fetchError;
+
+            // Find which tickets are truly new
+            const existingTicketNumbers = new Set(existingTickets.map(t => t.ticket));
+            const newTickets = processedData.filter(row => !existingTicketNumbers.has(row.ticket));
+            const skippedExisting = processedData.length - newTickets.length;
+
+            if (newTickets.length === 0) {
+                showStatus('ℹ️ No new tickets to add. All tickets from CSV already exist in database.', 'info');
+                return;
+            }
+
+            // Insert only new tickets
+            showStatus(`➕ Adding ${newTickets.length} new tickets to database...`, 'info');
+            const ticketData = prepareTicketData(newTickets);
+            const { error: insertError } = await supabaseClient
+                .from('tickets')
+                .insert(ticketData);
+
+            if (insertError) throw insertError;
+
+            const statusMessage = `✅ Logic 3 Complete: ➕${newTickets.length} new tickets added${skippedExisting > 0 ? `, ⏭️${skippedExisting} existing tickets skipped` : ''} 🛡️ Nothing deleted!`;
+            showStatus(statusMessage, 'success');
+        }
+
+
+
+
+
+        // Helper function to prepare ticket data for insert/update
+        function prepareTicketData(dataArray) {
+            return dataArray.map(row => ({
+                ticket: row.ticket,
+                po: row.po,
+                suid: row.suid,
+                su_name: row.su_name,
+                supplier_agent_need: row.supplier_agent_need,
+                supplier_agent: row.supplier_agent,
+                order_number: row.order_number,
+                po_nocs: row.po_nocs,
+                customer: row.customer,
+                customer_contact: row.customer_contact,
+                issue_type: row.issue_type,
+                issue_id: row.issue_id,
+                description_eng: row.description_eng,
+                description_vie: row.description_vie,
+                assignee_account: row.agent_account,
+                time_start: null,
+                time_end: null,
+                agent_handle_ticket: null,
+                ticket_status_id: null
+            }));
+        }
+
+        function downloadProcessedCSV() {
+            if (processedData.length === 0) {
+                showStatus('No data to download', 'error');
+                return;
+            }
+
+            const headers = Object.keys(processedData[0]);
+            const csvContent = [
+                headers.join(','),
+                ...processedData.map(row =>
+                    headers.map(header => {
+                        const value = row[header] === null || row[header] === undefined ? '' : String(row[header]);
+                        return `"${value.replace(/"/g, '""')}"`;
+                    }).join(',')
+                )
+            ].join('\n');
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `processed_tickets_${new Date().toISOString().split('T')[0]}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+
+            showStatus('CSV file downloaded', 'success');
+        }
+
+        // UI helper functions
+        function setProcessing(processing) {
+            if (processBtn) processBtn.disabled = processing;
+            if (processing) {
+                if (processText) processText.textContent = 'Processing...';
+                if (processSpinner) processSpinner.classList.remove('hidden');
+            } else {
+                if (processText) processText.textContent = 'Process CSV';
+                if (processSpinner) processSpinner.classList.add('hidden');
+            }
+        }
+
+        function showProgressPanel() {
+            if (!progressPanel) return;
+            progressPanel.classList.remove('hidden');
+            for (let i = 1; i <= 3; i++) {
+                updateStep(i, 'pending', getStepText(i));
+            }
+        }
+
+        function updateStep(stepNumber, status, text) {
+            const icon = document.getElementById(`step${stepNumber}-icon`);
+            const textEl = document.getElementById(`step${stepNumber}-text`);
+            if (!icon || !textEl) return;
+
+            icon.className = 'w-6 h-6 rounded-full flex items-center justify-center mr-3';
+
+            switch (status) {
+                case 'pending':
+                    icon.classList.add('bg-gray-300');
+                    icon.innerHTML = `<span class="text-xs text-white">${stepNumber}</span>`;
+                    break;
+                case 'processing':
+                    icon.classList.add('bg-blue-500');
+                    icon.innerHTML = '<div class="loading-spinner w-3 h-3"></div>';
+                    break;
+                case 'complete':
+                    icon.classList.add('bg-green-500');
+                    icon.innerHTML = '<svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>';
+                    break;
+                case 'error':
+                    icon.classList.add('bg-red-500');
+                    icon.innerHTML = '<svg class="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path></svg>';
+                    break;
+            }
+
+            textEl.textContent = text;
+        }
+
+        function getStepText(stepNumber) {
+            switch (stepNumber) {
+                case 1: return 'Parse CSV file';
+                case 2: return 'Process with AI';
+                case 3: return 'Prepare for import';
+                default: return '';
+            }
+        }
+
+        function getCurrentStep() {
+            if (document.getElementById('step3-icon')?.classList.contains('bg-blue-500')) return 3;
+            if (document.getElementById('step2-icon')?.classList.contains('bg-blue-500')) return 2;
+            return 1;
+        }
+
+
+
+
+
+
+
+
+
+
+
+        // Theme switcher logic
+        function toggleThemeDropdown() {
+            const themeDropdown = document.getElementById('theme-dropdown');
+            const themeChevron = document.getElementById('theme-chevron');
+            const isHidden = themeDropdown.classList.contains('hidden');
+
+            if (isHidden) {
+                themeDropdown.classList.remove('hidden');
+                themeChevron.style.transform = 'rotate(180deg)';
+            } else {
+                themeDropdown.classList.add('hidden');
+                themeChevron.style.transform = 'rotate(0deg)';
+            }
+        }
+
+        function hideThemeDropdown() {
+            const themeDropdown = document.getElementById('theme-dropdown');
+            const themeChevron = document.getElementById('theme-chevron');
+            themeDropdown.classList.add('hidden');
+            themeChevron.style.transform = 'rotate(0deg)';
+        }
+
+        function setTheme(theme) {
+            document.documentElement.className = theme;
+            localStorage.setItem('theme', theme);
+
+            // Update theme buttons
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.theme === theme);
+            });
+
+            // Update current theme name display
+            const currentThemeName = document.getElementById('current-theme-name');
+            const themeNames = {
+                'dark': '🌙 Tối',
+                'daylight': '☀️ Ban ngày',
+                'sunset': '🌅 Hoàng hôn',
+                'twilight': '🌆 Chạng vạng',
+                'blossom-dawn': '🌸 Bình minh',
+                'blue-sky': '🌤️ Trời xanh',
+                'fresh-mint': '🌿 Bạc hà'
+            };
+            if (currentThemeName) {
+                currentThemeName.textContent = themeNames[theme] || theme;
+            }
+        }
+
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            setTheme(savedTheme);
+
+            // Add event listeners for theme functionality
+            const themeToggleBtn = document.getElementById('theme-toggle-btn');
+            const themeDropdown = document.getElementById('theme-dropdown');
+
+            if (themeToggleBtn) {
+                themeToggleBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    toggleThemeDropdown();
+                });
+            }
+
+            if (themeDropdown) {
+                themeDropdown.addEventListener('click', (e) => {
+                    if (e.target.matches('.theme-btn')) {
+                        const theme = e.target.dataset.theme;
+                        if (theme) {
+                            setTheme(theme);
+                            hideThemeDropdown();
+                        }
+                    }
+                });
+            }
+
+            // Close theme dropdown when clicking outside
+            document.addEventListener('click', (e) => {
+                const themeToggleBtn = document.getElementById('theme-toggle-btn');
+                const themeDropdown = document.getElementById('theme-dropdown');
+                if (themeToggleBtn && themeDropdown &&
+                    !themeToggleBtn.contains(e.target) && !themeDropdown.contains(e.target)) {
+                    hideThemeDropdown();
+                }
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', initTheme);
+
+    </script>
+</body>
+</html>
