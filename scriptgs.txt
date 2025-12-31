@@ -1,11 +1,12 @@
 /********************** CÁC GIÁ TRỊ BẠN CẦN TỰ THIẾT LẬP **********************/
 
 // 1. ID của file Google Sheet (lấy từ URL)
-const SHEET_ID = '1fiKKKBYQUHg5Apq-VuQPTiCtGwusW-IOl7KJhMyL764';
+const SHEET_ID = '1tYuKL6CCn0u4pWBBnYJ1dxVs4Dqp8kPxTuyYUpUpdQw';
 
 // 2. Tên các sheet tương ứng với project
 const SHEET_AOPS = 'Work tracker (AOPS)';
 const SHEET_FMOP = 'Work tracker (FMOP)';
+const SHEET_OT_TRACKER = 'OT Tracker';  // Sheet for OT Mode tickets
 
 // 3. SERVICE ROLE KEY từ Supabase (Project Settings -> API -> Service role key)
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmYnh0YnlkcmpjbXFscmtsc2RyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1Njk4MzY0OSwiZXhwIjoyMDcyNTU5NjQ5fQ._cMTCJnzN0TWw_nBRhR4mfNcDhQAo26jjdnIB8imD78';
@@ -194,11 +195,30 @@ function fetchTicketFromView(ticketId) {
 /********************** CORE LOGIC - XỬ LÝ 1 TICKET **********************/
 function addSingleTicketToSheet(ticket) {
   // ticket data comes from tickets_export_v view with all fields properly formatted
+  const ticketNumber = String(ticket['Ticket'] || '');
   const project = String(ticket['Project'] || '');
+  const otMode = ticket['OT Mode'] || false;
+  
   let sheetName;
-  if (project === 'AOPS') sheetName = SHEET_AOPS;
-  else if (project === 'FMOP') sheetName = SHEET_FMOP;
-  else throw new Error(`Unknown project: ${project} for ticket ${ticket['Ticket']}`);
+  
+  // Priority 1: OT Mode tickets go to OT Tracker
+  if (otMode === true) {
+    sheetName = SHEET_OT_TRACKER;
+    console.log(`🔥 OT Mode ticket detected: ${ticketNumber} -> OT Tracker`);
+  }
+  // Priority 2: POS tickets always go to AOPS (regardless of project)
+  else if (ticketNumber.toUpperCase().startsWith('POS')) {
+    sheetName = SHEET_AOPS;
+    console.log(`📦 POS ticket detected: ${ticketNumber} -> Work tracker (AOPS)`);
+  }
+  // Priority 3: Regular project routing
+  else if (project === 'AOPS') {
+    sheetName = SHEET_AOPS;
+  } else if (project === 'FMOP') {
+    sheetName = SHEET_FMOP;
+  } else {
+    throw new Error(`Unknown project: ${project} for ticket ${ticketNumber}`);
+  }
 
   const ss = SpreadsheetApp.openById(SHEET_ID);
   const sheet = ss.getSheetByName(sheetName);
@@ -277,17 +297,30 @@ function addSingleTicketToSheet(ticket) {
     [TRACKER_COLUMNS.TICKET_STATUS]: ticket['Ticket Status'] || '',
   };
 
+  // Read existing formulas in the target row to protect them
+  const existingFormulas = sheet.getRange(targetRow, 1, 1, header.length).getFormulas()[0];
+  
   for (const colName in dataToMap) {
-    // Only fill data if column exists and is not a formula column
-    if (dataToMap.hasOwnProperty(colName) && !formulaColumnsSet.has(colName)) {
+    if (dataToMap.hasOwnProperty(colName)) {
       const idx = colIndex(colName);
       if (idx !== -1) {
-        newRowData[idx] = dataToMap[colName] ?? '';
+        // Check if column is marked as formula column OR already has a formula
+        const hasFormula = existingFormulas[idx] && existingFormulas[idx].trim() !== '';
+        const isProtectedColumn = formulaColumnsSet.has(colName);
+        
+        // Only write data if column is NOT protected and does NOT have a formula
+        if (!isProtectedColumn && !hasFormula) {
+          newRowData[idx] = dataToMap[colName] ?? '';
+        } else if (hasFormula) {
+          console.log(`⚠️ Skipping column "${colName}" at index ${idx} - contains formula: ${existingFormulas[idx]}`);
+        } else if (isProtectedColumn) {
+          console.log(`🔒 Skipping protected column "${colName}" at index ${idx}`);
+        }
       }
     }
   }
 
-  // Insert data at the target row
+  // Insert data at the target row (formulas will be preserved)
   const range = sheet.getRange(targetRow, 1, 1, newRowData.length);
   range.setValues([newRowData]);
 
