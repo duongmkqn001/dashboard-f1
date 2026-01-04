@@ -3364,19 +3364,27 @@ const googleSheetsQueue = {
         }
     },
 
-    sendSingleTicket(ticketId) {
+sendSingleTicket(ticketId) {
         return new Promise((resolve, reject) => {
             try {
+                // ID Script của bạn (giữ nguyên)
                 const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzDXf9HPZi9NiJy-f8Enw9ZINljy2njMSWcZFXnrKCDzRPpAwwipIsTTMjP3lTtPZM07A/exec';
                 const SECRET_TOKEN = '14092000';
 
-                // Encode data as URL parameters - just send ticket ID
+                // --- ĐOẠN CODE ĐƯỢC THÊM MỚI ---
+                // Kiểm tra biến global otModeEnabled (như file dashboard cũ của bạn)
+                // Nếu không tìm thấy biến thì mặc định là false
+                const isOt = (typeof window.otModeEnabled !== 'undefined') ? window.otModeEnabled : false;
+                // -------------------------------
+
+                // Encode data as URL parameters
                 const params = new URLSearchParams({
                     secret: SECRET_TOKEN,
-                    ticketId: ticketId
+                    ticketId: ticketId,
+                    ot: isOt // <--- QUAN TRỌNG: Gửi tham số này đi
                 });
 
-                // Use JSONP for better error handling instead of image beacon
+                // Use JSONP for better error handling
                 const callbackName = `callback_${ticketId}_${Date.now()}`;
 
                 // Create callback function
@@ -3386,21 +3394,23 @@ const googleSheetsQueue = {
                     const script = document.getElementById(callbackName);
                     if (script) document.head.removeChild(script);
 
-                    if (response.status === 'success') {
+                    // AppScript trả về success: true/false chứ không phải string 'success'
+                    if (response.success === true || response.status === 'success') {
                         console.log('✅ Ticket successfully exported to Google Sheets:', ticketId);
                         resolve(response);
                     } else {
-                        console.error('❌ Google Sheets export failed:', response.message);
-                        reject(new Error(response.message || 'Unknown error'));
+                        console.error('❌ Google Sheets export failed:', response);
+                        reject(new Error(response.error || 'Unknown error'));
                     }
                 };
 
                 // Create script tag for JSONP
                 const script = document.createElement('script');
                 script.id = callbackName;
+                // Thêm tham số callback vào URL
                 script.src = `${GOOGLE_SHEETS_URL}?${params.toString()}&callback=${callbackName}`;
 
-                // Set timeout for the request
+                // Set timeout
                 const timeout = setTimeout(() => {
                     delete window[callbackName];
                     if (script.parentNode) document.head.removeChild(script);
