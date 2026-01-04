@@ -784,7 +784,7 @@
         }
 
         function extractPODigits(poField) {
-            const match = poField.match(/(?:CS|CA)(\d{9})/);
+            const match = poField.match(/(?:CS|CA|IE|UK|DE|EU)\s*(\d{9})/i);
             return match ? match[1] : '';
         }
 
