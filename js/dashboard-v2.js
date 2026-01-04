@@ -3398,7 +3398,7 @@ sendSingleTicket(ticketId) {
                 script.src = `${GOOGLE_SHEETS_URL}?${params.toString()}&callback=${callbackName}`;
 
                 // ... (Phần timeout giữ nguyên) ...
-                const timeout = setTimeout(() => { /*...*/ }, 10000);
+                const timeout = setTimeout(() => { /*...*/ }, 60000);
                 script.onload = () => clearTimeout(timeout);
                 script.onerror = () => { /*...*/ };
 
