@@ -586,7 +586,8 @@ async function fetchAndRenderTickets(forceRefresh = false) {
             console.log('📦 Using cached tickets data');
         } else {
             // OPTIMIZATION: Select only needed columns instead of '*'
-            const columns = 'id,ticket,po,issue_type,time_start,assignee_account,need_leader_support,needMos,ticket_status_id,agent_handle_ticket,ot_mode';
+            // Added 'suid' for template SUID search functionality
+            const columns = 'id,ticket,po,issue_type,time_start,assignee_account,need_leader_support,needMos,ticket_status_id,agent_handle_ticket,ot_mode,suid';
 
             let query = supabaseClient.from('tickets').select(columns).is('time_end', null);
             if (selectedAssignee) query = query.eq('assignee_account', selectedAssignee);
@@ -1102,6 +1103,37 @@ async function handleGroupAction(button, ticketIds, action) {
     } else if (action === 'end') {
         payload.ticket_status_id = parseInt(statusSelect.value, 10);
         payload.time_end = new Date().toISOString();
+
+        // Check if EU team member and status is "Move to onshore - Unassign"
+        const ticket = ticketsMap.get(firstTicketId);
+        if (ticket) {
+            // Get agent team
+            const { data: agentData, error: agentError } = await supabaseClient
+                .from('agent')
+                .select('team')
+                .eq('agent_account', ticket.assignee_account)
+                .single();
+
+            if (!agentError && agentData && agentData.team === 'EU') {
+                // Get status name
+                const selectedStatus = ticketStatuses.find(s => s.id == statusSelect.value);
+                if (selectedStatus && selectedStatus.status_name === 'Move to onshore - Unassign') {
+                    // Prompt for escalation reason
+                    const reasonEscalate = prompt('Please provide the reason for escalation:');
+                    if (reasonEscalate === null) {
+                        // User cancelled
+                        button.disabled = false;
+                        return;
+                    }
+                    if (!reasonEscalate.trim()) {
+                        showMessage('Reason for escalation is required for EU team when using "Move to onshore - Unassign" status.', 'error');
+                        button.disabled = false;
+                        return;
+                    }
+                    payload.reason_escalate = reasonEscalate.trim();
+                }
+            }
+        }
     }
 
     try {
