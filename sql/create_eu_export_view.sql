@@ -13,8 +13,11 @@ ADD COLUMN IF NOT EXISTS reason_escalate TEXT;
 -- Add comment explaining the column
 COMMENT ON COLUMN tickets.reason_escalate IS 'Reason for escalation when ticket ends with "Move to onshore - Unassign" status (EU team only)';
 
--- Step 2: Create EU export view
-CREATE OR REPLACE VIEW public.tickets_export_eu_v AS
+-- Step 2: Drop existing view if it exists (required when changing column structure)
+DROP VIEW IF EXISTS public.tickets_export_eu_v;
+
+-- Step 3: Create EU export view
+CREATE VIEW public.tickets_export_eu_v AS
 WITH base AS (
     SELECT
         t.id,
@@ -30,6 +33,7 @@ WITH base AS (
     FROM tickets t
 )
 SELECT
+    b.id,  -- Include ID for querying by ticket ID
     b.ticket AS "Ticket Number",
     to_char(
         (b.time_start AT TIME ZONE 'Asia/Ho_Chi_Minh'::text),

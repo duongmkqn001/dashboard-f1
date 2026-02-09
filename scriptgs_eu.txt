@@ -11,10 +11,90 @@ const SECRET_TOKEN = '14092000';
 const HEADER_ROW = 1;       // Headers in row 1
 const DATA_START_ROW = 2;   // Data starts from row 2
 
-/********************** MAIN FUNCTION **********************/
+/********************** MAIN FUNCTIONS **********************/
+
+// Handle GET requests (from dashboard "End Ticket" button)
+function doGet(e) {
+    try {
+        Logger.log('🚀 === EU SINGLE TICKET IMPORT (GET) ===');
+        Logger.log('📥 Received GET request');
+
+        const params = e.parameter;
+        Logger.log(`📦 Request params: ${JSON.stringify(params)}`);
+
+        // Verify secret token
+        if (params.secret !== SECRET_TOKEN) {
+            Logger.log('❌ Unauthorized: Invalid secret token');
+            const response = {
+                success: false,
+                error: 'Unauthorized'
+            };
+            return ContentService.createTextOutput(
+                `${params.callback}(${JSON.stringify(response)})`
+            ).setMimeType(ContentService.MimeType.JAVASCRIPT);
+        }
+
+        // Get ticket ID
+        const ticketId = params.ticketId;
+        if (!ticketId) {
+            Logger.log('❌ Missing ticketId parameter');
+            const response = {
+                success: false,
+                error: 'Missing ticketId parameter'
+            };
+            return ContentService.createTextOutput(
+                `${params.callback}(${JSON.stringify(response)})`
+            ).setMimeType(ContentService.MimeType.JAVASCRIPT);
+        }
+
+        Logger.log(`🎫 Processing ticket ID: ${ticketId}`);
+
+        // Fetch single ticket from EU view
+        const ticket = fetchSingleEUTicket(ticketId);
+
+        if (!ticket) {
+            Logger.log(`❌ Ticket ${ticketId} not found in EU view`);
+            const response = {
+                success: false,
+                error: `Ticket ${ticketId} không tồn tại trên Supabase View`
+            };
+            return ContentService.createTextOutput(
+                `${params.callback}(${JSON.stringify(response)})`
+            ).setMimeType(ContentService.MimeType.JAVASCRIPT);
+        }
+
+        // Import single ticket to sheet
+        const result = importSingleTicketToEUSheet(ticket);
+
+        Logger.log(`✅ Import result: ${JSON.stringify(result)}`);
+
+        // Return JSONP response
+        const response = {
+            success: result.success,
+            message: result.message,
+            ticketId: ticketId
+        };
+
+        return ContentService.createTextOutput(
+            `${params.callback}(${JSON.stringify(response)})`
+        ).setMimeType(ContentService.MimeType.JAVASCRIPT);
+
+    } catch (error) {
+        Logger.log(`❌ Error in doGet: ${error.toString()}`);
+        const response = {
+            success: false,
+            error: error.toString()
+        };
+        return ContentService.createTextOutput(
+            `${e.parameter.callback}(${JSON.stringify(response)})`
+        ).setMimeType(ContentService.MimeType.JAVASCRIPT);
+    }
+}
+
+// Handle POST requests (from EU Import button)
 function doPost(e) {
     try {
-        Logger.log('🚀 === EU IMPORT STARTED ===');
+        Logger.log('🚀 === EU BULK IMPORT (POST) ===');
         Logger.log('📥 Received POST request');
 
         // Verify secret token
@@ -125,6 +205,52 @@ function fetchEUTicketsFromSupabase() {
     }
 }
 
+// Fetch single ticket by ID from EU view
+function fetchSingleEUTicket(ticketId) {
+    Logger.log(`🔍 === FETCHING SINGLE TICKET ${ticketId} FROM EU VIEW ===`);
+    const url = `${SUPABASE_URL}/rest/v1/tickets_export_eu_v?id=eq.${ticketId}&select=*`;
+    Logger.log(`🌐 URL: ${url}`);
+
+    const options = {
+        method: 'get',
+        headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json'
+        },
+        muteHttpExceptions: true
+    };
+
+    try {
+        Logger.log('📡 Sending request to Supabase...');
+        const response = UrlFetchApp.fetch(url, options);
+        const responseCode = response.getResponseCode();
+        const responseText = response.getContentText();
+
+        Logger.log(`📊 Response Code: ${responseCode}`);
+        Logger.log(`📄 Response: ${responseText}`);
+
+        if (responseCode !== 200) {
+            Logger.log(`❌ Supabase error - Status ${responseCode}`);
+            return null;
+        }
+
+        const data = JSON.parse(responseText);
+
+        if (!data || data.length === 0) {
+            Logger.log(`⚠️ Ticket ${ticketId} not found in EU view`);
+            return null;
+        }
+
+        Logger.log(`✅ Found ticket: ${JSON.stringify(data[0])}`);
+        return data[0];
+
+    } catch (error) {
+        Logger.log(`❌ ERROR fetching ticket: ${error.toString()}`);
+        return null;
+    }
+}
+
 /********************** IMPORT TO EU SHEET **********************/
 function importToEUSheet(tickets) {
     Logger.log('📊 === IMPORTING TO EU SHEET ===');
@@ -225,6 +351,109 @@ function importToEUSheet(tickets) {
         Logger.log(`❌ ERROR in importToEUSheet: ${error.toString()}`);
         Logger.log(`📍 Error stack: ${error.stack}`);
         throw error;
+    }
+}
+
+// Import single ticket to EU sheet
+function importSingleTicketToEUSheet(ticket) {
+    Logger.log(`📊 === IMPORTING SINGLE TICKET TO EU SHEET ===`);
+
+    try {
+        const ss = SpreadsheetApp.getActiveSpreadsheet();
+        const sheet = ss.getActiveSheet();
+        Logger.log(`📂 Spreadsheet: ${ss.getName()}`);
+        Logger.log(`📄 Active sheet: ${sheet.getName()}`);
+
+        const ticketNumber = ticket['Ticket Number'];
+        Logger.log(`🎫 Processing ticket: ${ticketNumber}`);
+
+        // Check if ticket already exists
+        const lastRow = sheet.getLastRow();
+        const existingTickets = new Set();
+
+        if (lastRow >= DATA_START_ROW) {
+            const existingData = sheet.getRange(DATA_START_ROW, 1, lastRow - DATA_START_ROW + 1, 1).getValues();
+            existingData.forEach(row => {
+                if (row[0]) existingTickets.add(row[0].toString());
+            });
+        }
+
+        if (existingTickets.has(ticketNumber)) {
+            Logger.log(`⏭️ Ticket ${ticketNumber} already exists in sheet, skipping`);
+            return {
+                success: true,
+                message: `Ticket ${ticketNumber} already imported`,
+                alreadyExists: true
+            };
+        }
+
+        // Create row
+        const row = [
+            ticket['Ticket Number'] || '',
+            ticket['Date'] || '',
+            ticket['Time Start'] || '',
+            ticket['Time End'] || '',
+            ticket['Ticket Type'] || '',
+            ticket['Reason Escalate'] || '',
+            ticket['Work Status'] || '',
+            ticket['Agent Name'] || '',
+            ticket['Account'] || ''
+        ];
+
+        // Append to sheet
+        const startRow = lastRow + 1;
+        Logger.log(`📝 Writing ticket to row ${startRow}...`);
+        sheet.getRange(startRow, 1, 1, row.length).setValues([row]);
+
+        // Mark as imported in Supabase
+        markEUTicketAsImported(ticket.id);
+
+        Logger.log(`✅ Successfully imported ticket ${ticketNumber}`);
+
+        return {
+            success: true,
+            message: `Ticket ${ticketNumber} imported successfully`
+        };
+
+    } catch (error) {
+        Logger.log(`❌ ERROR importing single ticket: ${error.toString()}`);
+        return {
+            success: false,
+            message: error.toString()
+        };
+    }
+}
+
+// Mark single EU ticket as imported
+function markEUTicketAsImported(ticketId) {
+    Logger.log(`🔄 Marking ticket ${ticketId} as imported in Supabase...`);
+
+    const url = `${SUPABASE_URL}/rest/v1/tickets?id=eq.${ticketId}`;
+    const options = {
+        method: 'patch',
+        headers: {
+            'apikey': SUPABASE_KEY,
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal'
+        },
+        payload: JSON.stringify({
+            import_to_tracker: true
+        }),
+        muteHttpExceptions: true
+    };
+
+    try {
+        const response = UrlFetchApp.fetch(url, options);
+        const responseCode = response.getResponseCode();
+
+        if (responseCode === 204 || responseCode === 200) {
+            Logger.log(`✅ Ticket ${ticketId} marked as imported`);
+        } else {
+            Logger.log(`⚠️ Failed to mark ticket as imported. Status: ${responseCode}`);
+        }
+    } catch (error) {
+        Logger.log(`❌ Error marking ticket as imported: ${error.toString()}`);
     }
 }
 

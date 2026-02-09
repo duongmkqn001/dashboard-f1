@@ -230,6 +230,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         return;
     }
 
+    // Clear any stuck tickets from previous session
+    googleSheetsQueue.clearQueue();
+    console.log('✅ Queue cleared on page load');
+
     // Setup user greeting and navigation
     setupUserInterface();
 
@@ -3411,6 +3415,17 @@ const googleSheetsQueue = {
     teamMap: new Map(), // Track team per ticket
     maxRetries: 3,
 
+    // Clear stuck queue (called on page load)
+    clearQueue() {
+        if (this.queue.length > 0) {
+            console.warn(`⚠️ Clearing ${this.queue.length} stuck tickets from queue`);
+            this.queue = [];
+            this.retryAttempts.clear();
+            this.teamMap.clear();
+            this.processing = false;
+        }
+    },
+
     add(ticketId, team = 'NA') {
         // Don't add duplicates to queue
         if (this.queue.some(item => item.ticketId === ticketId)) {
@@ -3454,12 +3469,34 @@ const googleSheetsQueue = {
         } catch (error) {
             console.error(`❌ Failed to process ticket ${ticketId}:`, error);
 
-            // Track retry attempts
+            // Check if this is a permanent failure (ticket not found in view)
+            const errorMessage = error.message || error.toString();
+            const isPermanentFailure = errorMessage.includes('không tồn tại trên Supabase View') ||
+                                      errorMessage.includes('not found in') ||
+                                      errorMessage.includes('Ticket not found');
+
+            if (isPermanentFailure) {
+                // Don't retry permanent failures - ticket doesn't exist in view
+                console.warn(`⚠️ Permanent failure for ticket ${ticketId}: ${errorMessage}`);
+                console.warn(`⚠️ Skipping retries - ticket may not be ready for import yet`);
+                this.retryAttempts.delete(ticketId);
+                this.teamMap.delete(ticketId);
+                this.logFailedImport(ticketId, error);
+
+                // Process next ticket immediately (no delay for permanent failures)
+                this.processing = false;
+                if (this.queue.length > 0) {
+                    this.processNext();
+                }
+                return;
+            }
+
+            // For transient failures (network issues, etc.), retry with backoff
             const attempts = this.retryAttempts.get(ticketId) || 0;
             if (attempts < this.maxRetries) {
                 this.retryAttempts.set(ticketId, attempts + 1);
                 this.queue.push({ ticketId, team });
-                console.log(`🔄 Retrying ticket ${ticketId} (attempt ${attempts + 1}/${this.maxRetries})`);
+                console.log(`🔄 Retrying ticket ${ticketId} (attempt ${attempts + 1}/${this.maxRetries}) - transient error`);
             } else {
                 console.error(`❌ Max retries reached for ticket ${ticketId}, giving up`);
                 this.retryAttempts.delete(ticketId);
@@ -3471,9 +3508,9 @@ const googleSheetsQueue = {
         } finally {
             this.processing = false;
 
-            // Add delay between requests to prevent conflicts
+            // Add delay between requests to prevent conflicts (only for transient failures)
             if (this.queue.length > 0) {
-                setTimeout(() => this.processNext(), 2000); // Increased to 2 seconds
+                setTimeout(() => this.processNext(), 2000); // 2 seconds delay
             }
         }
     },
@@ -3587,9 +3624,10 @@ async function checkAndRetryFailedImports() {
 
         // Query tickets that should be imported but aren't marked as imported
         // These are tickets that have been ended but import_to_tracker is still false
+        // Include agent team information
         const { data: failedTickets, error } = await supabaseClient
             .from('tickets')
-            .select('id, ticket, time_end')
+            .select('id, ticket, time_end, assignee_account, agent!inner(team)')
             .not('time_end', 'is', null)
             .not('ticket_status_id', 'is', null)
             .eq('import_to_tracker', false)
@@ -3608,8 +3646,9 @@ async function checkAndRetryFailedImports() {
             // Add them to the queue for retry (with a small delay between each)
             failedTickets.forEach((ticket, index) => {
                 setTimeout(() => {
-                    console.log(`🔄 Retrying import for ticket ${ticket.ticket} (ID: ${ticket.id})`);
-                    googleSheetsQueue.add(ticket.id);
+                    const team = ticket.agent?.team || 'NA';
+                    console.log(`🔄 Retrying import for ticket ${ticket.ticket} (ID: ${ticket.id}, Team: ${team})`);
+                    googleSheetsQueue.add(ticket.id, team);
                 }, index * 1000); // 1 second delay between each retry
             });
         } else {
