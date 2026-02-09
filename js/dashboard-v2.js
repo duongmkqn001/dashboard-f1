@@ -2074,7 +2074,12 @@ function cleanSupplierName(name) {
 }
 
 async function findSupplierName(suid) {
-    if (!suid) return null;
+    if (!suid) {
+        console.log('⚠️ findSupplierName: No SUID provided');
+        return null;
+    }
+
+    console.log('🔍 findSupplierName: Searching for SUID:', suid);
     let parentSuid = suid; // Assume the provided suid is the parent by default
 
     try {
@@ -2089,10 +2094,14 @@ async function findSupplierName(suid) {
         // Ignore errors from children table (table might not exist or no matching record)
         if (!childError && childData) {
             parentSuid = childData.parentSuid;
+            console.log('✓ Found parent SUID:', parentSuid);
+        } else if (childError) {
+            console.log('ℹ️ No child record found (this is normal):', childError.message);
         }
         // Silently ignore 406 errors or PGRST116 (no rows found) from children table
 
         // Step 2: Now, use the determined parentSuid to find the supplier name.
+        console.log('🔍 Looking up supplier name for SUID:', parentSuid);
         const { data: supplierData, error: supplierError } = await supabaseClient
             .from('suppliers')
             .select('suname')
@@ -2100,11 +2109,18 @@ async function findSupplierName(suid) {
             .maybeSingle();
 
         if (supplierError && supplierError.code !== 'PGRST116') { // Ignore "exact one row" error if no parent found
-            console.error('Error fetching supplier name for suid:', parentSuid, supplierError);
+            console.error('❌ Error fetching supplier name for suid:', parentSuid, supplierError);
             return null;
         }
 
-        return supplierData ? cleanSupplierName(supplierData.suname) : null;
+        if (supplierData) {
+            const cleanedName = cleanSupplierName(supplierData.suname);
+            console.log('✅ Found supplier name:', cleanedName);
+            return cleanedName;
+        } else {
+            console.log('⚠️ No supplier found for SUID:', parentSuid);
+            return null;
+        }
 
     } catch (error) {
         // Silently handle errors - this is not critical functionality
@@ -2618,7 +2634,10 @@ function openWdnSupplierEmailModal(template) {
 
         // Pre-fill SUID from ticket data if available
         if (suidSearchInput && popupCurrentTicket?.suid) {
+            console.log('🔍 Pre-filling SUID:', popupCurrentTicket.suid);
             suidSearchInput.value = popupCurrentTicket.suid;
+        } else {
+            console.log('⚠️ No SUID found in ticket data:', popupCurrentTicket);
         }
 
         // Reset SUID status indicators
