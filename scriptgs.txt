@@ -1,350 +1,269 @@
-/********************** CÁC GIÁ TRỊ BẠN CẦN TỰ THIẾT LẬP **********************/
+/********************** CONFIGURATION **********************/
+const SHEET_ID = '1NfwtNf9KgHeL5tdiOmJIfBOqTvGMiTcPSPEt4f_ZVSc';
 
-// 1. ID của file Google Sheet (lấy từ URL)
-const SHEET_ID = '1tYuKL6CCn0u4pWBBnYJ1dxVs4Dqp8kPxTuyYUpUpdQw';
-
-// 2. Tên các sheet tương ứng với project
+// Tên các sheet
 const SHEET_AOPS = 'Work tracker (AOPS)';
 const SHEET_FMOP = 'Work tracker (FMOP)';
-const SHEET_OT_TRACKER = 'OT Tracker';  // Sheet for OT Mode tickets
+const SHEET_OT_TRACKER = 'OT Tracker';
 
-// 3. SERVICE ROLE KEY từ Supabase (Project Settings -> API -> Service role key)
+// Cấu hình Supabase
+const SUPABASE_URL = 'https://pfbxtbydrjcmqlrklsdr.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmYnh0YnlkcmpjbXFscmtsc2RyIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc1Njk4MzY0OSwiZXhwIjoyMDcyNTU5NjQ5fQ._cMTCJnzN0TWw_nBRhR4mfNcDhQAo26jjdnIB8imD78';
+const SECRET_TOKEN = '14092000'; 
 
-// 4. Một chuỗi ký tự bí mật bất kỳ để bảo vệ Web App của bạn
-const SECRET_TOKEN = '14092000'; // Ví dụ: 'Supa2Sheet!@#'
+// CẤU HÌNH DÒNG
+const HEADER_ROW = 2;       // Tên cột nằm ở dòng 2
+const DATA_START_ROW = 3;   // Dữ liệu bắt đầu điền từ dòng 3
 
-// 5. QUAN TRỌNG: Liệt kê tên chính xác của các cột chứa CÔNG THỨC để script không ghi đè
-const FORMULA_COLUMNS = ['Hr logged', 'Link','PO Count','Week CompletLi','Month Completed','Team']; // <-- THÊM TÊN CỘT CÓ CÔNG THỨC VÀO ĐÂY
-
-
-/********************** CẤU HÌNH CỐ ĐỊNH (KHÔNG CẦN SỬA) **********************/
+// Cấu hình TÊN CỘT TRONG GOOGLE SHEET
 const TRACKER_COLUMNS = {
-  DATE:            'Date',
-  TICKET_NUMBER:   'Ticket Number',
-  START_TIME:      'Start Time',
-  END_TIME:        'End Time',
-  NAME:            'Name',
-  ACCOUNT:         'Account',
-  TICKET_TYPE:     'Ticket Type',
-  SUPPLIER:        'Supplier',
-  PO:              'PO(s)',
-  TICKET_STATUS:   'Ticket Status'
+  DATE: 'Date',
+  TICKET_NUMBER: 'Ticket Number',
+  START_TIME: 'Start Time',
+  END_TIME: 'End Time',
+  NAME: 'Name',
+  ACCOUNT: 'Account',
+  TICKET_TYPE: 'Ticket Type',
+  SUPPLIER: 'Supplier',
+  PO: 'PO(s)',
+  TICKET_STATUS: 'Ticket Status'
 };
 
-const DATE_FORMAT_FOR_TRACKER = 'M/d/yyyy';
-const DATE_COMPLETED_FORMAT   = 'MM/dd/yyyy';
+const DATE_FORMAT_FOR_TRACKER = "MM/dd/yyyy";
+const DATE_COMPLETED_FORMAT = "MM/dd/yyyy";
 
-/********************** WEB APP - ENTRY POINT **********************/
-// Handle GET requests (supports JSONP callback to avoid CORS issues)
+/********************** MAIN ENTRY POINT **********************/
 function doGet(e) {
-  const startTime = new Date();
-  let ticketId = 'unknown';
+  const callback = e.parameter.callback;
+  
+  if (!e.parameter.secret || e.parameter.secret !== SECRET_TOKEN) {
+    return createResponse({ error: 'Invalid secret token' }, callback);
+  }
+
+  const ticketId = e.parameter.ticketId;
+  if (!ticketId) {
+    return createResponse({ error: 'Missing ticketId' }, callback);
+  }
 
   try {
-    const secret = e.parameter.secret;
-    if (secret !== SECRET_TOKEN) {
-      throw new Error('Invalid secret token.');
+    // 1. Gọi Supabase (Bên ngoài Lock để không nghẽn hệ thống khi mạng chậm)
+    const ticketData = fetchTicketFromView(ticketId);
+    if (!ticketData || ticketData.length === 0) {
+       throw new Error(`Ticket ${ticketId} không tồn tại trên Supabase View`);
     }
 
-    ticketId = e.parameter.ticketId;
-    if (!ticketId) {
-      throw new Error('Missing ticket ID.');
-    }
-
-    console.log(`🔄 Processing ticket ${ticketId} - Start time: ${startTime.toISOString()}`);
-
-    // Use lock immediately to prevent race conditions
+    // 2. Bật Lock (Giới hạn chờ 30 giây để tránh Exceeded Time Limit)
     const lock = LockService.getScriptLock();
+    const success = lock.tryLock(60000); 
+
+    if (!success) {
+       throw new Error("Server đang bận xử lý request khác. Vui lòng thử lại sau vài giây.");
+    }
+
+    let result;
     try {
-      // Shorter lock timeout to prevent delays
-      lock.waitLock(10000); // 10 seconds instead of 30
-
-      // Check if ticket is already imported to avoid duplicate processing
-      const isAlreadyImported = checkIfTicketImported(ticketId);
-      if (isAlreadyImported) {
-        console.log(`✅ Ticket ${ticketId} already imported, skipping`);
-
-        const response = {
-          status: 'success',
-          message: 'Ticket already imported',
-          ticketId: ticketId,
-          alreadyImported: true
-        };
-
-        return createResponse(response, e.parameter.callback);
-      }
-
-      // Fetch ticket data from tickets_export_v view
-      const ticketData = fetchTicketFromView(ticketId);
-      if (!ticketData) {
-        throw new Error('Ticket not found in export view. Check if ticket meets export criteria (has time_start, time_end, ticket_status_id, agent_handle_ticket).');
-      }
-
-      console.log(`📊 Fetched ticket data for ${ticketId}: ${ticketData['Ticket']}`);
-
-      // CRITICAL: Mark as imported BEFORE adding to sheet to prevent race conditions
-      markTicketAsImported(ticketId);
-
-      // Add ticket to Google Sheet with enhanced error handling
-      const sheetResult = addSingleTicketToSheet(ticketData);
-
-      const endTime = new Date();
-      const processingTime = endTime - startTime;
-      console.log(`✅ Successfully processed ticket ${ticketId} in ${processingTime}ms`);
-
-      const response = {
-        status: 'success',
-        ticketNumber: ticketData['Ticket'],
-        processingTime: processingTime,
-        sheetRow: sheetResult.row,
-        sheetName: sheetResult.sheetName
-      };
-
-      return createResponse(response, e.parameter.callback);
-
+      // 3. Xử lý ghi dữ liệu vào Sheet
+      result = processTicketIntoSheet(ticketData[0]);
     } finally {
-      // Always release the lock
+      // Nhả Lock ngay lập tức sau khi ghi xong
       lock.releaseLock();
     }
 
-  } catch (error) {
-    const endTime = new Date();
-    const processingTime = endTime - startTime;
-    console.error(`❌ Error processing ticket ${ticketId} after ${processingTime}ms:`, error.message, error.stack);
+    // 4. Cập nhật trạng thái trên Supabase
+    markTicketAsImported(ticketId);
 
-    const errorResponse = {
-      status: 'error',
-      message: error.message,
-      ticketId: ticketId,
-      processingTime: processingTime,
-      errorType: error.name || 'UnknownError'
-    };
+    return createResponse(result, callback);
 
-    return createResponse(errorResponse, e.parameter.callback);
+  } catch (err) {
+    return createResponse({ success: false, error: err.message }, callback);
   }
 }
 
-/********************** HELPER FUNCTION FOR RESPONSES **********************/
-function createResponse(responseData, callback) {
-  if (callback) {
-    return ContentService
-      .createTextOutput(callback + '(' + JSON.stringify(responseData) + ')')
-      .setMimeType(ContentService.MimeType.JAVASCRIPT);
-  }
-  return ContentService
-    .createTextOutput(JSON.stringify(responseData))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-/********************** CHECK IF TICKET ALREADY IMPORTED **********************/
-function checkIfTicketImported(ticketId) {
-  try {
-    const url = 'https://pfbxtbydrjcmqlrklsdr.supabase.co/rest/v1/tickets?id=eq.' + ticketId + '&select=import_to_tracker';
-
-    const options = {
-      method: 'GET',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_KEY
-      }
-    };
-
-    const response = UrlFetchApp.fetch(url, options);
-    const data = JSON.parse(response.getContentText());
-
-    if (!data || data.length === 0) {
-      return false; // Ticket not found, assume not imported
-    }
-
-    return data[0].import_to_tracker === true;
-  } catch (error) {
-    console.error('Error checking if ticket is imported:', error.message);
-    return false; // Assume not imported on error
-  }
-}
-
-/********************** FETCH TICKET FROM VIEW **********************/
-function fetchTicketFromView(ticketId) {
-  try {
-    const url = 'https://pfbxtbydrjcmqlrklsdr.supabase.co/rest/v1/tickets_export_v?id=eq.' + ticketId;
-
-    const options = {
-      method: 'GET',
-      headers: {
-        'apikey': SUPABASE_KEY,
-        'Authorization': 'Bearer ' + SUPABASE_KEY
-      }
-    };
-
-    const response = UrlFetchApp.fetch(url, options);
-    const data = JSON.parse(response.getContentText());
-
-    if (!data || data.length === 0) {
-      return null;
-    }
-
-    // Return the first (and should be only) result
-    return data[0];
-  } catch (error) {
-    console.error('Error fetching ticket from view:', error.message);
-    throw new Error('Failed to fetch ticket data: ' + error.message);
-  }
-}
-
-/********************** CORE LOGIC - XỬ LÝ 1 TICKET **********************/
-function addSingleTicketToSheet(ticket) {
-  // ticket data comes from tickets_export_v view with all fields properly formatted
-  const ticketNumber = String(ticket['Ticket'] || '');
+/********************** CORE LOGIC **********************/
+function processTicketIntoSheet(ticket) {
+  const ticketNumber = String(ticket['Ticket'] || ''); 
   const project = String(ticket['Project'] || '');
-  const otMode = ticket['OT Mode'] || false;
-  
-  let sheetName;
-  
-  // Priority 1: OT Mode tickets go to OT Tracker
-  if (otMode === true) {
-    sheetName = SHEET_OT_TRACKER;
-    console.log(`🔥 OT Mode ticket detected: ${ticketNumber} -> OT Tracker`);
-  }
-  // Priority 2: POS tickets always go to AOPS (regardless of project)
-  else if (ticketNumber.toUpperCase().startsWith('POS')) {
-    sheetName = SHEET_AOPS;
-    console.log(`📦 POS ticket detected: ${ticketNumber} -> Work tracker (AOPS)`);
-  }
-  // Priority 3: Regular project routing
-  else if (project === 'AOPS') {
-    sheetName = SHEET_AOPS;
-  } else if (project === 'FMOP') {
-    sheetName = SHEET_FMOP;
-  } else {
-    throw new Error(`Unknown project: ${project} for ticket ${ticketNumber}`);
-  }
+  const isOt = ticket['OT Mode'] === true;
+
+  // Chuẩn bị ngày so sánh
+  const timeZone = Session.getScriptTimeZone();
+  const today = new Date();
+  const todayStr = Utilities.formatDate(today, timeZone, DATE_FORMAT_FOR_TRACKER);
+  const completedDateStr = Utilities.formatDate(today, timeZone, DATE_COMPLETED_FORMAT);
+
+  // Chọn Sheet phù hợp
+  let sheetName = SHEET_AOPS; 
+  if (isOt) sheetName = SHEET_OT_TRACKER;
+  else if (ticketNumber.toUpperCase().startsWith('POS')) sheetName = SHEET_AOPS;
+  else if (project === 'FMOP') sheetName = SHEET_FMOP;
 
   const ss = SpreadsheetApp.openById(SHEET_ID);
   const sheet = ss.getSheetByName(sheetName);
-  if (!sheet) throw new Error(`Sheet not found: ${sheetName}`);
+  if (!sheet) throw new Error(`Không tìm thấy sheet: ${sheetName}`);
 
-  // No lock here - lock is already acquired in doGet()
-  const header = sheet.getRange(1, 1, 1, sheet.getLastColumn()).getValues()[0];
-  const headerTrimmed = header.map(h => String(h).trim());
-  const formulaColumnsSet = new Set(FORMULA_COLUMNS.map(c => c.trim()));
-
-  const colIndex = (name) => {
-    const i = headerTrimmed.indexOf(name);
-    return i;
-  };
-
-  const today = new Date();
-  const todayStrTracker = Utilities.formatDate(today, Session.getScriptTimeZone(), DATE_FORMAT_FOR_TRACKER);
-  const todayMMDDYYYY = Utilities.formatDate(today, Session.getScriptTimeZone(), DATE_COMPLETED_FORMAT);
-
-  // Find the nearest blank row by checking Date column
-  const dateColIndex = colIndex(TRACKER_COLUMNS.DATE);
-  let targetRow = -1;
-
-  if (dateColIndex !== -1) {
-    const lastRow = sheet.getLastRow();
-    if (lastRow > 1) {
-      // Read Date column to find first blank row
-      const dataRange = sheet.getRange(2, dateColIndex + 1, lastRow - 1, 1).getValues();
-
-      // Find first blank cell in Date column
-      for (let i = 0; i < dataRange.length; i++) {
-        const dateValue = dataRange[i][0];
-
-        // Find first blank Date cell
-        if (!dateValue || String(dateValue).trim() === '') {
-          targetRow = i + 2; // +2 because: +1 for 0-index, +1 for header row
-          break;
-        }
-      }
-    }
-
-    // If no blank row found, append to end
-    if (targetRow === -1) {
-      targetRow = sheet.getLastRow() + 1;
-    }
-  } else {
-    // If Date column not found, append to end
-    targetRow = sheet.getLastRow() + 1;
-  }
-
-  console.log(`Adding ticket ${ticket['Ticket']} to row ${targetRow} in sheet ${sheetName}`);
-
-  // Prepare data for insertion
-  const newRowData = new Array(header.length).fill('');
-
-  // Get index of 'Ticket Status' column to determine 'Date Completed' position
-  const ticketStatusIndex = colIndex(TRACKER_COLUMNS.TICKET_STATUS);
-  let dateCompletedIndex = -1;
-  if (ticketStatusIndex !== -1) {
-    dateCompletedIndex = ticketStatusIndex + 1;
-    // Fill Date Completed in the correct position
-    newRowData[dateCompletedIndex] = todayMMDDYYYY;
-  }
-
-  // Map ticket data to sheet columns (using correct column names)
-  const dataToMap = {
-    [TRACKER_COLUMNS.DATE]: todayStrTracker,
-    [TRACKER_COLUMNS.TICKET_NUMBER]: ticket['Ticket'] || '',
-    [TRACKER_COLUMNS.START_TIME]: ticket['Start Time'] || '',
-    [TRACKER_COLUMNS.END_TIME]: ticket['End Time'] || '',
-    [TRACKER_COLUMNS.NAME]: ticket['Name'] || '',
-    [TRACKER_COLUMNS.ACCOUNT]: ticket['Account'] || '',
-    [TRACKER_COLUMNS.TICKET_TYPE]: ticket['Ticket Type'] || '',
-    [TRACKER_COLUMNS.SUPPLIER]: ticket['Supplier'] || '',
-    [TRACKER_COLUMNS.PO]: ticket['PO'] || '',
-    [TRACKER_COLUMNS.TICKET_STATUS]: ticket['Ticket Status'] || '',
-  };
-
-  // Read existing formulas in the target row to protect them
-  const existingFormulas = sheet.getRange(targetRow, 1, 1, header.length).getFormulas()[0];
+  // --- CACHE HEADERS (Tránh đọc lại nhiều lần) ---
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  const headers = getOrCacheHeaders(sheet, lastCol);
+  const normalize = (str) => String(str || '').toLowerCase().replace(/\s+/g, '').trim();
   
-  for (const colName in dataToMap) {
-    if (dataToMap.hasOwnProperty(colName)) {
-      const idx = colIndex(colName);
-      if (idx !== -1) {
-        // Check if column is marked as formula column OR already has a formula
-        const hasFormula = existingFormulas[idx] && existingFormulas[idx].trim() !== '';
-        const isProtectedColumn = formulaColumnsSet.has(colName);
-        
-        // Only write data if column is NOT protected and does NOT have a formula
-        if (!isProtectedColumn && !hasFormula) {
-          newRowData[idx] = dataToMap[colName] ?? '';
-        } else if (hasFormula) {
-          console.log(`⚠️ Skipping column "${colName}" at index ${idx} - contains formula: ${existingFormulas[idx]}`);
-        } else if (isProtectedColumn) {
-          console.log(`🔒 Skipping protected column "${colName}" at index ${idx}`);
-        }
-      }
+  const dateColIdx = headers.findIndex(h => normalize(h) === normalize(TRACKER_COLUMNS.DATE));
+  const ticketColIdx = headers.findIndex(h => normalize(h) === normalize(TRACKER_COLUMNS.TICKET_NUMBER));
+
+  if (dateColIdx === -1 || ticketColIdx === -1) {
+    throw new Error(`Lỗi cấu hình: Không tìm thấy cột Date hoặc Ticket Number`);
+  }
+
+  // --- QUÉT CHỈ 2 CỘT CẦN THIẾT (Date + Ticket) THAY VÌ TẤT CẢ CÁC CỘT ---
+  const SCAN_LIMIT = 5000; // Tăng từ 3000 lên 5000 vì chỉ đọc 2 cột
+  let startScanRow = DATA_START_ROW;
+
+  if (lastRow > (DATA_START_ROW + SCAN_LIMIT)) {
+    startScanRow = lastRow - SCAN_LIMIT + 1;
+  }
+
+  let dateColumn = [];
+  let ticketColumn = [];
+
+  if (lastRow >= startScanRow) {
+    const numRows = lastRow - startScanRow + 1;
+    // ĐỌC RIÊNG 2 CỘT thay vì đọc toàn bộ dữ liệu
+    dateColumn = sheet.getRange(startScanRow, dateColIdx + 1, numRows, 1).getValues().map(r => r[0]);
+    ticketColumn = sheet.getRange(startScanRow, ticketColIdx + 1, numRows, 1).getValues().map(r => r[0]);
+  }
+
+  // --- TÌM TRÙNG LẶP & DÒNG TRỐNG (Tối ưu vòng lặp) ---
+  let targetRow = -1;
+  let isUpdate = false;
+  let firstEmptyRowIndex = -1;
+
+  for (let i = 0; i < dateColumn.length; i++) {
+    const rowTicket = String(ticketColumn[i] || '').trim();
+    const rowDateRaw = dateColumn[i];
+
+    let rowDateStr = '';
+    if (rowDateRaw instanceof Date) {
+      rowDateStr = Utilities.formatDate(rowDateRaw, timeZone, DATE_FORMAT_FOR_TRACKER);
+    } else {
+      rowDateStr = String(rowDateRaw || '').trim();
+    }
+
+    // Ưu tiên 1: Update nếu trùng Ticket + trùng Ngày hôm nay
+    if (rowTicket === ticketNumber && rowDateStr === todayStr) {
+      targetRow = startScanRow + i;
+      isUpdate = true;
+      break;
+    }
+
+    // Ưu tiên 2: Tìm dòng trống (chưa có Ticket và Date)
+    if (firstEmptyRowIndex === -1 && rowTicket === '' && rowDateStr === '') {
+      firstEmptyRowIndex = startScanRow + i;
     }
   }
 
-  // Insert data at the target row (formulas will be preserved)
-  const range = sheet.getRange(targetRow, 1, 1, newRowData.length);
-  range.setValues([newRowData]);
+  // Chốt vị trí ghi nếu không phải Update
+  if (targetRow === -1) {
+    if (firstEmptyRowIndex !== -1) {
+      targetRow = firstEmptyRowIndex; // Ghi đè vào dòng trống
+    } else {
+      targetRow = lastRow + 1; // Ghi nối tiếp xuống cuối bảng
+      if (targetRow < DATA_START_ROW) targetRow = DATA_START_ROW;
+    }
+  }
 
-  console.log(`Successfully added ticket ${ticket['Ticket']} to row ${targetRow}`);
+  // --- MAPPING DỮ LIỆU (Tối ưu với Map thay vì Object) ---
+  const dataToMap = new Map([
+    [TRACKER_COLUMNS.DATE, todayStr],
+    [TRACKER_COLUMNS.TICKET_NUMBER, ticketNumber],
+    [TRACKER_COLUMNS.START_TIME, ticket['Start Time'] || ''],
+    [TRACKER_COLUMNS.END_TIME, ticket['End Time'] || ''],
+    [TRACKER_COLUMNS.NAME, ticket['Name'] || ''],
+    [TRACKER_COLUMNS.ACCOUNT, ticket['Account'] || ''],
+    [TRACKER_COLUMNS.TICKET_TYPE, ticket['Ticket Type'] || ''],
+    [TRACKER_COLUMNS.SUPPLIER, ticket['Supplier'] || ''],
+    [TRACKER_COLUMNS.PO, ticket['PO'] || ''],
+    [TRACKER_COLUMNS.TICKET_STATUS, ticket['Ticket Status'] || '']
+  ]);
 
-  // Return success information
-  return {
-    success: true,
-    row: targetRow,
-    sheetName: sheetName,
-    ticketNumber: ticket['Ticket']
+  // Bảo toàn công thức tại dòng được ghi (CHỈ ĐỌC KHI CẦN)
+  let currentRowFormulas = [];
+  if (targetRow <= sheet.getLastRow()) {
+     currentRowFormulas = sheet.getRange(targetRow, 1, 1, lastCol).getFormulas()[0];
+  }
+
+  // Tạo normalized header map một lần
+  const normalizedHeaders = headers.map(h => normalize(h));
+  const dataMapKeys = Array.from(dataToMap.keys()).map(k => normalize(k));
+
+  const newRowData = new Array(lastCol).fill('');
+  const dateCompletedIdx = normalizedHeaders.findIndex(h => h.includes('datecompleted'));
+  if (dateCompletedIdx !== -1) newRowData[dateCompletedIdx] = completedDateStr;
+
+  for (let i = 0; i < headers.length; i++) {
+    const headerNorm = normalizedHeaders[i];
+    const mappedKeyIdx = dataMapKeys.indexOf(headerNorm);
+
+    if (mappedKeyIdx !== -1) {
+      const originalKey = Array.from(dataToMap.keys())[mappedKeyIdx];
+      newRowData[i] = dataToMap.get(originalKey);
+    } else if (currentRowFormulas[i] && currentRowFormulas[i] !== '') {
+      newRowData[i] = currentRowFormulas[i];
+    }
+  }
+
+  // --- THỰC THI GHI DỮ LIỆU ---
+  sheet.getRange(targetRow, 1, 1, newRowData.length).setValues([newRowData]);
+
+  return { 
+    success: true, 
+    row: targetRow, 
+    sheet: sheetName, 
+    ticket: ticketNumber, 
+    action: isUpdate ? 'updated' : (firstEmptyRowIndex !== -1 ? 'filled_empty' : 'appended')
   };
 }
 
-/********************** UPDATE SUPABASE - MARK IMPORTED **********************/
+/********************** HELPERS **********************/
+// Cache headers để tránh đọc lại nhiều lần (giảm API calls)
+const HEADER_CACHE = {};
+function getOrCacheHeaders(sheet, lastCol) {
+  const sheetName = sheet.getName();
+  if (!HEADER_CACHE[sheetName]) {
+    HEADER_CACHE[sheetName] = sheet.getRange(HEADER_ROW, 1, 1, lastCol).getValues()[0];
+  }
+  return HEADER_CACHE[sheetName];
+}
+
+function createResponse(data, callbackName) {
+  const jsonString = JSON.stringify(data);
+  return ContentService.createTextOutput(callbackName ? `${callbackName}(${jsonString})` : jsonString)
+    .setMimeType(callbackName ? ContentService.MimeType.JAVASCRIPT : ContentService.MimeType.JSON);
+}
+
+function fetchTicketFromView(ticketId) {
+  const url = `${SUPABASE_URL}/rest/v1/tickets_export_v?id=eq.${ticketId}&select=*`;
+  const options = {
+    method: 'GET',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Content-Type': 'application/json'
+    },
+    muteHttpExceptions: true,
+    validateHttpsCertificates: false // Tăng tốc bỏ qua SSL validation
+  };
+
+  const response = UrlFetchApp.fetch(url, options);
+
+  if (response.getResponseCode() !== 200) {
+     throw new Error("Lỗi Supabase: " + response.getContentText());
+  }
+  return JSON.parse(response.getContentText());
+}
+
 function markTicketAsImported(ticketId) {
   try {
-    console.log(`🔄 Marking ticket ${ticketId} as imported in Supabase...`);
-
-    const url = 'https://pfbxtbydrjcmqlrklsdr.supabase.co/rest/v1/tickets?id=eq.' + ticketId;
-    const payload = {
-      import_to_tracker: true
-    };
-
+    const url = `${SUPABASE_URL}/rest/v1/tickets?id=eq.${ticketId}`;
     const options = {
       method: 'PATCH',
       headers: {
@@ -353,21 +272,14 @@ function markTicketAsImported(ticketId) {
         'Content-Type': 'application/json',
         'Prefer': 'return=minimal'
       },
-      payload: JSON.stringify(payload)
+      payload: JSON.stringify({ import_to_tracker: true }),
+      muteHttpExceptions: true,
+      validateHttpsCertificates: false // Tăng tốc bỏ qua SSL validation
     };
 
-    const response = UrlFetchApp.fetch(url, options);
-    const responseCode = response.getResponseCode();
-
-    if (responseCode === 204 || responseCode === 200) {
-      console.log(`✅ Successfully marked ticket ${ticketId} as imported in Supabase`);
-      return true;
-    } else {
-      console.error(`❌ Failed to mark ticket ${ticketId} as imported. Status: ${responseCode}`);
-      throw new Error(`Failed to mark ticket as imported. HTTP ${responseCode}: ${response.getContentText()}`);
-    }
-  } catch (error) {
-    console.error(`❌ Error marking ticket ${ticketId} as imported:`, error.message);
-    throw new Error('Failed to mark ticket as imported: ' + error.message);
+    UrlFetchApp.fetch(url, options);
+  } catch (e) {
+    // Bỏ qua lỗi ngầm để không làm ảnh hưởng luồng chính nếu Supabase API chậm
+    Logger.log('Error marking ticket as imported: ' + e.message);
   }
 }

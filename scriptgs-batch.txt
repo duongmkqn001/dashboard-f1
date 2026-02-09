@@ -1,0 +1,180 @@
+/********************** BATCH PROCESSING VERSION **********************/
+// Add this to your existing scriptgs.txt for batch import capability
+// This allows importing multiple tickets in one request (10-50x faster)
+
+/********************** BATCH ENDPOINT **********************/
+function doPost(e) {
+  const callback = e.parameter.callback;
+  
+  if (!e.parameter.secret || e.parameter.secret !== SECRET_TOKEN) {
+    return createResponse({ error: 'Invalid secret token' }, callback);
+  }
+
+  try {
+    const payload = JSON.parse(e.postData.contents);
+    const ticketIds = payload.ticketIds; // Array of ticket IDs
+    
+    if (!ticketIds || !Array.isArray(ticketIds)) {
+      throw new Error('Missing or invalid ticketIds array');
+    }
+
+    // Limit batch size to avoid timeout
+    if (ticketIds.length > 100) {
+      throw new Error('Batch size too large. Maximum 100 tickets per request.');
+    }
+
+    const startTime = new Date().getTime();
+
+    // 1. Fetch all tickets in ONE Supabase call
+    const ticketsData = fetchMultipleTickets(ticketIds);
+    
+    if (!ticketsData || ticketsData.length === 0) {
+      throw new Error('No tickets found in Supabase');
+    }
+
+    // 2. Lock for batch processing (2 minutes max)
+    const lock = LockService.getScriptLock();
+    const success = lock.tryLock(120000);
+    
+    if (!success) {
+      throw new Error("Server busy. Please try again in a few seconds.");
+    }
+
+    const results = [];
+    const errors = [];
+    
+    try {
+      // 3. Process all tickets
+      for (const ticket of ticketsData) {
+        try {
+          const result = processTicketIntoSheet(ticket);
+          results.push(result);
+        } catch (err) {
+          errors.push({
+            ticketId: ticket.id,
+            error: err.message
+          });
+        }
+      }
+    } finally {
+      lock.releaseLock();
+    }
+
+    // 4. Mark all successful tickets as imported in ONE call
+    const successfulIds = results.map(r => r.ticket);
+    if (successfulIds.length > 0) {
+      markMultipleTicketsAsImported(successfulIds);
+    }
+
+    const endTime = new Date().getTime();
+    const executionTime = endTime - startTime;
+
+    return createResponse({ 
+      success: true, 
+      processed: results.length,
+      failed: errors.length,
+      results: results,
+      errors: errors,
+      executionTime: executionTime
+    }, callback);
+
+  } catch (err) {
+    return createResponse({ 
+      success: false, 
+      error: err.message 
+    }, callback);
+  }
+}
+
+/********************** BATCH HELPERS **********************/
+function fetchMultipleTickets(ticketIds) {
+  // Use Supabase IN filter to get multiple tickets in one call
+  const ids = ticketIds.join(',');
+  const url = `${SUPABASE_URL}/rest/v1/tickets_export_v?id=in.(${ids})&select=*`;
+  
+  const options = {
+    method: 'GET',
+    headers: { 
+      'apikey': SUPABASE_KEY, 
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Content-Type': 'application/json'
+    },
+    muteHttpExceptions: true,
+    validateHttpsCertificates: false
+  };
+  
+  const response = UrlFetchApp.fetch(url, options);
+  
+  if (response.getResponseCode() !== 200) {
+    throw new Error("Supabase error: " + response.getContentText());
+  }
+  
+  return JSON.parse(response.getContentText());
+}
+
+function markMultipleTicketsAsImported(ticketIds) {
+  try {
+    // Use Supabase IN filter to update multiple tickets in one call
+    const ids = ticketIds.join(',');
+    const url = `${SUPABASE_URL}/rest/v1/tickets?id=in.(${ids})`;
+    
+    const options = {
+      method: 'PATCH',
+      headers: { 
+        'apikey': SUPABASE_KEY, 
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      payload: JSON.stringify({ import_to_tracker: true }),
+      muteHttpExceptions: true,
+      validateHttpsCertificates: false
+    };
+    
+    UrlFetchApp.fetch(url, options);
+  } catch (e) {
+    Logger.log('Batch update error: ' + e.message);
+  }
+}
+
+/********************** CLIENT-SIDE USAGE **********************/
+/*
+// JavaScript code to call batch endpoint from your dashboard
+
+async function exportMultipleTicketsToSheets(ticketIds) {
+  const SCRIPT_URL = 'YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL';
+  const SECRET_TOKEN = '14092000';
+  
+  try {
+    const response = await fetch(SCRIPT_URL + '?secret=' + SECRET_TOKEN, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        ticketIds: ticketIds
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log(`✅ Batch export complete: ${result.processed} tickets processed in ${result.executionTime}ms`);
+      if (result.failed > 0) {
+        console.warn(`⚠️ ${result.failed} tickets failed:`, result.errors);
+      }
+      return result;
+    } else {
+      throw new Error(result.error);
+    }
+  } catch (error) {
+    console.error('Batch export failed:', error);
+    throw error;
+  }
+}
+
+// Example usage:
+const ticketIds = [1, 2, 3, 4, 5]; // Up to 100 tickets
+exportMultipleTicketsToSheets(ticketIds);
+*/
+

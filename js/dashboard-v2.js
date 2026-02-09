@@ -47,6 +47,11 @@ let mosNotificationCount = 0; // Cached notification count
 let mosLastUpdate = 0; // Last update timestamp
 let mosUpdateInProgress = false; // Prevent concurrent updates
 
+// Query Result Caching - Dramatically improves performance
+let ticketsQueryCache = null;
+let ticketsCacheTimestamp = 0;
+const TICKETS_CACHE_TTL = 2000; // Cache for 2 seconds (adjust as needed)
+
 // Popup State
 let popupCurrentTicket = null;
 let popupCurrentProject = null;
@@ -144,7 +149,8 @@ function setupUserInterface() {
 
     if (refreshBtn) {
         refreshBtn.addEventListener('click', () => {
-            fetchAndRenderTickets();
+            invalidateTicketsCache();
+            fetchAndRenderTickets(true);
         });
     }
 
@@ -251,7 +257,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Update fetch trigger and save selection to Local Storage
     assigneeSelect.addEventListener('change', () => {
         localStorage.setItem('dashboard_assignee', assigneeSelect.value);
-        fetchAndRenderTickets();
+        invalidateTicketsCache();
+        fetchAndRenderTickets(true);
     });
 
 
@@ -548,7 +555,13 @@ async function populateVCNAgents() {
     }
 }
 
-async function fetchAndRenderTickets() {
+// OPTIMIZATION: Cache invalidation helper
+function invalidateTicketsCache() {
+    ticketsQueryCache = null;
+    ticketsCacheTimestamp = 0;
+}
+
+async function fetchAndRenderTickets(forceRefresh = false) {
     // ALWAYS save scroll position before refreshing
     const scrollContainer = document.getElementById('ticket-scroll-container');
     const scrollPosition = scrollContainer ? scrollContainer.scrollTop : 0;
@@ -556,31 +569,50 @@ async function fetchAndRenderTickets() {
     loaderContainer.classList.remove('hidden');
     const currentData = ticketTableBody.innerHTML;
     ticketTableBody.innerHTML = '';
-    try {
-        let query = supabaseClient.from('tickets').select('*').is('time_end', null);
-        const selectedAssignee = assigneeSelect.value;
-        if (selectedAssignee) query = query.eq('assignee_account', selectedAssignee);
 
-        // Check view mode
+    try {
+        const selectedAssignee = assigneeSelect.value;
         const isLeaderView = localStorage.getItem('leaderViewMode') === 'true';
         const isMosView = localStorage.getItem('mosViewMode') === 'true';
 
-        if (isLeaderView) {
-            query = query.eq('need_leader_support', true);
-        } else if (isMosView) {
-            query = query.eq('needMos', 'request');
+        // Create cache key based on current filters
+        const cacheKey = `${selectedAssignee}_${isLeaderView}_${isMosView}`;
+        const now = Date.now();
+
+        // OPTIMIZATION: Use cached data if available and fresh
+        let data;
+        if (!forceRefresh && ticketsQueryCache && ticketsQueryCache.key === cacheKey && (now - ticketsCacheTimestamp) < TICKETS_CACHE_TTL) {
+            data = ticketsQueryCache.data;
+            console.log('📦 Using cached tickets data');
         } else {
-            // For normal view, exclude tickets that need leader support or have MoS requests
-            // Use 'or' filter to handle null values properly
-            query = query.or('need_leader_support.is.null,need_leader_support.eq.false')
-                .or('needMos.is.null,needMos.neq.request');
+            // OPTIMIZATION: Select only needed columns instead of '*'
+            const columns = 'id,ticket,po,issue_type,time_start,assignee_account,need_leader_support,needMos,last_update,ticket_status_id,agent_handle_ticket,ot_mode';
+
+            let query = supabaseClient.from('tickets').select(columns).is('time_end', null);
+            if (selectedAssignee) query = query.eq('assignee_account', selectedAssignee);
+
+            if (isLeaderView) {
+                query = query.eq('need_leader_support', true);
+            } else if (isMosView) {
+                query = query.eq('needMos', 'request');
+            } else {
+                // For normal view, exclude tickets that need leader support or have MoS requests
+                query = query.or('need_leader_support.is.null,need_leader_support.eq.false')
+                    .or('needMos.is.null,needMos.neq.request');
+            }
+
+            const result = await query.order('id', { ascending: false });
+            if (result.error) throw result.error;
+
+            data = result.data;
+
+            // Update cache
+            ticketsQueryCache = { key: cacheKey, data: data };
+            ticketsCacheTimestamp = now;
         }
 
         // Update view mode variable
         currentViewMode = isMosView ? 'mos' : (isLeaderView ? 'leader' : 'normal');
-
-        const { data, error } = await query.order('id', { ascending: false });
-        if (error) throw error;
         ticketsMap.clear();
         data.forEach(ticket => ticketsMap.set(ticket.id, ticket));
         if (data.length === 0) {
@@ -630,59 +662,69 @@ function renderTable(tickets) {
         return acc;
     }, {});
 
-    let html = '';
+    // OPTIMIZATION: Build HTML in chunks to avoid large string concatenation
+    const htmlChunks = [];
+
     for (const poKey in groupedByPO) {
         const items = groupedByPO[poKey];
         const rowCount = items.length;
         const firstItem = items[0];
 
         items.forEach((item, index) => {
-            html += `<tr data-ticket-id="${item.id}" data-po-group="${poKey}">`;
+            htmlChunks.push(`<tr data-ticket-id="${item.id}" data-po-group="${poKey}">`);
 
             if (index === 0) {
-                html += `
-                            ${currentViewMode !== 'mos' ? `
-                            <td class="px-4 py-4 align-middle text-center border-b border-main" rowspan="${rowCount}">
-                                ${renderStartButton(firstItem)}
-                            </td>
-                            <td class="px-4 py-4 align-middle text-center border-b border-main" rowspan="${rowCount}">
-                                ${renderEndButton(firstItem)}
-                            </td>
-                            ` : ''}
-                            <td class="px-6 py-4 align-middle font-medium text-headings border-b border-main" rowspan="${rowCount}">
-                                <a href="https://supporthub.service.csnzoo.com/browse/${firstItem.ticket}" target="_blank" class="text-blue-400 hover:text-blue-300 underline">
-                                    ${firstItem.ticket || ''}
-                                </a>
-                            </td>
-                            <td class="px-6 py-4 align-middle border-b border-main" rowspan="${rowCount}">
-                                <select data-action="status-change" data-ticket-id="${firstItem.id}" class="border border-secondary text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2">
-                                    <option value="" selected>-- Chọn trạng thái --</option>
-                                    ${ticketStatuses.map(s => `<option value="${s.id}">${s.status_name}</option>`).join('')}
-                                </select>
-                            </td>
-                            <td class="px-6 py-4 align-middle border-b border-main" rowspan="${rowCount}">${firstItem.issue_type || ''}</td>
-                            <td class="px-6 py-4 text-center align-middle border-b border-main" rowspan="${rowCount}">${renderActionButtons(firstItem)}</td>
-                            <td class="px-6 py-4 align-middle border-b border-main" rowspan="${rowCount}">${firstItem.po || ''}</td>
-                            <td class="px-6 py-4 text-center align-middle border-b border-main" rowspan="${rowCount}">
-                                ${renderLastUpdateColumn(firstItem)}
-                            </td>
-                            <td class="px-6 py-4 text-center align-middle border-b border-main" rowspan="${rowCount}">
-                                ${renderNeedHelpColumn(firstItem)}
-                            </td>
-                            ${currentViewMode === 'mos' ? `
-                            <td class="px-6 py-4 text-center align-middle border-b border-main" rowspan="${rowCount}">
-                                ${renderMosActionsColumn(firstItem)}
-                            </td>
-                            <td class="px-6 py-4 align-middle border-b border-main" rowspan="${rowCount}">
-                                ${renderMosRequestDetailsColumn(firstItem)}
-                            </td>
-                            ` : ''}
-                        `;
+                if (currentViewMode !== 'mos') {
+                    htmlChunks.push(
+                        `<td class="px-4 py-4 align-middle text-center border-b border-main" rowspan="${rowCount}">`,
+                        renderStartButton(firstItem),
+                        `</td>`,
+                        `<td class="px-4 py-4 align-middle text-center border-b border-main" rowspan="${rowCount}">`,
+                        renderEndButton(firstItem),
+                        `</td>`
+                    );
+                }
+
+                htmlChunks.push(
+                    `<td class="px-6 py-4 align-middle font-medium text-headings border-b border-main" rowspan="${rowCount}">`,
+                    `<a href="https://supporthub.service.csnzoo.com/browse/${firstItem.ticket}" target="_blank" class="text-blue-400 hover:text-blue-300 underline">`,
+                    firstItem.ticket || '',
+                    `</a></td>`,
+                    `<td class="px-6 py-4 align-middle border-b border-main" rowspan="${rowCount}">`,
+                    `<select data-action="status-change" data-ticket-id="${firstItem.id}" class="border border-secondary text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2">`,
+                    `<option value="" selected>-- Chọn trạng thái --</option>`,
+                    ticketStatuses.map(s => `<option value="${s.id}">${s.status_name}</option>`).join(''),
+                    `</select></td>`,
+                    `<td class="px-6 py-4 align-middle border-b border-main" rowspan="${rowCount}">${firstItem.issue_type || ''}</td>`,
+                    `<td class="px-6 py-4 text-center align-middle border-b border-main" rowspan="${rowCount}">`,
+                    renderActionButtons(firstItem),
+                    `</td>`,
+                    `<td class="px-6 py-4 align-middle border-b border-main" rowspan="${rowCount}">${firstItem.po || ''}</td>`,
+                    `<td class="px-6 py-4 text-center align-middle border-b border-main" rowspan="${rowCount}">`,
+                    renderLastUpdateColumn(firstItem),
+                    `</td>`,
+                    `<td class="px-6 py-4 text-center align-middle border-b border-main" rowspan="${rowCount}">`,
+                    renderNeedHelpColumn(firstItem),
+                    `</td>`
+                );
+
+                if (currentViewMode === 'mos') {
+                    htmlChunks.push(
+                        `<td class="px-6 py-4 text-center align-middle border-b border-main" rowspan="${rowCount}">`,
+                        renderMosActionsColumn(firstItem),
+                        `</td>`,
+                        `<td class="px-6 py-4 align-middle border-b border-main" rowspan="${rowCount}">`,
+                        renderMosRequestDetailsColumn(firstItem),
+                        `</td>`
+                    );
+                }
             }
-            html += `</tr>`;
+            htmlChunks.push(`</tr>`);
         });
     }
-    ticketTableBody.innerHTML = html;
+
+    // OPTIMIZATION: Single innerHTML assignment
+    ticketTableBody.innerHTML = htmlChunks.join('');
 
     // Show/hide Start and End headers based on view mode
     const startHeader = document.getElementById('start-header');
@@ -1066,6 +1108,9 @@ async function handleGroupAction(button, ticketIds, action) {
         const { error } = await supabaseClient.from('tickets').update(payload).in('id', ticketIds);
         if (error) throw error;
 
+        // OPTIMIZATION: Invalidate cache after update
+        invalidateTicketsCache();
+
         showMessage(`Nhóm ticket đã được ${action === 'start' ? 'bắt đầu' : 'kết thúc'}.`, 'success');
 
         if (action === 'start') {
@@ -1082,9 +1127,9 @@ async function handleGroupAction(button, ticketIds, action) {
             // Handle KPI update for end action
             await handleEndTicket(firstTicketId);
 
-            // Refresh data from database
+            // Refresh data from database (force refresh to bypass cache)
             // Scroll position is automatically preserved by fetchAndRenderTickets()
-            await fetchAndRenderTickets();
+            await fetchAndRenderTickets(true);
         }
     } catch (error) {
         console.error(`Lỗi khi ${action} nhóm:`, error);
@@ -1128,7 +1173,8 @@ async function handleNoActionNeeded(button, ticketId) {
             ticketRow.style.opacity = '0';
             setTimeout(() => {
                 // Refresh the table to ensure consistency
-                fetchAndRenderTickets();
+                invalidateTicketsCache();
+                fetchAndRenderTickets(true);
             }, 300);
         }
 
@@ -4147,8 +4193,9 @@ async function checkAllWorkCompleted() {
     if (alreadyShown) return;
 
     try {
-        // Query ALL tickets (not just incomplete ones) to check true completion status
-        let query = supabaseClient.from('tickets').select('*');
+        // OPTIMIZATION: Select only needed columns for completion check
+        const columns = 'id,ticket,time_end,need_leader_support,needMos';
+        let query = supabaseClient.from('tickets').select(columns);
 
         // Apply the same view mode filters as the main query
         if (isLeaderView) {
@@ -4219,8 +4266,9 @@ async function checkAllTicketsCompleted() {
     const currentTypeFilter = currentTicketTypeFilter || 'all';
 
     try {
-        // Query ALL tickets for this user to check true completion status
-        let query = supabaseClient.from('tickets').select('*').eq('assignee_account', selectedAssignee);
+        // OPTIMIZATION: Select only needed columns for completion check
+        const columns = 'id,ticket,time_end,need_leader_support,needMos';
+        let query = supabaseClient.from('tickets').select(columns).eq('assignee_account', selectedAssignee);
 
         // Apply the same view mode filters
         if (isLeaderView) {
