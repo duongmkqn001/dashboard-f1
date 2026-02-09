@@ -27,6 +27,9 @@
                             <button id="csv-import-btn" class="px-3 py-2 bg-purple-500 hover:bg-purple-600 text-white text-sm font-medium rounded-lg transition-colors flex items-center gap-1">
                                 📊 <span class="hidden sm:inline">CSV Import</span>
                             </button>
+                            <button id="import-eu-btn" class="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm font-medium rounded-lg transition-colors hidden flex items-center gap-1">
+                                🇪🇺 <span class="hidden sm:inline">Import EU</span>
+                            </button>
                             <button id="admin-panel-btn" class="px-3 py-2 bg-orange-500 hover:bg-orange-600 text-white text-sm font-medium rounded-lg transition-colors hidden flex items-center gap-1">
                                 ⚙️ <span class="hidden sm:inline">Admin</span>
                             </button>
@@ -96,6 +99,16 @@
                         <!-- User greeting -->
                         <div class="flex items-center gap-2 bg-section p-3 rounded-lg border border-secondary min-w-[200px]">
                             <span id="user-greeting" class="font-semibold text-secondary whitespace-nowrap">Xin chào, </span>
+                        </div>
+
+                        <!-- Team Toggle - EU/NA -->
+                        <div class="flex items-center gap-2 bg-section p-2 rounded-lg border border-secondary">
+                            <span class="text-sm font-medium">🌍 NA</span>
+                            <label class="relative inline-flex items-center cursor-pointer">
+                                <input type="checkbox" id="team-toggle" class="sr-only peer">
+                                <div class="relative w-11 h-6 bg-gradient-to-r from-blue-400 to-blue-600 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-purple-400 peer-checked:to-purple-600"></div>
+                            </label>
+                            <span class="text-sm font-medium">🇪🇺 EU</span>
                         </div>
 
                         <!-- OT Mode Toggle - Compact -->
@@ -659,6 +672,7 @@
         </div>
     </div>
 
+    <script src="./js/eu-import.js"></script>
     <script type="module" src="./js/dashboard-v2.js?v=20251205"></script>
 </body>
 </html>

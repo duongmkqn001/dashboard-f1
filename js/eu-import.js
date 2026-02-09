@@ -49,6 +49,11 @@ async function importEUTicketsToSheets() {
             // Mark tickets as imported in Supabase
             if (result.updated > 0) {
                 await markEUTicketsAsImported();
+
+                // Refresh the dashboard to show updated tickets (similar to NA import)
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
             }
         } else {
             throw new Error(result.message || 'Import failed');

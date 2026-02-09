@@ -14,19 +14,30 @@ const DATA_START_ROW = 2;   // Data starts from row 2
 /********************** MAIN FUNCTION **********************/
 function doPost(e) {
     try {
+        Logger.log('🚀 === EU IMPORT STARTED ===');
+        Logger.log('📥 Received POST request');
+
         // Verify secret token
+        Logger.log('🔐 Verifying secret token...');
         const params = JSON.parse(e.postData.contents);
+        Logger.log(`📦 Request params: ${JSON.stringify(params)}`);
+
         if (params.secret !== SECRET_TOKEN) {
+            Logger.log('❌ Unauthorized: Invalid secret token');
             return ContentService.createTextOutput(JSON.stringify({
                 success: false,
                 message: 'Unauthorized'
             })).setMimeType(ContentService.MimeType.JSON);
         }
+        Logger.log('✅ Secret token verified');
 
         // Fetch data from Supabase EU view
+        Logger.log('📡 Fetching EU tickets from Supabase...');
         const tickets = fetchEUTicketsFromSupabase();
+        Logger.log(`📊 Received ${tickets ? tickets.length : 0} tickets from Supabase`);
 
         if (!tickets || tickets.length === 0) {
+            Logger.log('⚠️ No EU tickets to import');
             return ContentService.createTextOutput(JSON.stringify({
                 success: true,
                 message: 'No EU tickets to import',
@@ -35,7 +46,9 @@ function doPost(e) {
         }
 
         // Import to EU tracker sheet
+        Logger.log('📝 Starting import to EU sheet...');
         const result = importToEUSheet(tickets);
+        Logger.log(`✅ Import completed: ${result.updated} new tickets added (${result.count} total processed)`);
 
         return ContentService.createTextOutput(JSON.stringify({
             success: true,
@@ -45,7 +58,8 @@ function doPost(e) {
         })).setMimeType(ContentService.MimeType.JSON);
 
     } catch (error) {
-        Logger.log('Error in doPost: ' + error.toString());
+        Logger.log('❌ ERROR in doPost: ' + error.toString());
+        Logger.log('📍 Error stack: ' + error.stack);
         return ContentService.createTextOutput(JSON.stringify({
             success: false,
             message: error.toString()
@@ -55,7 +69,9 @@ function doPost(e) {
 
 /********************** FETCH DATA FROM SUPABASE **********************/
 function fetchEUTicketsFromSupabase() {
+    Logger.log('🔍 === FETCHING FROM SUPABASE ===');
     const url = `${SUPABASE_URL}/rest/v1/tickets_export_eu_v?select=*`;
+    Logger.log(`🌐 URL: ${url}`);
 
     const options = {
         method: 'get',
@@ -68,160 +84,249 @@ function fetchEUTicketsFromSupabase() {
     };
 
     try {
+        Logger.log('📡 Sending request to Supabase...');
         const response = UrlFetchApp.fetch(url, options);
         const responseCode = response.getResponseCode();
         const responseText = response.getContentText();
 
-        Logger.log(`Response Code: ${responseCode}`);
-        Logger.log(`Response Text: ${responseText.substring(0, 500)}`); // Log first 500 chars
+        Logger.log(`📊 Response Code: ${responseCode}`);
+        Logger.log(`📄 Response Text (first 500 chars): ${responseText.substring(0, 500)}`);
 
         if (responseCode !== 200) {
+            Logger.log(`❌ Supabase error - Status ${responseCode}`);
+            Logger.log(`📄 Full response: ${responseText}`);
             throw new Error(`Supabase returned status ${responseCode}: ${responseText}`);
         }
 
+        Logger.log('🔄 Parsing JSON response...');
         const data = JSON.parse(responseText);
 
         if (!Array.isArray(data)) {
+            Logger.log(`❌ Invalid data type received: ${typeof data}`);
             throw new Error(`Expected array from Supabase, got: ${typeof data}`);
         }
 
-        Logger.log(`✓ Fetched ${data.length} EU tickets from Supabase`);
+        Logger.log(`✅ Successfully fetched ${data.length} EU tickets from Supabase`);
         if (data.length > 0) {
-            Logger.log(`Sample ticket keys: ${Object.keys(data[0]).join(', ')}`);
+            Logger.log(`📋 Sample ticket keys: ${Object.keys(data[0]).join(', ')}`);
+            Logger.log(`📝 First ticket sample: ${JSON.stringify(data[0])}`);
+        } else {
+            Logger.log('⚠️ No tickets returned from view. Possible reasons:');
+            Logger.log('   1. No EU team members have tickets');
+            Logger.log('   2. All EU tickets already have import_to_tracker=true');
+            Logger.log('   3. View tickets_export_eu_v might not exist');
         }
 
         return data;
     } catch (error) {
-        Logger.log(`ERROR fetching from Supabase: ${error.toString()}`);
+        Logger.log(`❌ ERROR fetching from Supabase: ${error.toString()}`);
+        Logger.log(`📍 Error stack: ${error.stack}`);
         throw error;
     }
 }
 
 /********************** IMPORT TO EU SHEET **********************/
 function importToEUSheet(tickets) {
-    // Use getActiveSpreadsheet() for bound scripts (no need for Sheet ID)
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+    Logger.log('📊 === IMPORTING TO EU SHEET ===');
 
-    // Get the first (active) sheet - all EU tickets go to one sheet
-    const sheet = ss.getActiveSheet();
+    try {
+        // Use getActiveSpreadsheet() for bound scripts (no need for Sheet ID)
+        Logger.log('📂 Getting active spreadsheet...');
+        const ss = SpreadsheetApp.getActiveSpreadsheet();
+        Logger.log(`✅ Spreadsheet: "${ss.getName()}"`);
 
-    if (!sheet) {
-        throw new Error(`No active sheet found in spreadsheet: ${ss.getName()}`);
-    }
+        // Get the first (active) sheet - all EU tickets go to one sheet
+        Logger.log('📄 Getting active sheet...');
+        const sheet = ss.getActiveSheet();
 
-    Logger.log(`✓ Using sheet: ${sheet.getName()}`);
-
-    // Get existing data to avoid duplicates
-    const lastRow = sheet.getLastRow();
-    const existingTickets = new Set();
-
-    if (lastRow >= DATA_START_ROW) {
-        const existingData = sheet.getRange(DATA_START_ROW, 1, lastRow - DATA_START_ROW + 1, 1).getValues();
-        existingData.forEach(row => {
-            if (row[0]) existingTickets.add(row[0].toString());
-        });
-    }
-
-    // Prepare data rows
-    const newRows = [];
-    tickets.forEach(ticket => {
-        // Skip if already imported
-        if (ticket.import_to_tracker || existingTickets.has(ticket['Ticket Number'])) {
-            return;
+        if (!sheet) {
+            Logger.log(`❌ No active sheet found in spreadsheet: ${ss.getName()}`);
+            throw new Error(`No active sheet found in spreadsheet: ${ss.getName()}`);
         }
 
-        // Create row: Ticket Number, Date, Time Start, Time End, Ticket Type, Reason Escalate, Work Status
-        const row = [
-            ticket['Ticket Number'] || '',
-            ticket['Date'] || '',
-            ticket['Time Start'] || '',
-            ticket['Time End'] || '',
-            ticket['Ticket Type'] || '',
-            ticket['Reason Escalate'] || '',
-            ticket['Work Status'] || ''
-        ];
+        Logger.log(`✅ Using sheet: "${sheet.getName()}"`);
 
-        newRows.push(row);
-    });
+        // Get existing data to avoid duplicates
+        const lastRow = sheet.getLastRow();
+        Logger.log(`📏 Last row in sheet: ${lastRow}`);
 
-    let updated = 0;
-    if (newRows.length > 0) {
-        // Append new rows
-        const startRow = lastRow + 1;
-        sheet.getRange(startRow, 1, newRows.length, newRows[0].length).setValues(newRows);
-        updated = newRows.length;
+        const existingTickets = new Set();
 
-        Logger.log(`Imported ${updated} new EU tickets`);
+        if (lastRow >= DATA_START_ROW) {
+            Logger.log(`🔍 Reading existing tickets from row ${DATA_START_ROW} to ${lastRow}...`);
+            const existingData = sheet.getRange(DATA_START_ROW, 1, lastRow - DATA_START_ROW + 1, 1).getValues();
+            existingData.forEach(row => {
+                if (row[0]) existingTickets.add(row[0].toString());
+            });
+            Logger.log(`📋 Found ${existingTickets.size} existing tickets in sheet`);
+        } else {
+            Logger.log('📋 Sheet is empty (no existing tickets)');
+        }
+
+        // Prepare data rows
+        Logger.log('🔄 Processing tickets...');
+        const newRows = [];
+        let skippedCount = 0;
+
+        tickets.forEach((ticket, index) => {
+            const ticketNumber = ticket['Ticket Number'];
+
+            // Skip if already imported
+            if (ticket.import_to_tracker) {
+                Logger.log(`⏭️ Ticket ${index + 1}: ${ticketNumber} - Skipped (already marked as imported in DB)`);
+                skippedCount++;
+                return;
+            }
+
+            if (existingTickets.has(ticketNumber)) {
+                Logger.log(`⏭️ Ticket ${index + 1}: ${ticketNumber} - Skipped (already exists in sheet)`);
+                skippedCount++;
+                return;
+            }
+
+            // Create row: Ticket Number, Date, Time Start, Time End, Ticket Type, Reason Escalate, Work Status
+            const row = [
+                ticket['Ticket Number'] || '',
+                ticket['Date'] || '',
+                ticket['Time Start'] || '',
+                ticket['Time End'] || '',
+                ticket['Ticket Type'] || '',
+                ticket['Reason Escalate'] || '',
+                ticket['Work Status'] || ''
+            ];
+
+            Logger.log(`✅ Ticket ${index + 1}: ${ticketNumber} - Will be imported`);
+            newRows.push(row);
+        });
+
+        Logger.log(`📊 Processing summary: ${newRows.length} new tickets, ${skippedCount} skipped`);
+
+        let updated = 0;
+        if (newRows.length > 0) {
+            // Append new rows
+            const startRow = lastRow + 1;
+            Logger.log(`📝 Writing ${newRows.length} rows starting at row ${startRow}...`);
+            sheet.getRange(startRow, 1, newRows.length, newRows[0].length).setValues(newRows);
+            updated = newRows.length;
+
+            Logger.log(`✅ Successfully imported ${updated} new EU tickets`);
+        } else {
+            Logger.log('⚠️ No new tickets to import');
+        }
+
+        return {
+            count: tickets.length,
+            updated: updated
+        };
+    } catch (error) {
+        Logger.log(`❌ ERROR in importToEUSheet: ${error.toString()}`);
+        Logger.log(`📍 Error stack: ${error.stack}`);
+        throw error;
     }
-
-    return {
-        count: tickets.length,
-        updated: updated
-    };
 }
 
 /********************** TEST FUNCTIONS **********************/
 // Test 1: Check if we can fetch data from Supabase
 function testFetchData() {
-    Logger.log('=== Testing Supabase Connection ===');
+    Logger.log('🧪 === Testing Supabase Connection ===');
     try {
         const tickets = fetchEUTicketsFromSupabase();
-        Logger.log(`✓ SUCCESS: Fetched ${tickets.length} tickets`);
+        Logger.log(`✅ SUCCESS: Fetched ${tickets.length} tickets`);
 
         if (tickets.length > 0) {
-            Logger.log('First ticket data:');
+            Logger.log('📝 First ticket data:');
             Logger.log(JSON.stringify(tickets[0], null, 2));
         } else {
-            Logger.log('⚠ No tickets found. Check if:');
-            Logger.log('  1. SQL view tickets_export_eu_v exists');
-            Logger.log('  2. There are EU team tickets with import_to_tracker=false');
-            Logger.log('  3. Agent team column is set to "EU"');
+            Logger.log('⚠️ No tickets found. Check if:');
+            Logger.log('   1. SQL view tickets_export_eu_v exists in Supabase');
+            Logger.log('   2. There are EU team tickets with import_to_tracker=false');
+            Logger.log('   3. Agent team column is set to "EU"');
+            Logger.log('   4. Agents are assigned to tickets');
         }
     } catch (error) {
-        Logger.log(`✗ ERROR: ${error.toString()}`);
+        Logger.log(`❌ ERROR: ${error.toString()}`);
+        Logger.log(`📍 Error stack: ${error.stack}`);
     }
 }
 
 // Test 2: Check sheet access
 function testSheetAccess() {
-    Logger.log('=== Testing Sheet Access ===');
+    Logger.log('🧪 === Testing Sheet Access ===');
     try {
         const ss = SpreadsheetApp.getActiveSpreadsheet();
-        Logger.log(`✓ Spreadsheet: ${ss.getName()}`);
+        Logger.log(`✅ Spreadsheet: "${ss.getName()}"`);
+        Logger.log(`📍 Spreadsheet ID: ${ss.getId()}`);
 
         const sheets = ss.getSheets();
-        Logger.log(`Available sheets: ${sheets.map(s => s.getName()).join(', ')}`);
+        Logger.log(`📋 Total sheets: ${sheets.length}`);
+        Logger.log(`📄 Available sheets: ${sheets.map(s => s.getName()).join(', ')}`);
 
-        const sheet = ss.getSheetByName(SHEET_EU_TRACKER);
+        const sheet = ss.getActiveSheet();
         if (sheet) {
-            Logger.log(`✓ Found sheet: ${SHEET_EU_TRACKER}`);
-            Logger.log(`  Last row: ${sheet.getLastRow()}`);
-            Logger.log(`  Last column: ${sheet.getLastColumn()}`);
+            Logger.log(`✅ Active sheet: "${sheet.getName()}"`);
+            Logger.log(`   Last row: ${sheet.getLastRow()}`);
+            Logger.log(`   Last column: ${sheet.getLastColumn()}`);
+
+            // Check if headers exist
+            if (sheet.getLastRow() >= HEADER_ROW) {
+                const headers = sheet.getRange(HEADER_ROW, 1, 1, sheet.getLastColumn()).getValues()[0];
+                Logger.log(`   Headers: ${headers.join(', ')}`);
+            } else {
+                Logger.log(`   ⚠️ No headers found - sheet appears empty`);
+            }
         } else {
-            Logger.log(`✗ Sheet "${SHEET_EU_TRACKER}" not found!`);
-            Logger.log(`  Please rename one of your sheets to: ${SHEET_EU_TRACKER}`);
+            Logger.log(`❌ No active sheet found!`);
         }
     } catch (error) {
-        Logger.log(`✗ ERROR: ${error.toString()}`);
+        Logger.log(`❌ ERROR: ${error.toString()}`);
+        Logger.log(`📍 Error stack: ${error.stack}`);
     }
 }
 
 // Test 3: Full import test
 function testEUImport() {
-    Logger.log('=== Testing Full Import ===');
+    Logger.log('🧪 === Testing Full Import ===');
     try {
         const tickets = fetchEUTicketsFromSupabase();
-        Logger.log(`Fetched ${tickets.length} tickets`);
+        Logger.log(`📊 Fetched ${tickets.length} tickets from Supabase`);
 
         if (tickets.length > 0) {
-            Logger.log('Sample ticket: ' + JSON.stringify(tickets[0]));
+            Logger.log('📝 Sample ticket: ' + JSON.stringify(tickets[0], null, 2));
             const result = importToEUSheet(tickets);
-            Logger.log(`✓ Import result: ${JSON.stringify(result)}`);
+            Logger.log(`✅ Import result: ${JSON.stringify(result)}`);
+            Logger.log(`   Total processed: ${result.count}`);
+            Logger.log(`   New tickets added: ${result.updated}`);
         } else {
-            Logger.log('⚠ No tickets to import');
+            Logger.log('⚠️ No tickets to import');
         }
     } catch (error) {
-        Logger.log(`✗ ERROR: ${error.toString()}`);
+        Logger.log(`❌ ERROR: ${error.toString()}`);
+        Logger.log(`📍 Error stack: ${error.stack}`);
+    }
+}
+
+// Test 4: Test complete flow (simulates doPost)
+function testCompleteFlow() {
+    Logger.log('🧪 === Testing Complete Flow (Simulating doPost) ===');
+    try {
+        Logger.log('Step 1: Fetch tickets from Supabase');
+        const tickets = fetchEUTicketsFromSupabase();
+        Logger.log(`✅ Fetched ${tickets.length} tickets`);
+
+        if (tickets.length === 0) {
+            Logger.log('⚠️ No tickets to process - stopping test');
+            return;
+        }
+
+        Logger.log('Step 2: Import to sheet');
+        const result = importToEUSheet(tickets);
+        Logger.log(`✅ Import completed`);
+        Logger.log(`   Result: ${JSON.stringify(result)}`);
+
+        Logger.log('🎉 Complete flow test PASSED');
+    } catch (error) {
+        Logger.log(`❌ Complete flow test FAILED: ${error.toString()}`);
+        Logger.log(`📍 Error stack: ${error.stack}`);
     }
 }
 

@@ -66,6 +66,9 @@ let currentViewMode = 'normal'; // 'normal', 'leader', 'mos'
 let otModeEnabled = localStorage.getItem('otMode') === 'true';
 const otModeTickets = new Set(JSON.parse(localStorage.getItem('otModeTickets') || '[]'));
 
+// Team Mode State Management (EU/NA)
+let currentTeamMode = localStorage.getItem('teamMode') || 'NA'; // 'NA' or 'EU'
+
 // =================================================================================
 // == INITIALIZATION & DATA FETCHING =============================================
 // =================================================================================
@@ -139,11 +142,55 @@ function setupUserInterface() {
                 }
             });
         }
+
+        // Setup Team Toggle (EU/NA)
+        const teamToggle = document.getElementById('team-toggle');
+        const csvImportBtn = document.getElementById('csv-import-btn');
+        const euImportBtn = document.getElementById('import-eu-btn');
+
+        if (teamToggle) {
+            // Restore team mode state from localStorage
+            teamToggle.checked = currentTeamMode === 'EU';
+
+            // Show/hide appropriate import button based on current team
+            if (currentTeamMode === 'EU') {
+                if (csvImportBtn) csvImportBtn.classList.add('hidden');
+                if (euImportBtn) euImportBtn.classList.remove('hidden');
+            } else {
+                if (csvImportBtn) csvImportBtn.classList.remove('hidden');
+                if (euImportBtn) euImportBtn.classList.add('hidden');
+            }
+
+            teamToggle.addEventListener('change', (e) => {
+                // Update global state and save to localStorage
+                currentTeamMode = e.target.checked ? 'EU' : 'NA';
+                localStorage.setItem('teamMode', currentTeamMode);
+
+                // Show/hide appropriate import button
+                if (currentTeamMode === 'EU') {
+                    if (csvImportBtn) csvImportBtn.classList.add('hidden');
+                    if (euImportBtn) euImportBtn.classList.remove('hidden');
+                    showMessage('🇪🇺 EU Team Mode - Viewing EU tickets only', 'info', 3000);
+                } else {
+                    if (csvImportBtn) csvImportBtn.classList.remove('hidden');
+                    if (euImportBtn) euImportBtn.classList.add('hidden');
+                    showMessage('🌍 NA Team Mode - Viewing NA tickets only', 'info', 3000);
+                }
+
+                // Refresh tickets to show appropriate team's tickets
+                invalidateTicketsCache();
+                fetchAndRenderTickets(true);
+            });
+        }
+
+        // Initialize EU import button
+        if (euImportBtn && typeof initializeEUImport === 'function') {
+            initializeEUImport();
+        }
     }
 
     // Setup navigation buttons
     const refreshBtn = document.getElementById('refresh-tickets-btn');
-    const csvImportBtn = document.getElementById('csv-import-btn');
     const adminPanelBtn = document.getElementById('admin-panel-btn');
 
 
@@ -154,8 +201,10 @@ function setupUserInterface() {
         });
     }
 
-    if (csvImportBtn) {
-        csvImportBtn.addEventListener('click', () => {
+    // CSV Import button handler (already declared in team toggle section)
+    const csvImportBtnHandler = document.getElementById('csv-import-btn');
+    if (csvImportBtnHandler) {
+        csvImportBtnHandler.addEventListener('click', () => {
             window.open('csv-import-enhanced.html', '_blank');
         });
     }
@@ -575,8 +624,8 @@ async function fetchAndRenderTickets(forceRefresh = false) {
         const isLeaderView = localStorage.getItem('leaderViewMode') === 'true';
         const isMosView = localStorage.getItem('mosViewMode') === 'true';
 
-        // Create cache key based on current filters
-        const cacheKey = `${selectedAssignee}_${isLeaderView}_${isMosView}`;
+        // Create cache key based on current filters INCLUDING team mode
+        const cacheKey = `${selectedAssignee}_${isLeaderView}_${isMosView}_${currentTeamMode}`;
         const now = Date.now();
 
         // OPTIMIZATION: Use cached data if available and fresh
@@ -587,10 +636,14 @@ async function fetchAndRenderTickets(forceRefresh = false) {
         } else {
             // OPTIMIZATION: Select only needed columns instead of '*'
             // Added 'suid' for template SUID search functionality
-            const columns = 'id,ticket,po,issue_type,time_start,assignee_account,need_leader_support,needMos,ticket_status_id,agent_handle_ticket,ot_mode,suid';
+            // Join with agent table to get team information for filtering
+            const columns = 'id,ticket,po,issue_type,time_start,assignee_account,need_leader_support,needMos,ticket_status_id,agent_handle_ticket,ot_mode,suid,agent!inner(team)';
 
             let query = supabaseClient.from('tickets').select(columns).is('time_end', null);
             if (selectedAssignee) query = query.eq('assignee_account', selectedAssignee);
+
+            // Filter by team mode
+            query = query.eq('agent.team', currentTeamMode);
 
             if (isLeaderView) {
                 query = query.eq('need_leader_support', true);
