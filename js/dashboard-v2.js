@@ -586,7 +586,7 @@ async function fetchAndRenderTickets(forceRefresh = false) {
             console.log('📦 Using cached tickets data');
         } else {
             // OPTIMIZATION: Select only needed columns instead of '*'
-            const columns = 'id,ticket,po,issue_type,time_start,assignee_account,need_leader_support,needMos,last_update,ticket_status_id,agent_handle_ticket,ot_mode';
+            const columns = 'id,ticket,po,issue_type,time_start,assignee_account,need_leader_support,needMos,ticket_status_id,agent_handle_ticket,ot_mode';
 
             let query = supabaseClient.from('tickets').select(columns).is('time_end', null);
             if (selectedAssignee) query = query.eq('assignee_account', selectedAssignee);
