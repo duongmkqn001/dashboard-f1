@@ -3394,8 +3394,8 @@ async function handleEndTicket(ticketId) {
         }
 
         // Send ticket ID to Google Sheets tracker in background (don't wait)
-        // The Apps Script will fetch data from tickets_export_v view
-        sendTicketToGoogleSheets(ticketId); // No await - runs in background
+        // The Apps Script will fetch data from tickets_export_v view (NA) or tickets_export_eu_v (EU)
+        sendTicketToGoogleSheets(ticketId, agentData.team); // No await - runs in background
 
     } catch (error) {
         console.error('Error handling end ticket:', error);
@@ -3408,17 +3408,19 @@ const googleSheetsQueue = {
     queue: [],
     processing: false,
     retryAttempts: new Map(), // Track retry attempts per ticket
+    teamMap: new Map(), // Track team per ticket
     maxRetries: 3,
 
-    add(ticketId) {
+    add(ticketId, team = 'NA') {
         // Don't add duplicates to queue
-        if (this.queue.includes(ticketId)) {
+        if (this.queue.some(item => item.ticketId === ticketId)) {
             console.log(`📋 Ticket ${ticketId} already in queue, skipping duplicate`);
             return;
         }
 
-        this.queue.push(ticketId);
-        console.log(`📋 Added ticket ${ticketId} to Google Sheets queue. Queue length: ${this.queue.length}`);
+        this.queue.push({ ticketId, team });
+        this.teamMap.set(ticketId, team);
+        console.log(`📋 Added ticket ${ticketId} (${team} team) to Google Sheets queue. Queue length: ${this.queue.length}`);
         this.processNext();
     },
 
@@ -3428,10 +3430,12 @@ const googleSheetsQueue = {
         }
 
         this.processing = true;
-        const ticketId = this.queue.shift();
+        const item = this.queue.shift();
+        const ticketId = item.ticketId;
+        const team = item.team;
 
         try {
-            console.log(`🔄 Processing ticket ${ticketId} from queue. Remaining: ${this.queue.length}`);
+            console.log(`🔄 Processing ticket ${ticketId} (${team} team) from queue. Remaining: ${this.queue.length}`);
 
             // Check if ticket is already imported before processing
             const isAlreadyImported = await this.checkIfImported(ticketId);
@@ -3440,11 +3444,12 @@ const googleSheetsQueue = {
                 return;
             }
 
-            await this.sendSingleTicket(ticketId);
-            console.log(`✅ Successfully processed ticket ${ticketId}`);
+            await this.sendSingleTicket(ticketId, team);
+            console.log(`✅ Successfully processed ticket ${ticketId} to ${team} tracker`);
 
             // Reset retry count on success
             this.retryAttempts.delete(ticketId);
+            this.teamMap.delete(ticketId);
 
         } catch (error) {
             console.error(`❌ Failed to process ticket ${ticketId}:`, error);
@@ -3453,11 +3458,12 @@ const googleSheetsQueue = {
             const attempts = this.retryAttempts.get(ticketId) || 0;
             if (attempts < this.maxRetries) {
                 this.retryAttempts.set(ticketId, attempts + 1);
-                this.queue.push(ticketId);
+                this.queue.push({ ticketId, team });
                 console.log(`🔄 Retrying ticket ${ticketId} (attempt ${attempts + 1}/${this.maxRetries})`);
             } else {
                 console.error(`❌ Max retries reached for ticket ${ticketId}, giving up`);
                 this.retryAttempts.delete(ticketId);
+                this.teamMap.delete(ticketId);
 
                 // Log failed import for manual review
                 this.logFailedImport(ticketId, error);
@@ -3514,13 +3520,19 @@ const googleSheetsQueue = {
         }
     },
 
-sendSingleTicket(ticketId) {
+sendSingleTicket(ticketId, team = 'NA') {
         return new Promise((resolve, reject) => {
             try {
-                const GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzDXf9HPZi9NiJy-f8Enw9ZINljy2njMSWcZFXnrKCDzRPpAwwipIsTTMjP3lTtPZM07A/exec';
+                // Use different script URLs based on team
+                const NA_GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzDXf9HPZi9NiJy-f8Enw9ZINljy2njMSWcZFXnrKCDzRPpAwwipIsTTMjP3lTtPZM07A/exec';
+                const EU_GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbxx70shS7RkOO0lWmn3bVSH1Mw5vNprz5RJYHMZakOfZSMbMipciaDBzKaAfU0TbxKl/exec';
+
+                const GOOGLE_SHEETS_URL = team === 'EU' ? EU_GOOGLE_SHEETS_URL : NA_GOOGLE_SHEETS_URL;
                 const SECRET_TOKEN = '14092000';
 
-                // CHỈ CẦN GỬI TICKET ID - Data sẽ tự lấy từ View
+                console.log(`📤 Sending ticket ${ticketId} to ${team} tracker: ${GOOGLE_SHEETS_URL}`);
+
+                // CHỈ CẦN GỬI TICKET ID - Data sẽ tự lấy từ View (tickets_export_v for NA, tickets_export_eu_v for EU)
                 const params = new URLSearchParams({
                     secret: SECRET_TOKEN,
                     ticketId: ticketId
@@ -3562,10 +3574,10 @@ sendSingleTicket(ticketId) {
     }
 };
 
-// Send ticket ID to Google Sheets - Apps Script will fetch data from tickets_export_v
+// Send ticket ID to Google Sheets - Apps Script will fetch data from tickets_export_v (NA) or tickets_export_eu_v (EU)
 // Uses queue system to prevent concurrent conflicts
-function sendTicketToGoogleSheets(ticketId) {
-    googleSheetsQueue.add(ticketId);
+function sendTicketToGoogleSheets(ticketId, team = 'NA') {
+    googleSheetsQueue.add(ticketId, team);
 }
 
 // Periodic check for tickets that failed to import and retry them

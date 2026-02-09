@@ -154,6 +154,7 @@ function importToEUSheet(tickets) {
 
         if (lastRow >= DATA_START_ROW) {
             Logger.log(`🔍 Reading existing tickets from row ${DATA_START_ROW} to ${lastRow}...`);
+            // Read column 1 (Ticket Number column) to check for duplicates
             const existingData = sheet.getRange(DATA_START_ROW, 1, lastRow - DATA_START_ROW + 1, 1).getValues();
             existingData.forEach(row => {
                 if (row[0]) existingTickets.add(row[0].toString());
@@ -184,7 +185,7 @@ function importToEUSheet(tickets) {
                 return;
             }
 
-            // Create row: Ticket Number, Date, Time Start, Time End, Ticket Type, Reason Escalate, Work Status
+            // Create row matching EU format: Ticket Number, Date, Time Start, Time End, Ticket Type, Reason Escalate, Work Status, Agent Name, Account
             const row = [
                 ticket['Ticket Number'] || '',
                 ticket['Date'] || '',
@@ -192,7 +193,9 @@ function importToEUSheet(tickets) {
                 ticket['Time End'] || '',
                 ticket['Ticket Type'] || '',
                 ticket['Reason Escalate'] || '',
-                ticket['Work Status'] || ''
+                ticket['Work Status'] || '',
+                ticket['Agent Name'] || '',
+                ticket['Account'] || ''
             ];
 
             Logger.log(`✅ Ticket ${index + 1}: ${ticketNumber} - Will be imported`);

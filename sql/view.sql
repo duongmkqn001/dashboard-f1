@@ -115,5 +115,6 @@ where
     )
     or b.ticket ~~ 'POS%'::text
   )
+  and (a.team IS NULL OR a.team = 'NA')  -- Only NA team tickets (or agents without team set)
 order by
   b.time_start desc;

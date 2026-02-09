@@ -43,12 +43,63 @@ SELECT
         (b.time_end AT TIME ZONE 'Asia/Ho_Chi_Minh'::text),
         'HH24:MI:SS'::text
     ) AS "Time End",
-    b.issue_type AS "Ticket Type",
-    CASE 
+    -- Ticket Type conversions: NA format → EU format
+    CASE
+        -- NA: "Cancellation Inquiry" → EU: "PWAO - Cancellation inquiry"
+        WHEN TRIM(b.issue_type) = 'Cancellation Inquiry' THEN 'PWAO - Cancellation inquiry'
+
+        -- NA: "Product Is Out of Stock" → EU: "PWAO - Product is out of stock"
+        WHEN TRIM(b.issue_type) IN ('Product Is Out of Stock', 'Product Out of Stock') THEN 'PWAO - Product is out of stock'
+
+        -- NA: "Update Tracking Number/Order Status" → EU: "PWAO - Update tracking number/Order Status"
+        WHEN TRIM(b.issue_type) IN ('Update Tracking Number/Order Status', 'Update Tracking Number', 'Update Tracking Number/ Order Status')
+            THEN 'PWAO - Update tracking number/Order Status'
+
+        -- NA: "PO Reroutes" → EU: "PWAO - Reroute PO to a different warehouse"
+        WHEN TRIM(b.issue_type) = 'PO Reroutes' THEN 'PWAO - Reroute PO to a different warehouse'
+
+        -- NA: "Carrier Inquiry" / "Shipping/Carrier Questions" / "Email Request" → EU: "PWAO - Shipping/Carrier Questions"
+        WHEN TRIM(b.issue_type) IN ('Carrier Inquiry', 'Shipping/Carrier Questions', 'Email Request')
+            THEN 'PWAO - Shipping/Carrier Questions'
+
+        -- NA: "Cannot Print Shipping Documents" → EU: "Cannot Print a BOL / Packing Slip or Shipping Label"
+        WHEN TRIM(b.issue_type) IN ('Cannot Print Shipping Documents', 'Cannot Print a BOL / Packing Slip or Shipping Label')
+            THEN 'Cannot Print a BOL / Packing Slip or Shipping Label'
+
+        -- NA: "Change Pickup Carrier" → EU: "Change Pick up carrier"
+        WHEN TRIM(b.issue_type) IN ('Change Pickup Carrier', 'Change Pick up carrier')
+            THEN 'Change Pick up carrier'
+
+        -- NA: "Change Ship Method - Not Shipped" → EU: "Change Ship Method on PO - Not Shipped"
+        WHEN TRIM(b.issue_type) = 'Change Ship Method - Not Shipped'
+            THEN 'Change Ship Method on PO - Not Shipped'
+
+        -- NA: "Tier 1 - Adhoc Request" → EU: "Tier 1 - Adhoc Request Inbound"
+        WHEN TRIM(b.issue_type) = 'Tier 1 - Adhoc Request'
+            THEN 'Tier 1 - Adhoc Request Inbound'
+
+        -- NA: "WDN" → EU: "WDN First Mile Supplier Outreach"
+        WHEN TRIM(b.issue_type) = 'WDN'
+            THEN 'WDN First Mile Supplier Outreach'
+
+        -- If already has PWAO prefix, keep as is
+        WHEN TRIM(b.issue_type) LIKE 'PWAO - %' THEN TRIM(b.issue_type)
+
+        -- Default: keep original (for tickets already in correct EU format)
+        ELSE TRIM(b.issue_type)
+    END AS "Ticket Type",
+    CASE
         WHEN ts.status_name = 'Move to onshore - Unassign' THEN b.reason_escalate
         ELSE NULL
     END AS "Reason Escalate",
-    ts.status_name AS "Work Status",
+    -- Ticket Status conversions: NA format → EU format
+    CASE
+        WHEN ts.status_name = 'Waiting for SU' THEN 'Waiting for Supplier'
+        WHEN ts.status_name = 'Pending (Ask IH)' THEN 'Escalated for IH support'
+        WHEN ts.status_name = 'Pause' THEN 'In Progress'
+        WHEN ts.status_name = 'Move to onshore - Unassign' THEN 'Escalated for IH support'
+        ELSE ts.status_name
+    END AS "Work Status",
     va.name AS "Agent Name",
     a."Export_name" AS "Account",
     b.import_to_tracker
