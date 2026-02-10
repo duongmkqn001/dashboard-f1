@@ -387,6 +387,312 @@
         html.fresh-mint .js-copy-btn { background-color: #bbf7d0; }
         html.fresh-mint .js-copy-btn:hover { background-color: #86efac; }
 
+        /* === THEME-SPECIFIC BUTTON STYLES === */
+
+        /* Dark Theme */
+        html.dark .theme-wheel-btn { background-color: #1f2937; border-color: #374151; }
+        html.dark .team-toggle-track { background-color: #1f2937; border-color: #374151; }
+        html.dark .ot-mode-button { background-color: #1f2937; border-color: #4b5563; }
+        html.dark .team-text { color: #9ca3af; }
+        html.dark .ot-mode-text { color: #9ca3af; }
+
+        /* Daylight Theme */
+        html.daylight .theme-wheel-btn { background-color: #ffffff; border-color: #e5e7eb; }
+        html.daylight .team-toggle-track { background-color: #ffffff; border-color: #e5e7eb; }
+        html.daylight .ot-mode-button { background-color: #ffffff; border-color: #d1d5db; }
+        html.daylight .team-na { color: #3b82f6; }
+        html.daylight .team-eu { color: #8b5cf6; }
+        html.daylight .ot-mode-text { color: #6b7280; }
+        html.daylight .ot-mode-indicator { background: #9ca3af; }
+
+        /* Sunset Theme */
+        html.sunset .theme-wheel-btn { background-color: rgba(124, 45, 18, 0.8); border-color: #ea580c; }
+        html.sunset .team-toggle-track { background-color: rgba(124, 45, 18, 0.8); border-color: #ea580c; }
+        html.sunset .ot-mode-button { background-color: rgba(124, 45, 18, 0.8); border-color: #ea580c; }
+        html.sunset .team-na { color: #fbbf24; }
+        html.sunset .team-eu { color: #fcd34d; }
+        html.sunset .ot-mode-text { color: #fbbf24; }
+
+        /* Twilight Theme */
+        html.twilight .theme-wheel-btn { background-color: #1e293b; border-color: #334155; }
+        html.twilight .team-toggle-track { background-color: #1e293b; border-color: #334155; }
+        html.twilight .ot-mode-button { background-color: #1e293b; border-color: #475569; }
+        html.twilight .team-na { color: #60a5fa; }
+        html.twilight .team-eu { color: #a78bfa; }
+        html.twilight .ot-mode-text { color: #94a3b8; }
+
+        /* Blossom Dawn Theme */
+        html.blossom-dawn .theme-wheel-btn { background-color: #ffe4e9; border-color: #fecdd3; }
+        html.blossom-dawn .team-toggle-track { background-color: #ffe4e9; border-color: #fecdd3; }
+        html.blossom-dawn .ot-mode-button { background-color: #ffe4e9; border-color: #fda4af; }
+        html.blossom-dawn .team-na { color: #ec4899; }
+        html.blossom-dawn .team-eu { color: #d946ef; }
+        html.blossom-dawn .ot-mode-text { color: #8c435a; }
+
+        /* Blue Sky Theme */
+        html.blue-sky .theme-wheel-btn { background-color: #e0f2fe; border-color: #bae6fd; }
+        html.blue-sky .team-toggle-track { background-color: #e0f2fe; border-color: #bae6fd; }
+        html.blue-sky .ot-mode-button { background-color: #e0f2fe; border-color: #7dd3fc; }
+        html.blue-sky .team-na { color: #0369a1; }
+        html.blue-sky .team-eu { color: #7c3aed; }
+        html.blue-sky .ot-mode-text { color: #0369a1; }
+
+        /* Fresh Mint Theme */
+        html.fresh-mint .theme-wheel-btn { background-color: #dcfce7; border-color: #bbf7d0; }
+        html.fresh-mint .team-toggle-track { background-color: #dcfce7; border-color: #bbf7d0; }
+        html.fresh-mint .ot-mode-button { background-color: #dcfce7; border-color: #86efac; }
+        html.fresh-mint .team-na { color: #15803d; }
+        html.fresh-mint .team-eu { color: #7c3aed; }
+        html.fresh-mint .ot-mode-text { color: #166534; }
+
+        /* === CIRCULAR THEME WHEEL === */
+        .theme-wheel-container {
+            position: relative;
+        }
+
+        .theme-wheel-btn {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            z-index: 10;
+        }
+
+        .theme-wheel-btn:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .theme-wheel-center {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .theme-wheel {
+            position: fixed;
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            transition: transform 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55), opacity 0.3s ease;
+            z-index: 1000;
+        }
+
+        .theme-wheel.hidden {
+            transform: translate(-50%, -50%) scale(0);
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .theme-wheel:not(.hidden) {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        .theme-segment {
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%) rotate(var(--angle)) translateY(-60px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .theme-segment:hover {
+            transform: translate(-50%, -50%) rotate(var(--angle)) translateY(-60px) scale(1.2);
+            border-color: rgba(255, 255, 255, 0.8);
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+            z-index: 10;
+        }
+
+        .theme-segment.active {
+            border-color: #fbbf24;
+            border-width: 4px;
+            box-shadow: 0 0 20px rgba(251, 191, 36, 0.6);
+        }
+
+        /* Theme segment colors */
+        .theme-dark { background: linear-gradient(135deg, #1f2937, #111827); }
+        .theme-daylight { background: linear-gradient(135deg, #ffffff, #f9fafb); }
+        .theme-sunset { background: linear-gradient(135deg, #ea580c, #dc2626); }
+        .theme-twilight { background: linear-gradient(135deg, #1e1b4b, #0f172a); }
+        .theme-blossom { background: linear-gradient(135deg, #fecdd3, #ffe4e9); }
+        .theme-blue { background: linear-gradient(135deg, #bae6fd, #e0f2fe); }
+        .theme-mint { background: linear-gradient(135deg, #bbf7d0, #dcfce7); }
+
+        /* === TEAM TOGGLE (NA/EU) === */
+        .team-toggle-container {
+            display: inline-block;
+        }
+
+        .team-toggle-label {
+            cursor: pointer;
+            display: block;
+        }
+
+        .team-toggle-track {
+            position: relative;
+            width: 160px;
+            height: 48px;
+            border: 2px solid;
+            border-radius: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 4px;
+            overflow: hidden;
+        }
+
+        .team-option {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            z-index: 2;
+            transition: all 0.3s ease;
+            padding: 8px;
+        }
+
+        .team-text {
+            font-weight: 600;
+            font-size: 0.875rem;
+            transition: all 0.3s ease;
+        }
+
+        .team-toggle-slider {
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: calc(50% - 4px);
+            height: calc(100% - 8px);
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            border-radius: 20px;
+            transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.4);
+            z-index: 1;
+        }
+
+        #team-toggle:checked ~ .team-toggle-track .team-toggle-slider {
+            left: calc(50%);
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+            box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
+        }
+
+        #team-toggle:checked ~ .team-toggle-track .team-na {
+            opacity: 0.5;
+        }
+
+        #team-toggle:checked ~ .team-toggle-track .team-eu {
+            color: #ffffff;
+            opacity: 1;
+        }
+
+        #team-toggle:not(:checked) ~ .team-toggle-track .team-na {
+            color: #ffffff;
+            opacity: 1;
+        }
+
+        #team-toggle:not(:checked) ~ .team-toggle-track .team-eu {
+            opacity: 0.5;
+        }
+
+        /* === OT MODE BUTTON === */
+        .ot-mode-container {
+            display: inline-block;
+        }
+
+        .ot-mode-label {
+            cursor: pointer;
+            display: block;
+        }
+
+        .ot-mode-button {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 10px 16px;
+            border: 2px solid;
+            border-radius: 12px;
+            transition: all 0.3s ease;
+            min-width: 140px;
+        }
+
+        .ot-mode-icon {
+            font-size: 1.25rem;
+            transition: all 0.3s ease;
+        }
+
+        .ot-mode-text {
+            font-weight: 700;
+            font-size: 0.875rem;
+            letter-spacing: 0.05em;
+            transition: all 0.3s ease;
+        }
+
+        .ot-mode-indicator {
+            position: absolute;
+            right: 12px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #9ca3af;
+            transition: all 0.3s ease;
+        }
+
+        /* OT Mode Active State */
+        #ot-mode-toggle:checked ~ .ot-mode-button {
+            background: linear-gradient(135deg, #ff4500, #ff8c00);
+            border-color: #ff4500;
+            box-shadow: 0 0 20px rgba(255, 69, 0, 0.5), 0 0 40px rgba(255, 140, 0, 0.3);
+            animation: ot-pulse 2s ease-in-out infinite;
+        }
+
+        #ot-mode-toggle:checked ~ .ot-mode-button .ot-mode-icon {
+            animation: fire-flicker 1s ease-in-out infinite alternate;
+            filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.8));
+        }
+
+        #ot-mode-toggle:checked ~ .ot-mode-button .ot-mode-text {
+            color: #ffffff;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+        }
+
+        #ot-mode-toggle:checked ~ .ot-mode-button .ot-mode-indicator {
+            background: #ffd700;
+            box-shadow: 0 0 10px rgba(255, 215, 0, 0.8);
+            animation: indicator-blink 1s ease-in-out infinite;
+        }
+
+        @keyframes ot-pulse {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(255, 69, 0, 0.5), 0 0 40px rgba(255, 140, 0, 0.3);
+            }
+            50% {
+                box-shadow: 0 0 30px rgba(255, 69, 0, 0.7), 0 0 60px rgba(255, 140, 0, 0.5);
+            }
+        }
+
+        @keyframes indicator-blink {
+            0%, 100% {
+                opacity: 1;
+            }
+            50% {
+                opacity: 0.3;
+            }
+        }
+
         /* Fire Effect Animation - Subtle */
         .fire-effect {
             display: inline-block;

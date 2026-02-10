@@ -10,9 +10,7 @@ const ticketTableBody = document.getElementById('ticket-table-body');
 const loaderContainer = document.getElementById('loader-container');
 const messageArea = document.getElementById('message-area');
 const themeToggleBtn = document.getElementById('theme-toggle-btn');
-const themeDropdown = document.getElementById('theme-dropdown');
-const currentThemeName = document.getElementById('current-theme-name');
-const themeChevron = document.getElementById('theme-chevron');
+const themeWheel = document.getElementById('theme-wheel');
 const templateSelectionModal = document.getElementById('template-selection-modal');
 const closeTemplateSelectionModal = document.getElementById('close-template-selection-modal');
 const popupProjectTabs = document.getElementById('popup-project-tabs-container');
@@ -318,25 +316,30 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     popupSearchInput.addEventListener('input', (e) => renderPopupTemplateList(e.target.value.trim()));
 
-    // Theme switcher event listeners
-    themeToggleBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        toggleThemeDropdown();
-    });
+    // Theme wheel event listeners
+    if (themeToggleBtn && themeWheel) {
+        themeToggleBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleThemeWheel();
+        });
 
-    themeDropdown.addEventListener('click', (e) => {
-        if (e.target.matches('.theme-btn')) {
-            setTheme(e.target.dataset.theme);
-            hideThemeDropdown();
-        }
-    });
+        themeWheel.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const segment = e.target.closest('.theme-segment');
+            if (segment && segment.dataset.theme) {
+                setTheme(segment.dataset.theme);
+                hideThemeWheel();
+            }
+        });
 
-    // Close theme dropdown when clicking outside
-    document.addEventListener('click', (e) => {
-        if (!themeToggleBtn.contains(e.target) && !themeDropdown.contains(e.target)) {
-            hideThemeDropdown();
-        }
-    });
+        // Close theme wheel when clicking outside
+        document.addEventListener('click', (e) => {
+            const container = e.target.closest('.theme-wheel-container');
+            if (!container) {
+                hideThemeWheel();
+            }
+        });
+    }
     document.getElementById('customer-email-modal').addEventListener('click', (e) => {
         const copyBtn = e.target.closest('.js-copy-btn');
         if (copyBtn) {
@@ -419,45 +422,39 @@ function initToolbar() {
 }
 
 // Theme management functions
-function toggleThemeDropdown() {
-    const isHidden = themeDropdown.classList.contains('hidden');
+function toggleThemeWheel() {
+    const isHidden = themeWheel.classList.contains('hidden');
     if (isHidden) {
-        showThemeDropdown();
+        showThemeWheel();
     } else {
-        hideThemeDropdown();
+        hideThemeWheel();
     }
 }
 
-function showThemeDropdown() {
-    themeDropdown.classList.remove('hidden');
-    themeChevron.style.transform = 'rotate(180deg)';
+function showThemeWheel() {
+    // Position the wheel at the button's location
+    const btnRect = themeToggleBtn.getBoundingClientRect();
+    themeWheel.style.left = `${btnRect.left + btnRect.width / 2}px`;
+    themeWheel.style.top = `${btnRect.top + btnRect.height / 2}px`;
+    themeWheel.style.transform = 'translate(-50%, -50%) scale(1)';
+
+    themeWheel.classList.remove('hidden');
 }
 
-function hideThemeDropdown() {
-    themeDropdown.classList.add('hidden');
-    themeChevron.style.transform = 'rotate(0deg)';
+function hideThemeWheel() {
+    themeWheel.classList.add('hidden');
 }
 
 function setTheme(theme) {
     document.documentElement.className = theme;
     localStorage.setItem('theme', theme);
 
-    // Update theme buttons
-    themeDropdown.querySelectorAll('.theme-btn').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.theme === theme);
-    });
-
-    // Update current theme name display
-    const themeNames = {
-        'dark': '🌙 Dark',
-        'daylight': '☀️ Daylight',
-        'sunset': '🌅 Sunset',
-        'twilight': '🌆 Twilight',
-        'blossom-dawn': '🌸 Blossom Dawn',
-        'blue-sky': '🌤️ Blue Sky',
-        'fresh-mint': '🌿 Fresh Mint'
-    };
-    currentThemeName.textContent = themeNames[theme] || theme;
+    // Update theme segment active state
+    if (themeWheel) {
+        themeWheel.querySelectorAll('.theme-segment').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.theme === theme);
+        });
+    }
 
     fetchAndRenderTickets(); // Re-render table to update status colors
 }
@@ -641,7 +638,7 @@ async function fetchAndRenderTickets(forceRefresh = false) {
             // OPTIMIZATION: Select only needed columns instead of '*'
             // Added 'suid' for template SUID search functionality
             // Join with agent table to get team information for filtering
-            const columns = 'id,ticket,po,issue_type,time_start,assignee_account,need_leader_support,needMos,ticket_status_id,agent_handle_ticket,ot_mode,suid,agent!inner(team)';
+            const columns = 'id,ticket,po,issue_type,time_start,assignee_account,need_leader_support,needMos,ticket_status_id,agent_handle_ticket,ot_mode,suid,updated_at,order_number,po_nocs,issue_id,customer_contact,customer,agent!inner(team)';
 
             let query = supabaseClient.from('tickets').select(columns).is('time_end', null);
             if (selectedAssignee) query = query.eq('assignee_account', selectedAssignee);
@@ -939,8 +936,8 @@ function renderEndButton(item) {
 }
 
 function renderLastUpdateColumn(item) {
-    if (item.created_at) {
-        const updateTime = new Date(item.created_at);
+    if (item.updated_at) {
+        const updateTime = new Date(item.updated_at);
         const timeString = updateTime.toLocaleString('vi-VN', {
             day: '2-digit',
             month: '2-digit',
