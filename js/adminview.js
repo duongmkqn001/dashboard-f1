@@ -484,7 +484,7 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.dynamicOptionalFieldContainer.innerHTML = '';
         if (template.hasOptionalField && template.optionalFieldNames) {
             const optionalFields = template.optionalFieldNames.split(',').map(s => s.trim()).filter(Boolean);
-            if (optionalFields.length > 0) dom.dynamicOptionalFieldContainer.innerHTML += `<h5 class="font-semibold mb-2">TrÆ°á»ng tÃ¹y chá»n:</h5>`;
+            if (optionalFields.length > 0) dom.dynamicOptionalFieldContainer.innerHTML += `<h5 class="font-semibold mb-2">Trường tùy chọn:</h5>`;
             optionalFields.forEach(fieldName => {
                 const div = document.createElement('div');
                 const checkboxId = `dyn-opt-check-${fieldName}`;
@@ -677,7 +677,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } else {
             details.innerHTML = `
       <summary class="flex justify-between items-center font-semibold cursor-pointer">
-        <input type="text" class="guide-step-title flex-grow font-semibold bg-transparent" value="${stepData.title || ''}" placeholder="TiÃªu Ä‘á» bÆ°á»›c.">
+        <input type="text" class="guide-step-title flex-grow font-semibold bg-transparent" value="${stepData.title || ''}" placeholder="Tiêu đề bước.">
         <button type="button" class="remove-guide-step-btn text-red-500 hover:text-red-700 ml-2">&times;</button>
       </summary>
       <div class="mt-3 space-y-3" id="guide-items-${stepId}"></div>
@@ -1150,21 +1150,21 @@ document.addEventListener('DOMContentLoaded', () => {
     async function handleDeletePlaceholder(key) { if (confirm(`Delete placeholder '{{${key}}}'?`)) { await supabaseClient.from('placeholders').delete().eq('key', key); await syncWithSupabase(); } }
     async function handleCsvImport(file) {
         if (!file) {
-            updateCsvFeedback('âŒ KhÃ´ng cÃ³ file nÃ o Ä‘Æ°á»£c chá»n', 'error');
+            updateCsvFeedback('âŒ Không có file nào được chọn', 'error');
             return;
         }
 
         if (!file.name.toLowerCase().endsWith('.csv')) {
-            updateCsvFeedback('âŒ Vui lÃ²ng chá»n file CSV', 'error');
+            updateCsvFeedback('âŒ Vui lòng chọn file CSV', 'error');
             return;
         }
 
-        updateCsvFeedback('ðŸ“‚ Äang xá»­ lÃ½ file CSV...', 'info');
-        showCsvProgress(0, 'Äang Ä‘á»c file...');
+        updateCsvFeedback('ðŸ“‚ Đang xử lý file CSV...', 'info');
+        showCsvProgress(0, 'Đang đọc file...');
 
         try {
             const text = await file.text();
-            showCsvProgress(20, 'Äang phÃ¢n tÃ­ch dá»¯ liá»‡u...');
+            showCsvProgress(20, 'Đang phân tích dữ liệu...');
 
             const { suppliers, children } = parseCsvData(text);
 
@@ -1172,8 +1172,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error('Không tìm thấy dữ liệu hợp lệ trong file CSV');
             }
 
-            showCsvProgress(40, 'Äang xÃ³a dá»¯ liá»‡u cÅ©...');
-            updateCsvFeedback('ðŸ—‘ï¸ Äang xÃ³a dá»¯ liá»‡u cÅ©...', 'info');
+            showCsvProgress(40, 'Đang xóa dữ liệu cũ...');
+            updateCsvFeedback('ðŸ—‘ï¸ Đang xóa dữ liệu cũ...', 'info');
 
             // Delete existing suppliers and children
             const { data: existingSuppliers } = await supabaseClient.from('suppliers').select('id');
@@ -1186,28 +1186,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 await supabaseClient.from('children').delete().in('id', existingChildren.map(c => c.id));
             }
 
-            showCsvProgress(60, 'Äang nháº­p dá»¯ liá»‡u má»›i...');
+            showCsvProgress(60, 'Đang nhập dữ liệu mới...');
 
             // Insert new data
             if (suppliers.length > 0) {
-                updateCsvFeedback(`ðŸ“¥ Äang nháº­p ${suppliers.length} nhÃ  cung cáº¥p chÃ­nh...`, 'info');
+                updateCsvFeedback(`ðŸ“¥ Đang nhập ${suppliers.length} nhà cung cấp chính...`, 'info');
                 const { error: suppliersError } = await supabaseClient.from('suppliers').insert(suppliers);
                 if (suppliersError) throw suppliersError;
             }
 
-            showCsvProgress(80, 'Äang nháº­p dá»¯ liá»‡u con...');
+            showCsvProgress(80, 'Đang nhập dữ liệu con...');
 
             if (children.length > 0) {
-                updateCsvFeedback(`ðŸ“¥ Äang nháº­p ${children.length} nhÃ  cung cáº¥p con...`, 'info');
+                updateCsvFeedback(`ðŸ“¥ Đang nhập ${children.length} nhà cung cấp con...`, 'info');
                 const { error: childrenError } = await supabaseClient.from('children').insert(children);
                 if (childrenError) throw childrenError;
             }
 
-            showCsvProgress(90, 'Äang Ä‘á»“ng bá»™ dá»¯ liá»‡u...');
+            showCsvProgress(90, 'Đang đồng bộ dữ liệu...');
             await syncWithSupabase();
 
-            showCsvProgress(100, 'HoÃ n thÃ nh!');
-            updateCsvFeedback(`âœ… Nháº­p thÃ nh cÃ´ng ${suppliers.length} nhÃ  cung cáº¥p chÃ­nh vÃ  ${children.length} nhÃ  cung cáº¥p con`, 'success');
+            showCsvProgress(100, 'Hoàn thành!');
+            updateCsvFeedback(`âœ… Nhập thành công ${suppliers.length} nhà cung cấp chính và ${children.length} nhà cung cấp con`, 'success');
 
             setTimeout(() => {
                 hideCsvProgress();
@@ -1363,7 +1363,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const { count: parentCount } = await supabaseClient.from('suppliers').select('*', { count: 'exact', head: true });
             const { count: childCount } = await supabaseClient.from('children').select('*', { count: 'exact', head: true });
 
-            const statusMessage = `ðŸ“Š Trạng thái cơ sở dữ liệu: ${parentCount || 0} nhÃ  cung cáº¥p chÃ­nh, ${childCount || 0} nhÃ  cung cáº¥p con`;
+            const statusMessage = `ðŸ“Š Trạng thái cơ sở dữ liệu: ${parentCount || 0} nhà cung cấp chính, ${childCount || 0} nhà cung cấp con`;
             updateCsvFeedback(statusMessage, 'info');
         } catch (error) {
             console.error('Error fetching supplier status:', error);
@@ -1626,12 +1626,12 @@ document.addEventListener('DOMContentLoaded', () => {
         const placeholderValues = {};
 
         // Extract team name from greeting text for Supplier_Name placeholder
-        // Look for patterns like "Dear Logistics Team," or "KÃ­nh gá»­i Customer Service Team,"
+        // Look for patterns like "Dear Logistics Team," or "Kính gửi Customer Service Team,"
         let extractedTeamName = '';
         const templateContent = template.content || '';
         const greetingPatterns = [
             /Dear\s+([^,\n]+?)(?:,|\n)/i,                    // "Dear Logistics Team,"
-            /KÃ­nh gá»­i\s+([^,\n]+?)(?:,|\n)/i,               // "KÃ­nh gá»­i Team Logistics,"
+            /Kính gửi\s+([^,\n]+?)(?:,|\n)/i,               // "Kính gửi Team Logistics,"
             /Hi\s+([^,\n]+?)(?:,|\n)/i,                      // "Hi Supplier Team,"
             /Hello\s+([^,\n]+?)(?:,|\n)/i                    // "Hello Support Team,"
         ];
@@ -2177,12 +2177,12 @@ document.addEventListener('DOMContentLoaded', () => {
             tbody.innerHTML = data.map(user => `
                         <tr data-user-id="${user.stt}">
                             <td class="p-2 border-b">
-                                <span class="user-account-display">${user.account_name || 'ChÆ°a cÃ³ tÃ i khoáº£n'}</span>
-                                <input type="text" class="user-account-edit hidden w-full p-1 border rounded" value="${user.account_name || ''}" data-field="account_name" placeholder="Nháº­p tÃªn tÃ i khoáº£n">
+                                <span class="user-account-display">${user.account_name || 'Chưa có tài khoản'}</span>
+                                <input type="text" class="user-account-edit hidden w-full p-1 border rounded" value="${user.account_name || ''}" data-field="account_name" placeholder="Nhập tên tài khoản">
                             </td>
                             <td class="p-2 border-b">
                                 <span class="user-name-display">${user.name || ''}</span>
-                                <input type="text" class="user-name-edit hidden w-full p-1 border rounded" value="${user.name || ''}" data-field="name" placeholder="Nháº­p tÃªn hiá»ƒn thá»‹">
+                                <input type="text" class="user-name-edit hidden w-full p-1 border rounded" value="${user.name || ''}" data-field="name" placeholder="Nhập tên hiển thị">
                             </td>
                             <td class="p-2 border-b">
                                 <span class="user-level-display">${user.level === 'user' ? 'member' : user.level}</span>
@@ -2204,13 +2204,13 @@ document.addEventListener('DOMContentLoaded', () => {
                                     Sửa
                                 </button>
                                 <button class="save-user-btn hidden bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs mr-1" data-user-id="${user.stt}">
-                                    LÆ°u
+                                    Lưu
                                 </button>
                                 <button class="cancel-edit-btn hidden bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs mr-1" data-user-id="${user.stt}">
-                                    Há»§y
+                                    Hủy
                                 </button>
                                 <button class="change-password-btn bg-yellow-500 hover:bg-yellow-600 text-white px-2 py-1 rounded text-xs mr-1" data-user-id="${user.stt}">
-                                    Äá»•i MK
+                                    Đổi MK
                                 </button>
                                 <button class="delete-user-btn bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs" data-user-id="${user.stt}">
                                     Xóa
@@ -2239,7 +2239,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const status = document.getElementById('new-user-status').value;
 
             if (!accountName || !password) {
-                showNotification('Vui lÃ²ng nháº­p tÃªn tÃ i khoáº£n vÃ  máº­t kháº©u', 'error');
+                showNotification('Vui lòng nhập tên tài khoản và mật khẩu', 'error');
                 return;
             }
 
@@ -2265,7 +2265,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     throw error;
                 }
 
-                showNotification('Táº¡o tÃ i khoáº£n thÃ nh cÃ´ng', 'success');
+                showNotification('Tạo tài khoản thành công', 'success');
 
                 // Clear form
                 document.getElementById('new-user-account').value = '';
@@ -2276,7 +2276,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 await loadUsersData();
             } catch (error) {
                 console.error('Error creating user:', error);
-                showNotification('Lá»—i khi táº¡o tÃ i khoáº£n: ' + (error.message || error.hint || 'Unknown error'), 'error');
+                showNotification('Lỗi khi tạo tài khoản: ' + (error.message || error.hint || 'Unknown error'), 'error');
             }
         });
 
@@ -2311,7 +2311,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 // Validate account name
                 if (!accountName) {
-                    showNotification('TÃªn tÃ i khoáº£n khÃ´ng Ä‘Æ°á»£c Ä‘á»ƒ trá»‘ng', 'error');
+                    showNotification('Tên tài khoản không được để trống', 'error');
                     return;
                 }
 
@@ -2326,7 +2326,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (checkError) throw checkError;
 
                     if (existingUsers && existingUsers.length > 0) {
-                        showNotification('TÃªn tÃ i khoáº£n Ä‘Ã£ tá»“n táº¡i', 'error');
+                        showNotification('Tên tài khoản đã tồn tại', 'error');
                         return;
                     }
 
@@ -2341,17 +2341,17 @@ document.addEventListener('DOMContentLoaded', () => {
                         .eq('stt', userId);
 
                     if (error) throw error;
-                    showNotification('Cáº­p nháº­t thÃ´ng tin thÃ nh cÃ´ng', 'success');
+                    showNotification('Cập nhật thông tin thành công', 'success');
                     await loadUsersData(); // Reload to show updated data
                 } catch (error) {
                     console.error('Error updating user:', error);
-                    showNotification('Lá»—i khi cáº­p nháº­t thÃ´ng tin: ' + error.message, 'error');
+                    showNotification('Lỗi khi cập nhật thông tin: ' + error.message, 'error');
                 }
             }
 
             if (e.target.classList.contains('change-password-btn')) {
                 const userId = e.target.dataset.userId;
-                const newPassword = prompt('Nháº­p máº­t kháº©u má»›i:');
+                const newPassword = prompt('Nhập mật khẩu mới:');
 
                 if (newPassword) {
                     try {
@@ -2361,10 +2361,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             .eq('stt', userId);
 
                         if (error) throw error;
-                        showNotification('Äá»•i máº­t kháº©u thÃ nh cÃ´ng', 'success');
+                        showNotification('Đổi mật khẩu thành công', 'success');
                     } catch (error) {
                         console.error('Error changing password:', error);
-                        showNotification('Lá»—i khi Ä‘á»•i máº­t kháº©u', 'error');
+                        showNotification('Lỗi khi đổi mật khẩu', 'error');
                     }
                 }
             }
@@ -2372,7 +2372,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (e.target.classList.contains('delete-user-btn')) {
                 const userId = e.target.dataset.userId;
 
-                if (confirm('Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a tÃ i khoáº£n nÃ y?')) {
+                if (confirm('Bạn có chắc chắn muốn xóa tài khoản này?')) {
                     try {
                         const { error } = await supabaseClient
                             .from('vcn_agent')
@@ -2380,11 +2380,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             .eq('stt', userId);
 
                         if (error) throw error;
-                        showNotification('Xóa tÃ i khoáº£n thÃ nh cÃ´ng', 'success');
+                        showNotification('Xóa tài khoản thành công', 'success');
                         await loadUsersData();
                     } catch (error) {
                         console.error('Error deleting user:', error);
-                        showNotification('Lá»—i khi xÃ³a tÃ i khoáº£n', 'error');
+                        showNotification('Lỗi khi xóa tài khoản', 'error');
                     }
                 }
             }
@@ -2451,7 +2451,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         } catch (error) {
             console.error('Error loading KPI filters:', error);
-            showNotification('Lá»—i khi táº£i bá»™ lá»c KPI', 'error');
+            showNotification('Lỗi khi tải bộ lọc KPI', 'error');
         }
     }
 
@@ -2505,10 +2505,10 @@ document.addEventListener('DOMContentLoaded', () => {
                                         Sửa
                                     </button>
                                     <button class="save-kpi-btn hidden bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs mr-1" data-kpi-id="${kpi.id}">
-                                        LÆ°u
+                                        Lưu
                                     </button>
                                     <button class="cancel-kpi-edit-btn hidden bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs mr-1" data-kpi-id="${kpi.id}">
-                                        Há»§y
+                                        Hủy
                                     </button>
                                     <button class="delete-kpi-btn bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs" data-kpi-id="${kpi.id}">
                                         Xóa
@@ -2517,10 +2517,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             </tr>
                         `).join('');
 
-                showNotification(`ÄÃ£ táº£i ${data.length} báº£n ghi KPI`, 'success');
+                showNotification(`Đã tải ${data.length} bản ghi KPI`, 'success');
             } catch (error) {
                 console.error('Error loading KPI data:', error);
-                showNotification('Lá»—i khi táº£i dá»¯ liá»‡u KPI', 'error');
+                showNotification('Lỗi khi tải dữ liệu KPI', 'error');
             }
         });
 
@@ -2559,18 +2559,18 @@ document.addEventListener('DOMContentLoaded', () => {
                         .eq('id', kpiId);
 
                     if (error) throw error;
-                    showNotification('Cáº­p nháº­t KPI thÃ nh cÃ´ng', 'success');
+                    showNotification('Cập nhật KPI thành công', 'success');
 
                     // Reload data to show updated timestamp
                     document.getElementById('load-kpi-data-btn').click();
                 } catch (error) {
                     console.error('Error updating KPI:', error);
-                    showNotification('Lá»—i khi cáº­p nháº­t KPI', 'error');
+                    showNotification('Lỗi khi cập nhật KPI', 'error');
                 }
             }
 
             if (e.target.classList.contains('delete-kpi-btn')) {
-                if (confirm('Báº¡n cÃ³ cháº¯c cháº¯n muá»‘n xÃ³a báº£n ghi KPI nÃ y?')) {
+                if (confirm('Bạn có chắc chắn muốn xóa bản ghi KPI này?')) {
                     try {
                         const { error } = await supabaseClient
                             .from('kpi_per_task')
@@ -2578,13 +2578,13 @@ document.addEventListener('DOMContentLoaded', () => {
                             .eq('id', kpiId);
 
                         if (error) throw error;
-                        showNotification('Xóa KPI thÃ nh cÃ´ng', 'success');
+                        showNotification('Xóa KPI thành công', 'success');
 
                         // Remove row from table
                         row.remove();
                     } catch (error) {
                         console.error('Error deleting KPI:', error);
-                        showNotification('Lá»—i khi xÃ³a KPI', 'error');
+                        showNotification('Lỗi khi xóa KPI', 'error');
                     }
                 }
             }
@@ -3486,8 +3486,8 @@ async function createManualRescheduleNotification(memberId, accountId) {
             console.warn('Could not load notification message setting:', settingsError);
         }
 
-        const baseMessage = settings?.setting_value || 'Báº¡n Ä‘Æ°á»£c phÃ¢n cÃ´ng xá»­ lÃ½ Manual Schedule hÃ´m nay.';
-        const message = `${baseMessage} TÃ i khoáº£n: ${accountId}`;
+        const baseMessage = settings?.setting_value || 'Bạn được phân công xử lý Manual Schedule hôm nay.';
+        const message = `${baseMessage} Tài khoản: ${accountId}`;
 
         const { error: notificationError } = await supabaseClient
             .from('notifications')
