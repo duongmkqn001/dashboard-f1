@@ -1145,20 +1145,51 @@ Best regards,"></textarea>
 
                     <!-- Sample CSV Templates -->
                     <div
-                        class="bg-[rgb(var(--color-bg-secondary))] border border-[rgb(var(--color-border))] rounded-lg p-4">
-                        <h4 class="font-semibold mb-3 text-[rgb(var(--color-text-secondary))]">📄 Mẫu CSV</h4>
+                        class="bg-[rgb(var(--color-bg-secondary))] border border-[rgb(var(--color-border))] rounded-lg p-4 mb-4">
+                        <h4 class="font-semibold mb-3 text-[rgb(var(--color-text-secondary))]">📄 Mẫu CSV (tải về để dùng đúng định dạng)</h4>
                         <div class="grid md:grid-cols-2 gap-4">
                             <div>
                                 <h5 class="font-medium text-sm mb-2">Nhà cung cấp chính:</h5>
                                 <pre class="bg-gray-100 p-2 rounded text-xs overflow-x-auto">suid,suname
 SUP001,Công ty ABC
 SUP002,Công ty XYZ</pre>
+                                <button id="download-suppliers-template"
+                                    class="mt-2 text-xs bg-green-500 hover:bg-green-600 text-white font-medium py-1 px-3 rounded-lg transition-colors">
+                                    ⬇️ Tải mẫu CSV (suppliers)
+                                </button>
                             </div>
                             <div>
                                 <h5 class="font-medium text-sm mb-2">Nhà cung cấp con:</h5>
                                 <pre class="bg-gray-100 p-2 rounded text-xs overflow-x-auto">suchildid,parentSuid
 CHILD001,SUP001
 CHILD002,SUP001</pre>
+                                <button id="download-children-template"
+                                    class="mt-2 text-xs bg-green-500 hover:bg-green-600 text-white font-medium py-1 px-3 rounded-lg transition-colors">
+                                    ⬇️ Tải mẫu CSV (children)
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Replace All (separate tables) -->
+                    <div
+                        class="bg-[rgb(var(--color-bg-secondary))] border border-orange-300 rounded-lg p-4">
+                        <h4 class="font-semibold mb-1 text-orange-700">🔁 Thay thế toàn bộ (riêng lẻ)</h4>
+                        <p class="text-xs text-[rgb(var(--color-text-muted))] mb-3">Xóa toàn bộ và thay thế <strong>riêng từng bảng</strong> mà không ảnh hưởng đến bảng còn lại. ⚠️ Thao tác này không thể hoàn tác.</p>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <div class="border border-orange-200 rounded-lg p-3 bg-orange-50">
+                                <h5 class="font-medium text-sm mb-2 text-orange-800">Thay thế bảng <code>suppliers</code></h5>
+                                <label class="block w-full text-center bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg cursor-pointer transition-colors text-sm">
+                                    📁 Chọn file CSV
+                                    <input type="file" id="replace-suppliers-input" class="hidden" accept=".csv">
+                                </label>
+                            </div>
+                            <div class="border border-orange-200 rounded-lg p-3 bg-orange-50">
+                                <h5 class="font-medium text-sm mb-2 text-orange-800">Thay thế bảng <code>children</code></h5>
+                                <label class="block w-full text-center bg-orange-500 hover:bg-orange-600 text-white font-bold py-2 px-4 rounded-lg cursor-pointer transition-colors text-sm">
+                                    📁 Chọn file CSV
+                                    <input type="file" id="replace-children-input" class="hidden" accept=".csv">
+                                </label>
                             </div>
                         </div>
                     </div>

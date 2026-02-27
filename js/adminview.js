@@ -983,6 +983,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (name) { const { count } = await supabaseClient.from('signatures').select('*', { count: 'exact', head: true }); await supabaseClient.from('signatures').insert({ name, isDefault: count === 0 }); await syncWithSupabase(); document.getElementById('new-signature-name').value = ''; }
         });
         document.getElementById('import-csv-input').addEventListener('change', (e) => handleCsvImport(e.target.files[0]));
+        document.getElementById('replace-suppliers-input').addEventListener('change', (e) => handleReplaceSuppliers(e.target.files[0]));
+        document.getElementById('replace-children-input').addEventListener('change', (e) => handleReplaceChildren(e.target.files[0]));
+        document.getElementById('download-suppliers-template').addEventListener('click', () => downloadCsvTemplate('suppliers'));
+        document.getElementById('download-children-template').addEventListener('click', () => downloadCsvTemplate('children'));
         document.getElementById('add-new-placeholder-btn').addEventListener('click', () => renderPlaceholderEditor(null));
         document.getElementById('load-default-data-btn').addEventListener('click', async () => {
             if (!confirm("This will add default data. It may overwrite existing entries. Continue?")) return;
@@ -1370,6 +1374,115 @@ document.addEventListener('DOMContentLoaded', () => {
             updateCsvFeedback('âŒ Không thể tải trạng thái cơ sở dữ liệu', 'error');
         }
     }
+
+    // Download a blank CSV template file for the given table type
+    function downloadCsvTemplate(type) {
+        let content, filename;
+        if (type === 'suppliers') {
+            content = 'suid,suname\nSUP001,Cong ty ABC\nSUP002,Cong ty XYZ\n';
+            filename = 'template_suppliers.csv';
+        } else {
+            content = 'suchildid,parentSuid\nCHILD001,SUP001\nCHILD002,SUP001\n';
+            filename = 'template_children.csv';
+        }
+        const blob = new Blob(['\uFEFF' + content], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    // Replace All: suppliers table only
+    async function handleReplaceSuppliers(file) {
+        if (!file) return;
+        if (!file.name.toLowerCase().endsWith('.csv')) {
+            updateCsvFeedback('\u274c Vui long chon file CSV', 'error');
+            return;
+        }
+        if (!confirm(`\u26a0\ufe0f Thao tac nay se XOA TOAN BO bang suppliers va thay the bang du lieu trong file "${file.name}". Khong the hoan tac. Tiep tuc?`)) return;
+
+        updateCsvFeedback('\ud83d\udd04 Dang xu ly file CSV (suppliers)...', 'info');
+        showCsvProgress(0, 'Dang doc file...');
+        try {
+            const text = await file.text();
+            showCsvProgress(20, 'Dang phan tich du lieu...');
+            const { suppliers } = parseCsvData(text);
+
+            if (suppliers.length === 0) {
+                throw new Error('Khong tim thay du lieu suppliers hop le. Kiem tra lai header: suid, suname');
+            }
+
+            showCsvProgress(40, 'Dang xoa du lieu cu...');
+            const { data: existingIds } = await supabaseClient.from('suppliers').select('id');
+            if (existingIds?.length > 0) {
+                const { error: delErr } = await supabaseClient.from('suppliers').delete().in('id', existingIds.map(s => s.id));
+                if (delErr) throw delErr;
+            }
+
+            showCsvProgress(70, `Dang nhap ${suppliers.length} nha cung cap...`);
+            const { error: insertErr } = await supabaseClient.from('suppliers').insert(suppliers);
+            if (insertErr) throw insertErr;
+
+            showCsvProgress(90, 'Dang dong bo...');
+            await syncWithSupabase();
+            showCsvProgress(100, 'Hoan thanh!');
+            updateCsvFeedback(`\u2705 Da thay the toan bo suppliers: ${suppliers.length} ban ghi`, 'success');
+            setTimeout(() => { hideCsvProgress(); renderSuppliersStatus(); }, 1500);
+        } catch (error) {
+            console.error('Replace suppliers error:', error);
+            hideCsvProgress();
+            updateCsvFeedback(`\u274c Loi: ${error.message}`, 'error');
+        }
+        document.getElementById('replace-suppliers-input').value = '';
+    }
+
+    // Replace All: children table only
+    async function handleReplaceChildren(file) {
+        if (!file) return;
+        if (!file.name.toLowerCase().endsWith('.csv')) {
+            updateCsvFeedback('\u274c Vui long chon file CSV', 'error');
+            return;
+        }
+        if (!confirm(`\u26a0\ufe0f Thao tac nay se XOA TOAN BO bang children va thay the bang du lieu trong file "${file.name}". Khong the hoan tac. Tiep tuc?`)) return;
+
+        updateCsvFeedback('\ud83d\udd04 Dang xu ly file CSV (children)...', 'info');
+        showCsvProgress(0, 'Dang doc file...');
+        try {
+            const text = await file.text();
+            showCsvProgress(20, 'Dang phan tich du lieu...');
+            const { children } = parseCsvData(text);
+
+            if (children.length === 0) {
+                throw new Error('Khong tim thay du lieu children hop le. Kiem tra lai header: suchildid, parentSuid');
+            }
+
+            showCsvProgress(40, 'Dang xoa du lieu cu...');
+            const { data: existingIds } = await supabaseClient.from('children').select('id');
+            if (existingIds?.length > 0) {
+                const { error: delErr } = await supabaseClient.from('children').delete().in('id', existingIds.map(c => c.id));
+                if (delErr) throw delErr;
+            }
+
+            showCsvProgress(70, `Dang nhap ${children.length} nha cung cap con...`);
+            const { error: insertErr } = await supabaseClient.from('children').insert(children);
+            if (insertErr) throw insertErr;
+
+            showCsvProgress(90, 'Dang dong bo...');
+            await syncWithSupabase();
+            showCsvProgress(100, 'Hoan thanh!');
+            updateCsvFeedback(`\u2705 Da thay the toan bo children: ${children.length} ban ghi`, 'success');
+            setTimeout(() => { hideCsvProgress(); renderSuppliersStatus(); }, 1500);
+        } catch (error) {
+            console.error('Replace children error:', error);
+            hideCsvProgress();
+            updateCsvFeedback(`\u274c Loi: ${error.message}`, 'error');
+        }
+        document.getElementById('replace-children-input').value = '';
+    }
+
+
 
     // --- Utilities ---
     const toTitleCase = (str) => str ? str.replace(/\w\S*/g, txt => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()) : '';

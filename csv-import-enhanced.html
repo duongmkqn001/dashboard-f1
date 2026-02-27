@@ -125,12 +125,11 @@
                             </label>
                             <select id="processing-mode" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100">
                                 <option value="complete-replace">🔄 Logic 1: Xóa toàn bộ bảng và nhập lại từ file</option>
-                                <option value="smart-compare">🧠 Logic 2: So sánh thông minh với database</option>
-                                <option value="add-new-only">➕ Logic 3: Chỉ thêm ticket mới (an toàn)</option>
+                                <option value="smart-update">🔄 Logic 2: Cập nhật thông minh (Re-Open ticket)</option>
                             </select>
                             <div class="mt-2 text-xs text-gray-600 dark:text-gray-400">
                                 <div id="mode-description" class="p-2 bg-gray-100 dark:bg-gray-800 rounded">
-                                    <strong>Thông minh:</strong> Tự động loại bỏ các ticket đã tồn tại, chỉ hiển thị dữ liệu mới để nhập.
+                                    <strong>Logic 1:</strong> Xóa toàn bộ bảng tickets và nhập lại từ file CSV.
                                 </div>
                             </div>
                         </div>
@@ -240,7 +239,7 @@
 
         let supabaseClient;
         let processedData = [];
-        let selectedImportStrategy = 'add-new-only';
+        let selectedImportStrategy = 'complete-replace';
         
         try {
             supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -330,21 +329,19 @@
             const mode = processingMode.value;
             const descriptions = {
                 'complete-replace': '<strong>Logic 1 - Xóa toàn bộ bảng:</strong> Xóa hoàn toàn tất cả dữ liệu trong bảng tickets (giữ lại cấu trúc bảng), sau đó nhập toàn bộ dữ liệu từ file CSV. ⚠️ <span class="text-red-600">Cẩn thận - sẽ mất TẤT CẢ dữ liệu hiện tại!</span>',
-                'smart-compare': '<strong>Logic 2 - So sánh thông minh:</strong> So sánh file với database. <span class="text-green-600">✓ Giữ lại:</span> Ticket đặc biệt (đang xử lý, cần leader, hoặc không cần action). <span class="text-blue-600">+ Thêm:</span> Ticket mới. <span class="text-gray-600">= Bỏ qua:</span> Ticket trùng lặp. <span class="text-red-600">- Xóa:</span> Ticket có trong DB nhưng không có trong file và chưa được xử lý.',
-                'add-new-only': '<strong>Logic 3 - Chỉ thêm mới:</strong> <span class="text-green-600">✓ An toàn 100%</span> - Chỉ thêm những ticket mới từ file CSV. <span class="text-blue-600">+ Thêm:</span> Ticket chưa có trong database. <span class="text-gray-600">= Bỏ qua:</span> Ticket đã tồn tại. <span class="text-green-600">🛡️ Không xóa gì cả!</span>'
+                'smart-update': '<strong>Logic 2 - Cập nhật thông minh:</strong> So sánh file với database và xử lý từng trường hợp. <span class="text-blue-600">🆕 Thêm mới:</span> Ticket chưa có trong DB. <span class="text-orange-600">✏️ Cập nhật:</span> Ticket đã có nhưng chưa được xử lý (agent chưa bắt đầu) → cập nhật thông tin (ví dụ: đổi agent). <span class="text-red-600">🔄 Re-Open:</span> Ticket đã hoàn thành bởi agent nhưng vẫn còn trong file CSV → tạo hàng mới và đánh dấu <em>Re-Open</em> để dễ nhận biết trên Dashboard. <span class="text-gray-600">✋ Giữ nguyên:</span> Ticket đang được xử lý (đã bắt đầu, có status...) → không thay đổi. <span class="text-red-600">🗑️ Xóa:</span> Ticket chưa xử lý có trong DB nhưng không có trong file.'
             };
 
             const modeNames = {
                 'complete-replace': 'Logic 1: Xóa toàn bộ bảng',
-                'smart-compare': 'Logic 2: So sánh thông minh',
-                'add-new-only': 'Logic 3: Chỉ thêm mới (An toàn)'
+                'smart-update': 'Logic 2: Cập nhật thông minh (Re-Open)'
             };
 
-            modeDescription.innerHTML = descriptions[mode] || descriptions['add-new-only'];
+            modeDescription.innerHTML = descriptions[mode] || descriptions['complete-replace'];
 
             // Update current mode name in preview
             if (currentModeName) {
-                currentModeName.textContent = modeNames[mode] || modeNames['add-new-only'];
+                currentModeName.textContent = modeNames[mode] || modeNames['complete-replace'];
             }
         }
 
@@ -378,8 +375,8 @@
 
             toastContainer.appendChild(toast);
 
-            // Auto-dismiss after 5 seconds (except for errors which stay for 8 seconds)
-            const dismissTime = type === 'error' ? 8000 : 5000;
+            // Auto-dismiss: success stays 6 s, info stays 5 s, errors stay 8 s
+            const dismissTime = type === 'error' ? 8000 : type === 'success' ? 6000 : 5000;
             setTimeout(() => {
                 toast.style.opacity = '0';
                 toast.style.transform = 'translateX(100%)';
@@ -509,59 +506,101 @@
 
                 const existingTicketNumbers = new Set(existingTickets.map(t => String(t.ticket)));
 
-                // Process based on the two unique logics
+                // Process based on the two logics
                 switch (mode) {
-                    case 'complete-replace':
+                    case 'complete-replace': {
                         // Logic 1: Delete entire table and import from file
-                        // All data will be imported (no filtering needed)
                         const completeReplaceData = data.map(row => ({
                             ...row,
                             _isDuplicate: existingTicketNumbers.has(String(row.ticket))
                         }));
                         return {
                             finalData: completeReplaceData,
-                            duplicateCount: 0, // No duplicates since we're replacing everything
+                            duplicateCount: 0,
                             totalCount: data.length,
                             modeInfo: 'xóa toàn bộ bảng và nhập lại',
                             importStrategy: 'complete-replace'
                         };
+                    }
 
-                    case 'smart-compare':
-                        // Logic 2: Smart comparison with database
-                        // All data with duplicate marking for smart comparison
-                        const smartCompareData = data.map(row => ({
+                    case 'smart-update': {
+                        // Logic 2: Smart update with Re-Open detection
+                        // Fetch active (open) tickets and completed tickets separately
+                        const [activeResult, completedResult] = await Promise.all([
+                            supabaseClient
+                                .from('tickets')
+                                .select('ticket, time_start, needMos, ticket_status_id, need_leader_support, agent_handle_ticket')
+                                .in('ticket', ticketNumbers)
+                                .is('time_end', null),
+                            supabaseClient
+                                .from('tickets')
+                                .select('ticket')
+                                .in('ticket', ticketNumbers)
+                                .not('time_end', 'is', null)
+                        ]);
+
+                        if (activeResult.error) throw activeResult.error;
+                        if (completedResult.error) throw completedResult.error;
+
+                        const activeMap = new Map((activeResult.data || []).map(t => [String(t.ticket), t]));
+                        const completedSet = new Set((completedResult.data || []).map(t => String(t.ticket)));
+
+                        let newCount = 0, updateCount = 0, reopenCount = 0, skipCount = 0;
+
+                        const smartUpdateData = data.map(row => {
+                            const ticketNum = String(row.ticket);
+                            const activeExisting = activeMap.get(ticketNum);
+                            const hasCompleted = completedSet.has(ticketNum);
+
+                            if (!activeExisting && !hasCompleted) {
+                                newCount++;
+                                return { ...row, _isDuplicate: false, _status: '🆕 Mới' };
+                            } else if (!activeExisting && hasCompleted) {
+                                reopenCount++;
+                                return { ...row, _isDuplicate: true, _isReopen: true, _status: '🔄 Re-Open' };
+                            } else if (activeExisting) {
+                                const isTouched =
+                                    activeExisting.needMos != null ||
+                                    activeExisting.ticket_status_id != null ||
+                                    activeExisting.need_leader_support === true ||
+                                    activeExisting.time_start != null ||
+                                    activeExisting.agent_handle_ticket != null;
+
+                                if (isTouched) {
+                                    skipCount++;
+                                    return { ...row, _isDuplicate: true, _status: '✋ Giữ nguyên (đang xử lý)' };
+                                } else {
+                                    updateCount++;
+                                    return { ...row, _isDuplicate: false, _status: '✏️ Cập nhật' };
+                                }
+                            }
+                            newCount++;
+                            return { ...row, _isDuplicate: false, _status: '🆕 Mới' };
+                        });
+
+                        return {
+                            finalData: smartUpdateData,
+                            duplicateCount: reopenCount,
+                            totalCount: data.length,
+                            modeInfo: `cập nhật thông minh: ${newCount} mới, ${updateCount} cập nhật, ${reopenCount} Re-Open, ${skipCount} giữ nguyên`,
+                            importStrategy: 'smart-update'
+                        };
+                    }
+
+                    default: {
+                        // Default to complete-replace
+                        const defaultData = data.map(row => ({
                             ...row,
                             _isDuplicate: existingTicketNumbers.has(String(row.ticket))
                         }));
                         return {
-                            finalData: smartCompareData,
-                            duplicateCount: data.length - data.filter(row => !existingTicketNumbers.has(String(row.ticket))).length,
-                            totalCount: data.length,
-                            modeInfo: 'so sánh thông minh với database',
-                            importStrategy: 'smart-compare'
-                        };
-
-                    case 'add-new-only':
-                        // Logic 3: Only add new tickets (filter out duplicates)
-                        const newOnlyData = data.filter(row => !existingTicketNumbers.has(String(row.ticket)));
-                        return {
-                            finalData: newOnlyData,
-                            duplicateCount: data.length - newOnlyData.length,
-                            totalCount: data.length,
-                            modeInfo: 'chỉ thêm ticket mới',
-                            importStrategy: 'add-new-only'
-                        };
-
-                    default:
-                        // Default to add-new-only (safest option)
-                        const defaultData = data.filter(row => !existingTicketNumbers.has(String(row.ticket)));
-                        return {
                             finalData: defaultData,
-                            duplicateCount: data.length - defaultData.length,
+                            duplicateCount: 0,
                             totalCount: data.length,
-                            modeInfo: 'chỉ thêm ticket mới (mặc định)',
-                            importStrategy: 'add-new-only'
+                            modeInfo: 'xóa toàn bộ bảng và nhập lại (mặc định)',
+                            importStrategy: 'complete-replace'
                         };
+                    }
                 }
 
             } catch (error) {
@@ -577,50 +616,42 @@
         }
 
         // Show duplicate status function
-        function showDuplicateStatus(duplicateCount, totalCount, mode = 'smart-filter') {
+        function showDuplicateStatus(duplicateCount, totalCount, mode = 'complete-replace') {
             if (!duplicateStatus || !duplicateInfo) return;
 
             const modeMessages = {
-                'smart-filter': {
-                    noDuplicates: 'Tất cả bản ghi đều là dữ liệu mới và sẵn sàng để nhập.',
-                    hasDuplicates: `Đã tự động loại bỏ ${duplicateCount} bản ghi trùng lặp. Còn lại ${totalCount - duplicateCount} bản ghi mới sẽ được nhập.`
+                'complete-replace': {
+                    noDuplicates: 'Tất cả dữ liệu sẽ được nhập. Bảng tickets sẽ bị xóa hoàn toàn trước khi nhập.',
+                    hasDuplicates: `Tất cả ${totalCount} bản ghi sẽ được nhập. Bảng tickets sẽ bị xóa hoàn toàn trước khi nhập. ⚠️ Cẩn thận!`
                 },
-                'include-duplicates': {
-                    noDuplicates: 'Tất cả bản ghi đều là dữ liệu mới.',
-                    hasDuplicates: `Hiển thị tất cả ${totalCount} bản ghi (${duplicateCount} trùng lặp, ${totalCount - duplicateCount} mới). Bạn có thể chọn chiến lược nhập phù hợp.`
-                },
-                'duplicates-only': {
-                    noDuplicates: 'Không có dữ liệu trùng lặp để cập nhật.',
-                    hasDuplicates: `Hiển thị ${duplicateCount} bản ghi trùng lặp để cập nhật.`
-                },
-                'preview-all': {
-                    noDuplicates: 'Tất cả bản ghi đều là dữ liệu mới. Bạn có thể xem trước và lựa chọn.',
-                    hasDuplicates: `Hiển thị tất cả ${totalCount} bản ghi với trạng thái rõ ràng (${duplicateCount} trùng lặp, ${totalCount - duplicateCount} mới).`
+                'smart-update': {
+                    noDuplicates: 'Không có ticket Re-Open. Tất cả bản ghi đều là mới hoặc cập nhật bình thường.',
+                    hasDuplicates: `Phát hiện ${duplicateCount} ticket 🔄 Re-Open (đã hoàn thành nhưng xuất hiện lại trong file CSV). Các ticket này sẽ được tạo hàng mới và đánh dấu Re-Open trên Dashboard để agent dễ nhận biết.`
                 }
             };
 
-            const messages = modeMessages[mode] || modeMessages['smart-filter'];
+            const messages = modeMessages[mode] || modeMessages['complete-replace'];
 
-            if (duplicateCount === 0 || (mode === 'duplicates-only' && duplicateCount === 0)) {
+            if (duplicateCount === 0) {
                 duplicateInfo.className = 'p-4 rounded-lg border bg-green-50 border-green-200';
                 duplicateInfo.innerHTML = `
                     <div class="flex items-center">
                         <svg class="w-5 h-5 text-green-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
                         </svg>
-                        <span class="text-green-800 font-medium">✅ ${mode === 'duplicates-only' ? 'Không có dữ liệu trùng lặp' : 'Không có dữ liệu trùng lặp'}</span>
+                        <span class="text-green-800 font-medium">✅ Không có ticket Re-Open</span>
                     </div>
                     <p class="text-green-700 text-sm mt-1">${messages.noDuplicates}</p>
                 `;
             } else {
-                const colorClass = mode === 'duplicates-only' ? 'orange' : 'blue';
+                const colorClass = mode === 'smart-update' ? 'orange' : 'blue';
                 duplicateInfo.className = `p-4 rounded-lg border bg-${colorClass}-50 border-${colorClass}-200`;
                 duplicateInfo.innerHTML = `
                     <div class="flex items-center">
                         <svg class="w-5 h-5 text-${colorClass}-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                         </svg>
-                        <span class="text-${colorClass}-800 font-medium">🔄 ${mode === 'smart-filter' ? 'Đã lọc dữ liệu trùng lặp tự động' : 'Thông tin dữ liệu'}</span>
+                        <span class="text-${colorClass}-800 font-medium">🔄 ${mode === 'smart-update' ? 'Phát hiện ticket Re-Open' : 'Thông tin dữ liệu'}</span>
                     </div>
                     <p class="text-${colorClass}-700 text-sm mt-1">${messages.hasDuplicates}</p>
                 `;
@@ -924,7 +955,7 @@
 
             const previewRows = data.slice(0, 10);
             previewBody.innerHTML = previewRows.map(row => {
-                const rowClass = row._isDuplicate ? 'bg-yellow-50 dark:bg-yellow-900' : '';
+                const rowClass = row._isReopen ? 'bg-red-50 dark:bg-red-900' : (row._isDuplicate ? 'bg-yellow-50 dark:bg-yellow-900' : '');
                 return `<tr class="hover:bg-gray-50 dark:hover:bg-gray-700 ${rowClass}">${visibleHeaders.map(header => {
                     let cellContent = '';
                     let cellClass = `px-3 py-2 text-xs text-main whitespace-nowrap`;
@@ -932,10 +963,10 @@
                     if (header === 'Trạng thái') {
                         if (row._status) {
                             cellContent = row._status;
-                            cellClass += row._isDuplicate ? ' text-orange-600 font-medium' : ' text-green-600 font-medium';
+                            cellClass += row._isReopen ? ' text-red-600 font-bold' : (row._isDuplicate ? ' text-orange-600 font-medium' : ' text-green-600 font-medium');
                         } else if (row._isDuplicate !== undefined) {
-                            cellContent = row._isDuplicate ? 'Trùng lặp' : 'Mới';
-                            cellClass += row._isDuplicate ? ' text-orange-600 font-medium' : ' text-green-600 font-medium';
+                            cellContent = row._isReopen ? '🔄 Re-Open' : (row._isDuplicate ? 'Trùng lặp' : 'Mới');
+                            cellClass += row._isReopen ? ' text-red-600 font-bold' : (row._isDuplicate ? ' text-orange-600 font-medium' : ' text-green-600 font-medium');
                         }
                     } else {
                         cellContent = row[header] || '';
@@ -963,30 +994,26 @@
             const strategy = selectedImportStrategy;
             const strategyNames = {
                 'complete-replace': 'Logic 1: Xóa toàn bộ bảng và nhập lại từ file',
-                'smart-compare': 'Logic 2: So sánh thông minh với database',
-                'add-new-only': 'Logic 3: Chỉ thêm ticket mới (An toàn)'
+                'smart-update': 'Logic 2: Cập nhật thông minh (Re-Open ticket)'
             };
 
-            if (!confirm(`Bạn có chắc chắn muốn nhập ${processedData.length} bản ghi bằng chiến lược: ${strategyNames[strategy]}?`)) {
+            if (!confirm(`Bạn có chắc chắn muốn nhập ${processedData.length} bản ghi bằng chiến lược: ${strategyNames[strategy] || strategy}?`)) {
                 return;
             }
 
             try {
-                showStatus(`Đang nhập dữ liệu bằng ${strategyNames[strategy]}...`, 'info');
+                showStatus(`Đang nhập dữ liệu bằng ${strategyNames[strategy] || strategy}...`, 'info');
                 setProcessing(true);
 
                 switch (strategy) {
                     case 'complete-replace':
                         await importCompleteReplace();
                         break;
-                    case 'smart-compare':
-                        await importSmartCompare();
-                        break;
-                    case 'add-new-only':
-                        await importAddNewOnly();
+                    case 'smart-update':
+                        await importSmartUpdate();
                         break;
                     default:
-                        await importAddNewOnly();
+                        await importCompleteReplace();
                         break;
                 }
 
@@ -1024,157 +1051,154 @@
 
             if (insertError) throw insertError;
 
-            showStatus(`✅ Logic 1 Complete: Replaced entire table with ${processedData.length} new records from file`, 'success');
+            showStatus(`✅ Hoàn tất: đã thay thế toàn bộ bảng với ${processedData.length} ticket mới từ file.`, 'success');
         }
 
-        // Logic 2: Smart Compare - Compare file with database and handle accordingly
-        async function importSmartCompare() {
-            showStatus('🧠 Logic 2: Starting smart comparison with database...', 'info');
+        // Logic 2: Smart Update - Smart comparison with Re-Open detection
+        async function importSmartUpdate() {
+            showStatus('🔄 Logic 2: Bắt đầu cập nhật thông minh với Re-Open...', 'info');
 
-            // Get ALL existing tickets from database (not just those in CSV)
-            const { data: allExistingTickets, error: fetchAllError } = await supabaseClient
-                .from('tickets')
-                .select('*');
-
-            if (fetchAllError) throw fetchAllError;
-
-            // Get ticket numbers from CSV file
+            // Get all ticket numbers from CSV
             const csvTicketNumbers = new Set(processedData.map(row => row.ticket).filter(t => t));
 
-            // Map existing tickets by ticket number
-            const existingMap = new Map(allExistingTickets.map(t => [t.ticket, t]));
+            // Step 1: Fetch ALL active (open, time_end IS NULL) tickets from DB
+            showStatus('📊 Bước 1: Tải dữ liệu từ database...', 'info');
+            const { data: activeTickets, error: activeError } = await supabaseClient
+                .from('tickets')
+                .select('id, ticket, time_start, needMos, ticket_status_id, need_leader_support, agent_handle_ticket, assignee_account')
+                .is('time_end', null);
 
-            const toInsert = [];      // New tickets from CSV
-            const toUpdate = [];      // Existing tickets to update
-            const toDelete = [];      // Tickets to delete from DB
-            let skippedSpecial = 0;   // Special tickets skipped
-            let skippedDuplicates = 0; // Duplicate tickets skipped
+            if (activeError) throw activeError;
 
-            // Step 1: Process CSV data
-            showStatus('📊 Step 1: Processing CSV tickets...', 'info');
+            // Step 2: Fetch completed tickets that match CSV ticket numbers (for Re-Open detection)
+            const { data: completedTickets, error: completedError } = await supabaseClient
+                .from('tickets')
+                .select('id, ticket')
+                .in('ticket', [...csvTicketNumbers])
+                .not('time_end', 'is', null);
+
+            if (completedError) throw completedError;
+
+            // Build lookup maps
+            const activeMap = new Map((activeTickets || []).map(t => [String(t.ticket), t]));
+            const completedSet = new Set((completedTickets || []).map(t => String(t.ticket)));
+
+            const toInsert = [];    // Brand new tickets
+            const toUpdate = [];    // Active untouched tickets to update
+            const toReopen = [];    // Completed tickets reappearing → create Re-Open row
+            const toDelete = [];    // Active untouched tickets not in CSV → delete
+            let skippedTouched = 0; // Active touched tickets → keep as is
+
+            // Step 3: Classify each CSV row
+            showStatus('📊 Bước 2: Phân loại dữ liệu...', 'info');
             for (const row of processedData) {
-                const existing = existingMap.get(row.ticket);
+                const ticketNum = String(row.ticket);
+                const activeExisting = activeMap.get(ticketNum);
+                const hasCompleted = completedSet.has(ticketNum);
 
-                if (!existing) {
-                    // New ticket - add to insert list
+                if (!activeExisting && !hasCompleted) {
+                    // Ticket does not exist at all → insert new
                     toInsert.push(row);
-                } else {
-                    // Check if it's a special case
-                    const isNoActionNeeded = existing.time_end != null &&
-                        (existing.notes && existing.notes.includes('No action needed'));
+                } else if (!activeExisting && hasCompleted) {
+                    // Ticket was completed but reappears in CSV → Re-Open
+                    toReopen.push(row);
+                } else if (activeExisting) {
+                    const isTouched =
+                        activeExisting.needMos != null ||
+                        activeExisting.ticket_status_id != null ||
+                        activeExisting.need_leader_support === true ||
+                        activeExisting.time_start != null ||
+                        activeExisting.agent_handle_ticket != null;
 
-                    const isSpecial =
-                        existing.needMos != null ||                    // Needs MOS approval
-                        existing.ticket_status_id != null ||          // Has status assigned
-                        existing.need_leader_support === true ||      // Needs leader help
-                        existing.time_start != null ||                // Ticket has been started
-                        existing.time_end != null ||                  // Ticket has been completed
-                        existing.agent_handle_ticket != null ||       // Ticket has been handled
-                        isNoActionNeeded;                             // Ticket marked as no action needed
-
-                    if (isSpecial) {
-                        // Skip special tickets - keep them as is
-                        skippedSpecial++;
-                        const reason = isNoActionNeeded ? 'no action needed' :
-                                     existing.need_leader_support ? 'needs leader support' :
-                                     existing.time_end ? 'completed' :
-                                     existing.time_start ? 'in progress' : 'special status';
-                        console.log(`Keeping special ticket ${row.ticket} - ${reason}`);
+                    if (isTouched) {
+                        // Ticket is being worked on → keep as is
+                        skippedTouched++;
                     } else {
-                        // Duplicate - do nothing (skip)
-                        skippedDuplicates++;
-                        console.log(`Skipping duplicate ticket ${row.ticket} - already exists and not special`);
+                        // Ticket exists but untouched → update fields from CSV
+                        toUpdate.push({ ...row, _existingId: activeExisting.id });
                     }
                 }
             }
 
-            // Step 2: Find tickets to delete (exist in DB but not in file, and not special)
-            showStatus('🗑️ Step 2: Finding tickets to delete...', 'info');
-            for (const existingTicket of allExistingTickets) {
-                if (!csvTicketNumbers.has(existingTicket.ticket)) {
-                    // Ticket exists in DB but not in CSV file
-                    const isNoActionNeeded = existingTicket.time_end != null &&
-                        (existingTicket.notes && existingTicket.notes.includes('No action needed'));
+            // Step 4: Find active untouched tickets NOT in CSV → delete them
+            showStatus('🗑️ Bước 3: Tìm ticket cần xóa...', 'info');
+            for (const activeTicket of (activeTickets || [])) {
+                if (!csvTicketNumbers.has(String(activeTicket.ticket))) {
+                    const isTouched =
+                        activeTicket.needMos != null ||
+                        activeTicket.ticket_status_id != null ||
+                        activeTicket.need_leader_support === true ||
+                        activeTicket.time_start != null ||
+                        activeTicket.agent_handle_ticket != null;
 
-                    const isSpecial =
-                        existingTicket.needMos != null ||
-                        existingTicket.ticket_status_id != null ||
-                        existingTicket.need_leader_support === true ||
-                        existingTicket.time_start != null ||
-                        existingTicket.time_end != null ||
-                        existingTicket.agent_handle_ticket != null ||
-                        isNoActionNeeded;
-
-                    if (!isSpecial) {
-                        // Not special and not in file - delete it
-                        toDelete.push(existingTicket);
+                    if (!isTouched) {
+                        toDelete.push(activeTicket);
                     }
                 }
             }
 
-            // Step 3: Execute operations
+            // Step 5: Execute all operations
             let deletedCount = 0;
             if (toDelete.length > 0) {
-                showStatus(`🗑️ Step 3a: Deleting ${toDelete.length} unprocessed tickets not in file...`, 'info');
-                const idsToDelete = toDelete.map(t => t.id);
+                showStatus(`🗑️ Đang xóa ${toDelete.length} ticket không còn trong file...`, 'info');
                 const { error: deleteError } = await supabaseClient
                     .from('tickets')
                     .delete()
-                    .in('id', idsToDelete);
-
+                    .in('id', toDelete.map(t => t.id));
                 if (deleteError) throw deleteError;
                 deletedCount = toDelete.length;
             }
 
+            let updatedCount = 0;
+            if (toUpdate.length > 0) {
+                showStatus(`✏️ Đang cập nhật ${toUpdate.length} ticket...`, 'info');
+                for (const row of toUpdate) {
+                    const { error: updateError } = await supabaseClient
+                        .from('tickets')
+                        .update({
+                            po: row.po,
+                            suid: row.suid,
+                            su_name: row.su_name,
+                            supplier_agent_need: row.supplier_agent_need,
+                            supplier_agent: row.supplier_agent,
+                            order_number: row.order_number,
+                            po_nocs: row.po_nocs,
+                            customer: row.customer,
+                            customer_contact: row.customer_contact,
+                            issue_type: row.issue_type,
+                            issue_id: row.issue_id,
+                            description_eng: row.description_eng,
+                            description_vie: row.description_vie,
+                            assignee_account: row.agent_account
+                        })
+                        .eq('id', row._existingId);
+                    if (updateError) throw updateError;
+                    updatedCount++;
+                }
+            }
+
             if (toInsert.length > 0) {
-                showStatus(`➕ Step 3b: Adding ${toInsert.length} new tickets from file...`, 'info');
+                showStatus(`➕ Đang thêm ${toInsert.length} ticket mới...`, 'info');
                 const insertData = prepareTicketData(toInsert);
                 const { error: insertError } = await supabaseClient
                     .from('tickets')
                     .insert(insertData);
-
                 if (insertError) throw insertError;
             }
 
-            const statusMessage = `✅ Logic 2 Complete: ➕${toInsert.length} added, 🗑️${deletedCount} deleted, ✋${skippedSpecial} special kept, ⏭️${skippedDuplicates} duplicates skipped`;
-            showStatus(statusMessage, 'success');
-        }
-
-        // Logic 3: Add New Only - Only add new tickets, never delete anything
-        async function importAddNewOnly() {
-            showStatus('➕ Logic 3: Adding only new tickets (100% safe)...', 'info');
-
-            // Get ticket numbers from CSV
-            const csvTicketNumbers = processedData.map(row => row.ticket).filter(t => t);
-
-            // Get existing ticket numbers from database
-            const { data: existingTickets, error: fetchError } = await supabaseClient
-                .from('tickets')
-                .select('ticket')
-                .in('ticket', csvTicketNumbers);
-
-            if (fetchError) throw fetchError;
-
-            // Find which tickets are truly new
-            const existingTicketNumbers = new Set(existingTickets.map(t => t.ticket));
-            const newTickets = processedData.filter(row => !existingTicketNumbers.has(row.ticket));
-            const skippedExisting = processedData.length - newTickets.length;
-
-            if (newTickets.length === 0) {
-                showStatus('ℹ️ No new tickets to add. All tickets from CSV already exist in database.', 'info');
-                return;
+            if (toReopen.length > 0) {
+                showStatus(`🔄 Đang tạo ${toReopen.length} ticket Re-Open...`, 'info');
+                const reopenData = prepareTicketData(toReopen).map(t => ({
+                    ...t,
+                    notes: 'RE-OPEN'
+                }));
+                const { error: reopenError } = await supabaseClient
+                    .from('tickets')
+                    .insert(reopenData);
+                if (reopenError) throw reopenError;
             }
 
-            // Insert only new tickets
-            showStatus(`➕ Adding ${newTickets.length} new tickets to database...`, 'info');
-            const ticketData = prepareTicketData(newTickets);
-            const { error: insertError } = await supabaseClient
-                .from('tickets')
-                .insert(ticketData);
-
-            if (insertError) throw insertError;
-
-            const statusMessage = `✅ Logic 3 Complete: ➕${newTickets.length} new tickets added${skippedExisting > 0 ? `, ⏭️${skippedExisting} existing tickets skipped` : ''} 🛡️ Nothing deleted!`;
+            const statusMessage = `✅ Logic 2 hoàn tất: 🆕${toInsert.length} mới, ✏️${updatedCount} cập nhật, 🔄${toReopen.length} Re-Open, 🗑️${deletedCount} đã xóa, ✋${skippedTouched} giữ nguyên`;
             showStatus(statusMessage, 'success');
         }
 

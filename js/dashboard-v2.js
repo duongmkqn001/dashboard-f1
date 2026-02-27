@@ -642,7 +642,7 @@ async function fetchAndRenderTickets(forceRefresh = false) {
             // OPTIMIZATION: Select only needed columns instead of '*'
             // Added 'suid' for template SUID search functionality
             // Join with agent table to get team information for filtering
-            const columns = 'id,ticket,po,issue_type,time_start,assignee_account,need_leader_support,needMos,ticket_status_id,agent_handle_ticket,ot_mode,suid,updated_at,order_number,po_nocs,issue_id,customer_contact,customer,agent!inner(team)';
+            const columns = 'id,ticket,po,issue_type,time_start,assignee_account,need_leader_support,needMos,ticket_status_id,agent_handle_ticket,ot_mode,suid,updated_at,order_number,po_nocs,issue_id,customer_contact,customer,notes,agent!inner(team)';
 
             let query = supabaseClient.from('tickets').select(columns).is('time_end', null);
             if (selectedAssignee) query = query.eq('assignee_account', selectedAssignee);
@@ -730,7 +730,9 @@ function renderTable(tickets) {
         const firstItem = items[0];
 
         items.forEach((item, index) => {
-            htmlChunks.push(`<tr data-ticket-id="${item.id}" data-po-group="${poKey}">`);
+            const isReopen = item.notes === 'RE-OPEN';
+            const rowBgClass = isReopen ? 'bg-red-200 dark:bg-red-900/60 theme-yellow:bg-red-200' : '';
+            htmlChunks.push(`<tr data-ticket-id="${item.id}" data-po-group="${poKey}" class="${rowBgClass}">`);
 
             if (index === 0) {
                 if (currentViewMode !== 'mos') {
@@ -744,11 +746,17 @@ function renderTable(tickets) {
                     );
                 }
 
+                const reopenBadge = firstItem.notes === 'RE-OPEN'
+                    ? `<span class="ml-2 inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold bg-red-600 text-white shadow-sm">🔄 Re-Open</span>`
+                    : '';
+
                 htmlChunks.push(
                     `<td class="px-6 py-4 align-middle font-medium text-headings border-b border-main" rowspan="${rowCount}">`,
                     `<a href="https://supporthub.service.csnzoo.com/browse/${firstItem.ticket}" target="_blank" class="text-blue-400 hover:text-blue-300 underline">`,
                     firstItem.ticket || '',
-                    `</a></td>`,
+                    `</a>`,
+                    reopenBadge,
+                    `</td>`,
                     `<td class="px-6 py-4 align-middle border-b border-main" rowspan="${rowCount}">`,
                     `<select data-action="status-change" data-ticket-id="${firstItem.id}" class="border border-secondary text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2">`,
                     `<option value="" selected>-- Chọn trạng thái --</option>`,
@@ -1148,7 +1156,9 @@ async function handleGroupAction(button, ticketIds, action) {
         return showMessage('Vui lòng đăng nhập để thực hiện thao tác này.', 'error');
     }
 
-    const firstTicketId = ticketIds[0];
+    // Always anchor to the specific row the agent clicked (its unique DB id),
+    // NOT ticketIds[0] which follows ticketsMap insertion order and may differ.
+    const firstTicketId = parseInt(button.dataset.ticketId, 10);
     const statusSelect = document.querySelector(`select[data-ticket-id="${firstTicketId}"][data-action="status-change"]`);
     if (action === 'end' && !statusSelect.value) {
         return showMessage('Vui lòng chọn trạng thái ticket.', 'error');
