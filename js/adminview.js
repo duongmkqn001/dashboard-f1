@@ -2157,6 +2157,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- User Management Functions ---
+    let userManagementSetup = false;
+
     async function renderUsersTab() {
         await loadUsersData();
         setupUserManagement();
@@ -2225,8 +2227,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
     function setupUserManagement() {
+        if (userManagementSetup) return;
+        userManagementSetup = true;
+
         // Create user button
-        document.getElementById('create-user-btn').addEventListener('click', async () => {
+        document.getElementById('tab-create-user-btn').addEventListener('click', async () => {
             const accountName = document.getElementById('new-user-account').value.trim();
             const name = document.getElementById('new-user-name').value.trim();
             const password = document.getElementById('new-user-password').value;
@@ -2244,29 +2249,16 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                // First, get the highest stt value to generate the next one
-                const { data: maxData, error: maxError } = await supabaseClient
-                    .from('vcn_agent')
-                    .select('stt')
-                    .order('stt', { ascending: false })
-                    .limit(1);
-
-                if (maxError) throw maxError;
-
-                const nextStt = maxData && maxData.length > 0 ? maxData[0].stt + 1 : 1;
-
-                // Insert the new user with all required fields
-                const { data, error } = await supabaseClient
+                // Insert the new user — stt is serial so the DB auto-generates it
+                const { error } = await supabaseClient
                     .from('vcn_agent')
                     .insert({
-                        stt: nextStt,
                         account_name: accountName,
                         account_password: password,
                         name: name,
-                        level: level === 'member' ? 'user' : level,
+                        level: level,
                         status: status
-                    })
-                    .select();
+                    });
 
                 if (error) {
                     console.error('Insert error details:', error);
