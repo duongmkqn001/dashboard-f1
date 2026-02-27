@@ -569,11 +569,15 @@ function showMessage(message, type = 'info', duration = 3000) {
 async function populateAssignees() {
     if (!supabaseClient) return;
     try {
-        const { data, error } = await supabaseClient.from('agent').select('agent_account, agent_name');
+        const { data, error } = await supabaseClient.from('agent').select('agent_account, agent_name, signature_name');
         if (error) throw error;
         assigneeSelect.innerHTML = '<option value="">-- Toàn Bộ --</option>';
         data.forEach(agent => {
-            allAgentsMap.set(agent.agent_account, agent.agent_name);
+            // Store both agent_name and signature_name in the map
+            allAgentsMap.set(agent.agent_account, {
+                name: agent.agent_name,
+                signature_name: agent.signature_name
+            });
             const option = document.createElement('option');
             option.value = agent.agent_account;
             option.textContent = `${agent.agent_name} (${agent.agent_account})`;
@@ -984,7 +988,8 @@ function renderNeedHelpColumn(item) {
 
     if (isLeaderView) {
         // In leader view, show assignee name from agent table
-        const assigneeName = allAgentsMap.get(item.assignee_account) || item.assignee_account;
+        const agentData = allAgentsMap.get(item.assignee_account);
+        const assigneeName = agentData?.name || item.assignee_account;
         return `<span class="text-sm font-medium text-blue-600">Assigned to: ${assigneeName}</span>`;
     } else if (isMosView) {
         // In MoS view, show requester name (agent who handled the ticket)
@@ -1806,9 +1811,14 @@ function updateFinalOutput() {
 
     // Get signature data
     const assigneeAccount = popupCurrentTicket.assignee_account;
-    const assigneeName = allAgentsMap.get(assigneeAccount);
-    const signature = allSignatures.find(s => s.name === assigneeName) || allSignatures.find(s => s.isDefault) || allSignatures[0];
-    let signatureText = signature ? `${signature.name}\n${signature.title || ''}\n${signature.department || ''}`.trim() : '';
+    const agentData = allAgentsMap.get(assigneeAccount);
+    // Use signature_name from agent table to find the correct signature
+    const signature = agentData?.signature_name
+        ? allSignatures.find(s => s.name === agentData.signature_name)
+        : null;
+    // Fall back to default signature if no match found
+    const finalSignature = signature || allSignatures.find(s => s.isDefault) || allSignatures[0];
+    let signatureText = finalSignature ? `${finalSignature.name}\n${finalSignature.title || ''}\n${finalSignature.department || ''}`.trim() : '';
 
     // Replace {{signature}} placeholder in content (like adminview.js does)
     content = content.replace(/\{\{signature\}\}/g, signatureText);
@@ -2307,9 +2317,14 @@ async function openCarrierEmailModal(template, isBeforeTemplate = false) {
 
             // Auto-fill signature placeholder
             const assigneeAccount = popupCurrentTicket?.assignee_account;
-            const assigneeName = allAgentsMap.get(assigneeAccount);
-            const signature = allSignatures.find(s => s.name === assigneeName) || allSignatures.find(s => s.isDefault) || allSignatures[0];
-            let signatureText = signature ? `${signature.name}\n${signature.title || ''}\n${signature.department || ''}`.trim() : '';
+            const agentData = allAgentsMap.get(assigneeAccount);
+            // Use signature_name from agent table to find the correct signature
+            const signature = agentData?.signature_name
+                ? allSignatures.find(s => s.name === agentData.signature_name)
+                : null;
+            // Fall back to default signature if no match found
+            const finalSignature = signature || allSignatures.find(s => s.isDefault) || allSignatures[0];
+            let signatureText = finalSignature ? `${finalSignature.name}\n${finalSignature.title || ''}\n${finalSignature.department || ''}`.trim() : '';
 
             // Replace all placeholders in email body
             emailBody = emailBody
@@ -2633,9 +2648,14 @@ function openWdnSupplierEmailModal(template) {
 
             // Get signature
             const assigneeAccount = popupCurrentTicket?.assignee_account;
-            const assigneeName = allAgentsMap.get(assigneeAccount);
-            const signature = allSignatures.find(s => s.name === assigneeName) || allSignatures.find(s => s.isDefault) || allSignatures[0];
-            let signatureText = signature ? `${signature.name}\n${signature.title || ''}\n${signature.department || ''}`.trim() : '';
+            const agentData = allAgentsMap.get(assigneeAccount);
+            // Use signature_name from agent table to find the correct signature
+            const signature = agentData?.signature_name
+                ? allSignatures.find(s => s.name === agentData.signature_name)
+                : null;
+            // Fall back to default signature if no match found
+            const finalSignature = signature || allSignatures.find(s => s.isDefault) || allSignatures[0];
+            let signatureText = finalSignature ? `${finalSignature.name}\n${finalSignature.title || ''}\n${finalSignature.department || ''}`.trim() : '';
 
             // Replace {{signature}} placeholder in content
             content = content.replace(/\{\{signature\}\}/g, signatureText);
