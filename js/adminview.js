@@ -36,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (themeSwitch) {
             const logoutBtn = document.createElement('button');
             logoutBtn.className = 'p-2 bg-red-100 hover:bg-red-200 rounded-full transition-colors text-red-600 ml-2';
-            logoutBtn.title = 'ÄÄƒng xuáº¥t';
+            logoutBtn.title = 'Đăng xuất';
             logoutBtn.innerHTML = `
                         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
@@ -251,8 +251,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <p class="text-xs text-[rgb(var(--color-text-muted))] mt-1">${timeAgoStr}${customerTag}${carrierTag}</p>
                             </div>
                             <div class="flex gap-2 flex-shrink-0">
-                                <button class="edit-btn p-1" title="Sá»­a"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-[rgb(var(--color-text-muted))] hover:text-[rgb(var(--color-accent-primary))]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.536L16.732 3.732z" /></svg></button>
-                                <button class="delete-btn p-1" title="XÃ³a"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-[rgb(var(--color-text-muted))] hover:text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
+                                <button class="edit-btn p-1" title="Sửa"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-[rgb(var(--color-text-muted))] hover:text-[rgb(var(--color-accent-primary))]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.536L16.732 3.732z" /></svg></button>
+                                <button class="delete-btn p-1" title="Xóa"><svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-[rgb(var(--color-text-muted))] hover:text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg></button>
                             </div>
                         </div>
                     `;
@@ -428,7 +428,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         dom.viewerTitle.textContent = template.name;
-        dom.viewerCategory.textContent = `Dá»± Ã¡n: ${template.projects?.name || 'N/A'} / Danh má»¥c: ${template.issue}`;
+        dom.viewerCategory.textContent = `Dự án: ${template.projects?.name || 'N/A'} / Danh mục: ${template.issue}`;
         const lastUpdated = template.updated_at || template.created_at;
         dom.viewerUpdatedDate.textContent = lastUpdated ? `Updated: ${new Date(lastUpdated).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}` : '';
         dom.viewerDescription.textContent = template.description || '';
@@ -653,8 +653,8 @@ document.addEventListener('DOMContentLoaded', () => {
         div.id = itemId;
         div.innerHTML = `
     <button type="button" onclick="document.getElementById('${itemId}').remove()" class="absolute top-1 right-1 text-red-400 hover:text-red-600 font-bold text-lg">&times;</button>
-    <input type="text" class="guide-item-title w-full p-1 border-b border-[rgb(var(--color-border))] mb-1 text-sm font-semibold bg-transparent" value="${title}" placeholder="TÃªn chá»‰ má»¥c.">
-    <textarea class="guide-item-content w-full p-1 text-sm bg-transparent" rows="2" placeholder="Ná»™i dung/hÆ°á»›ng dáº«n.">${content}</textarea>
+    <input type="text" class="guide-item-title w-full p-1 border-b border-[rgb(var(--color-border))] mb-1 text-sm font-semibold bg-transparent" value="${title}" placeholder="Tên chỉ mục.">
+    <textarea class="guide-item-content w-full p-1 text-sm bg-transparent" rows="2" placeholder="Nội dung/hướng dẫn.">${content}</textarea>
   `;
         return div;
     }
@@ -668,11 +668,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (type === 'follow-up') {
             details.innerHTML = `
       <summary class="flex justify-between items-center font-semibold cursor-pointer">
-        <input type="text" class="guide-step-title flex-grow font-semibold bg-transparent" value="${stepData.title || ''}" placeholder="TÃªn bÆ°á»›c.">
+        <input type="text" class="guide-step-title flex-grow font-semibold bg-transparent" value="${stepData.title || ''}" placeholder="Tên bước.">
         <button type="button" class="remove-guide-step-btn text-red-500 hover:text-red-700 ml-2">&times;</button>
       </summary>
       <div class="mt-2">
-        <textarea class="guide-item-action w-full p-1 text-sm bg-transparent border rounded" rows="2" placeholder="HÃ nh Ä‘á»™ng / Link.">${stepData.action || ''}</textarea>
+        <textarea class="guide-item-action w-full p-1 text-sm bg-transparent border rounded" rows="2" placeholder="Hành động / Link.">${stepData.action || ''}</textarea>
       </div>`;
         } else {
             details.innerHTML = `
@@ -681,7 +681,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <button type="button" class="remove-guide-step-btn text-red-500 hover:text-red-700 ml-2">&times;</button>
       </summary>
       <div class="mt-3 space-y-3" id="guide-items-${stepId}"></div>
-      <button type="button" data-step-id="${stepId}" class="add-guide-item-btn mt-3 text-sm bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold py-1 px-3 rounded-md">+ ThÃªm má»¥c</button>`;
+      <button type="button" data-step-id="${stepId}" class="add-guide-item-btn mt-3 text-sm bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold py-1 px-3 rounded-md">+ Thêm mục</button>`;
 
             const itemsContainer = details.querySelector(`#guide-items-${stepId}`);
             if (stepData.items && Array.isArray(stepData.items)) {
@@ -1125,7 +1125,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const value = valInput.value.trim(); const text = txtInput.value.trim() || value;
             if (value) {
                 const row = container.querySelector('#placeholder-options-table tbody').insertRow();
-                row.innerHTML = `<td class="p-2 border">${value}</td><td class="p-2 border">${text}</td><td class="p-2 border text-center"><button class="text-red-500 hover:underline">XÃ³a</button></td>`;
+                row.innerHTML = `<td class="p-2 border">${value}</td><td class="p-2 border">${text}</td><td class="p-2 border text-center"><button class="text-red-500 hover:underline">Xóa</button></td>`;
                 row.querySelector('button').onclick = () => row.remove();
                 valInput.value = ''; txtInput.value = '';
             }
@@ -1135,7 +1135,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     function renderPlaceholderOptionsTable(options) {
         const container = document.getElementById('placeholder-options-table');
-        container.innerHTML = `<table class="w-full border-collapse text-sm"><thead><tr class="bg-[rgb(var(--color-bg-tertiary))]"><th class="p-2 border text-left">Value</th><th class="p-2 border text-left">Text</th><th class="w-16 p-2 border"></th></tr></thead><tbody>${(options || []).map(opt => `<tr><td class="p-2 border">${opt.value}</td><td class="p-2 border">${opt.text}</td><td class="p-2 border text-center"><button class="text-red-500 hover:underline">XÃ³a</button></td></tr>`).join('')}</tbody></table>`;
+        container.innerHTML = `<table class="w-full border-collapse text-sm"><thead><tr class="bg-[rgb(var(--color-bg-tertiary))]"><th class="p-2 border text-left">Value</th><th class="p-2 border text-left">Text</th><th class="w-16 p-2 border"></th></tr></thead><tbody>${(options || []).map(opt => `<tr><td class="p-2 border">${opt.value}</td><td class="p-2 border">${opt.text}</td><td class="p-2 border text-center"><button class="text-red-500 hover:underline">Xóa</button></td></tr>`).join('')}</tbody></table>`;
         container.querySelectorAll('tbody button').forEach(btn => btn.onclick = (e) => e.target.closest('tr').remove());
     }
     async function handleSavePlaceholder() {
@@ -1169,7 +1169,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const { suppliers, children } = parseCsvData(text);
 
             if (suppliers.length === 0 && children.length === 0) {
-                throw new Error('KhÃ´ng tÃ¬m tháº¥y dá»¯ liá»‡u há»£p lá»‡ trong file CSV');
+                throw new Error('Không tìm thấy dữ liệu hợp lệ trong file CSV');
             }
 
             showCsvProgress(40, 'Äang xÃ³a dá»¯ liá»‡u cÅ©...');
@@ -1217,7 +1217,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             console.error('CSV Import Error:', error);
             hideCsvProgress();
-            updateCsvFeedback(`âŒ Lá»—i nháº­p CSV: ${error.message}`, 'error');
+            updateCsvFeedback(`âŒ Lỗi nhập CSV: ${error.message}`, 'error');
         }
     }
 
@@ -1363,11 +1363,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const { count: parentCount } = await supabaseClient.from('suppliers').select('*', { count: 'exact', head: true });
             const { count: childCount } = await supabaseClient.from('children').select('*', { count: 'exact', head: true });
 
-            const statusMessage = `ðŸ“Š Tráº¡ng thÃ¡i cÆ¡ sá»Ÿ dá»¯ liá»‡u: ${parentCount || 0} nhÃ  cung cáº¥p chÃ­nh, ${childCount || 0} nhÃ  cung cáº¥p con`;
+            const statusMessage = `ðŸ“Š Trạng thái cơ sở dữ liệu: ${parentCount || 0} nhÃ  cung cáº¥p chÃ­nh, ${childCount || 0} nhÃ  cung cáº¥p con`;
             updateCsvFeedback(statusMessage, 'info');
         } catch (error) {
             console.error('Error fetching supplier status:', error);
-            updateCsvFeedback('âŒ KhÃ´ng thá»ƒ táº£i tráº¡ng thÃ¡i cÆ¡ sá»Ÿ dá»¯ liá»‡u', 'error');
+            updateCsvFeedback('âŒ Không thể tải trạng thái cơ sở dữ liệu', 'error');
         }
     }
 
@@ -2201,7 +2201,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             </td>
                             <td class="p-2 border-b">
                                 <button class="edit-user-btn bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs mr-1" data-user-id="${user.stt}">
-                                    Sá»­a
+                                    Sửa
                                 </button>
                                 <button class="save-user-btn hidden bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs mr-1" data-user-id="${user.stt}">
                                     LÆ°u
@@ -2213,14 +2213,14 @@ document.addEventListener('DOMContentLoaded', () => {
                                     Äá»•i MK
                                 </button>
                                 <button class="delete-user-btn bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs" data-user-id="${user.stt}">
-                                    XÃ³a
+                                    Xóa
                                 </button>
                             </td>
                         </tr>
                     `).join('');
         } catch (error) {
             console.error('Error loading users:', error);
-            showNotification('Lá»—i khi táº£i danh sÃ¡ch user', 'error');
+            showNotification('Lỗi khi tải danh sách user', 'error');
         }
     }
 
@@ -2244,7 +2244,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (!name) {
-                showNotification('Vui lÃ²ng nháº­p tÃªn hiá»ƒn thá»‹', 'error');
+                showNotification('Vui lòng nhập tên hiển thị', 'error');
                 return;
             }
 
@@ -2380,7 +2380,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             .eq('stt', userId);
 
                         if (error) throw error;
-                        showNotification('XÃ³a tÃ i khoáº£n thÃ nh cÃ´ng', 'success');
+                        showNotification('Xóa tÃ i khoáº£n thÃ nh cÃ´ng', 'success');
                         await loadUsersData();
                     } catch (error) {
                         console.error('Error deleting user:', error);
@@ -2502,7 +2502,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 <td class="p-2 border-b text-xs">${kpi.updated_at ? new Date(kpi.updated_at).toLocaleString('vi-VN') : 'N/A'}</td>
                                 <td class="p-2 border-b">
                                     <button class="edit-kpi-btn bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs mr-1" data-kpi-id="${kpi.id}">
-                                        Sá»­a
+                                        Sửa
                                     </button>
                                     <button class="save-kpi-btn hidden bg-green-500 hover:bg-green-600 text-white px-2 py-1 rounded text-xs mr-1" data-kpi-id="${kpi.id}">
                                         LÆ°u
@@ -2511,7 +2511,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                         Há»§y
                                     </button>
                                     <button class="delete-kpi-btn bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-xs" data-kpi-id="${kpi.id}">
-                                        XÃ³a
+                                        Xóa
                                     </button>
                                 </td>
                             </tr>
@@ -2578,7 +2578,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             .eq('id', kpiId);
 
                         if (error) throw error;
-                        showNotification('XÃ³a KPI thÃ nh cÃ´ng', 'success');
+                        showNotification('Xóa KPI thÃ nh cÃ´ng', 'success');
 
                         // Remove row from table
                         row.remove();
