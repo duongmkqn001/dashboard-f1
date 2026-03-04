@@ -329,7 +329,7 @@
             const mode = processingMode.value;
             const descriptions = {
                 'complete-replace': '<strong>Logic 1 - Xóa toàn bộ bảng:</strong> Xóa hoàn toàn tất cả dữ liệu trong bảng tickets (giữ lại cấu trúc bảng), sau đó nhập toàn bộ dữ liệu từ file CSV. ⚠️ <span class="text-red-600">Cẩn thận - sẽ mất TẤT CẢ dữ liệu hiện tại!</span>',
-                'smart-update': '<strong>Logic 2 - Cập nhật thông minh:</strong> So sánh file với database và xử lý từng trường hợp. <span class="text-blue-600">🆕 Thêm mới:</span> Ticket chưa có trong DB. <span class="text-orange-600">✏️ Cập nhật:</span> Ticket đã có nhưng chưa được xử lý (agent chưa bắt đầu) → cập nhật thông tin (ví dụ: đổi agent). <span class="text-red-600">🔄 Re-Open:</span> Ticket đã hoàn thành bởi agent nhưng vẫn còn trong file CSV → tạo hàng mới và đánh dấu <em>Re-Open</em> để dễ nhận biết trên Dashboard. <span class="text-gray-600">✋ Giữ nguyên:</span> Ticket đang được xử lý (đã bắt đầu, có status...) → không thay đổi. <span class="text-red-600">🗑️ Xóa:</span> Ticket chưa xử lý có trong DB nhưng không có trong file.'
+                'smart-update': '<strong>Logic 2 - Cập nhật thông minh:</strong> So sánh file với database và xử lý từng trường hợp. <span class="text-blue-600">🆕 Thêm mới:</span> Ticket chưa có trong DB → thêm vào. <span class="text-orange-600">✏️ Cập nhật:</span> Ticket đã có nhưng chưa được xử lý (agent chưa bắt đầu) → cập nhật thông tin (ví dụ: đổi agent). <span class="text-red-600">🔄 Re-Open:</span> Ticket đã hoàn thành nhưng xuất hiện lại trong file → tạo hàng mới đánh dấu <em>Re-Open</em> trên Dashboard. <span class="text-gray-600">✋ Giữ nguyên:</span> Ticket đang được xử lý (đã bắt đầu, có status...) → không thay đổi. <span class="text-gray-500">📦 Bảo toàn:</span> Ticket có trong DB nhưng không có trong file → <strong>giữ nguyên, không xóa</strong>.'
             };
 
             const modeNames = {
@@ -1086,8 +1086,8 @@
             const toInsert = [];    // Brand new tickets
             const toUpdate = [];    // Active untouched tickets to update
             const toReopen = [];    // Completed tickets reappearing → create Re-Open row
-            const toDelete = [];    // Active untouched tickets not in CSV → delete
             let skippedTouched = 0; // Active touched tickets → keep as is
+            // NOTE: Tickets in DB but NOT in CSV are left completely untouched (no deletion).
 
             // Step 3: Classify each CSV row
             showStatus('📊 Bước 2: Phân loại dữ liệu...', 'info');
@@ -1120,35 +1120,7 @@
                 }
             }
 
-            // Step 4: Find active untouched tickets NOT in CSV → delete them
-            showStatus('🗑️ Bước 3: Tìm ticket cần xóa...', 'info');
-            for (const activeTicket of (activeTickets || [])) {
-                if (!csvTicketNumbers.has(String(activeTicket.ticket))) {
-                    const isTouched =
-                        activeTicket.needMos != null ||
-                        activeTicket.ticket_status_id != null ||
-                        activeTicket.need_leader_support === true ||
-                        activeTicket.time_start != null ||
-                        activeTicket.agent_handle_ticket != null;
-
-                    if (!isTouched) {
-                        toDelete.push(activeTicket);
-                    }
-                }
-            }
-
-            // Step 5: Execute all operations
-            let deletedCount = 0;
-            if (toDelete.length > 0) {
-                showStatus(`🗑️ Đang xóa ${toDelete.length} ticket không còn trong file...`, 'info');
-                const { error: deleteError } = await supabaseClient
-                    .from('tickets')
-                    .delete()
-                    .in('id', toDelete.map(t => t.id));
-                if (deleteError) throw deleteError;
-                deletedCount = toDelete.length;
-            }
-
+            // Step 4: Execute all operations
             let updatedCount = 0;
             if (toUpdate.length > 0) {
                 showStatus(`✏️ Đang cập nhật ${toUpdate.length} ticket...`, 'info');
@@ -1198,7 +1170,7 @@
                 if (reopenError) throw reopenError;
             }
 
-            const statusMessage = `✅ Logic 2 hoàn tất: 🆕${toInsert.length} mới, ✏️${updatedCount} cập nhật, 🔄${toReopen.length} Re-Open, 🗑️${deletedCount} đã xóa, ✋${skippedTouched} giữ nguyên`;
+            const statusMessage = `✅ Hoàn tất: 🆕${toInsert.length} mới, ✏️${updatedCount} cập nhật, 🔄${toReopen.length} Re-Open, ✋${skippedTouched} giữ nguyên.`;
             showStatus(statusMessage, 'success');
         }
 
