@@ -181,16 +181,16 @@ function setupUserInterface() {
                 showMessage('🌍 NA Team Mode - Viewing NA tickets only', 'info', 3000);
             }
 
-            // Sync cnModeEnabled with team mode CN
+            // Sync cnModeEnabled with team mode CN (template language only, not ticket filter)
             cnModeEnabled = (team === 'CN');
             localStorage.setItem('cnModeEnabled', cnModeEnabled);
-            // Update CN template modal toggle to reflect state
             const cnToggle = document.getElementById('cn-lang-toggle');
             if (cnToggle) cnToggle.checked = cnModeEnabled;
             updateCnToggleStyle(cnToggle);
 
-            // Refresh tickets when team changes
-            loadTickets(true);
+            // Refresh tickets when team changes (EU/NA only, CN uses same query as NA until DB is set up)
+            invalidateTicketsCache();
+            fetchAndRenderTickets(true);
         }
 
         // Attach click handlers
@@ -685,8 +685,10 @@ async function fetchAndRenderTickets(forceRefresh = false) {
             let query = supabaseClient.from('tickets').select(columns).is('time_end', null);
             if (selectedAssignee) query = query.eq('assignee_account', selectedAssignee);
 
-            // Filter by team mode
-            query = query.eq('agent.team', currentTeamMode);
+            // Filter by team mode (CN uses same query as NA until DB is set up for CN team)
+            if (currentTeamMode === 'EU') {
+                query = query.eq('agent.team', 'EU');
+            }
 
             if (isLeaderView) {
                 query = query.eq('need_leader_support', true);
