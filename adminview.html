@@ -246,7 +246,18 @@
 
                             <!-- Template Editor Form (English UI) -->
                             <div id="template-form" class="hidden">
-                                <h3 id="form-title" class="text-2xl font-bold mb-4">Create New Template</h3>
+                                <div class="flex justify-between items-center mb-4">
+                                    <h3 id="form-title" class="text-2xl font-bold">Create New Template</h3>
+                                    <!-- CN Language Toggle -->
+                                    <div class="flex items-center gap-2">
+                                        <span class="text-sm font-medium text-[rgb(var(--color-text-muted))]">Eng</span>
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox" id="cn-lang-toggle" class="sr-only peer">
+                                            <div class="w-11 h-6 bg-gray-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-[rgb(var(--color-accent-primary))] rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[rgb(var(--color-accent-primary))] text-white"></div>
+                                        </label>
+                                        <span class="text-sm font-medium text-[rgb(var(--color-text-secondary))]">CN</span>
+                                    </div>
+                                </div>
                                 <form id="editor-form" class="space-y-4">
                                     <input type="hidden" id="template-id">
                                     <div>
@@ -357,6 +368,34 @@ Best regards,"></textarea>
                                                 class="w-full p-2 border border-gray-300 rounded-lg bg-white"
                                                 placeholder="Internal note for the ticket (not sent to supplier)..."></textarea>
                                         </div>
+
+                                        <!-- CN Version Fields -->
+                                        <div id="wdn-cn-fields" class="hidden space-y-3 p-3 bg-green-50 border border-green-300 rounded-lg">
+                                            <h5 class="font-semibold text-green-800 text-sm flex items-center gap-2">
+                                                <span>🇨🇳</span> Chinese Version (CN) - Phiên bản tiếng Trung
+                                            </h5>
+                                            <div>
+                                                <label for="wdn-subject-cn"
+                                                    class="block text-sm font-medium text-gray-700 mb-1">Subject CN <span class="text-gray-400 font-normal">(tiếng Trung)</span></label>
+                                                <input type="text" id="wdn-subject-cn"
+                                                    class="w-full p-2 border border-gray-300 rounded-lg bg-white"
+                                                    placeholder="CN Subject Line...">
+                                            </div>
+                                            <div>
+                                                <label for="wdn-email-body-cn"
+                                                    class="block text-sm font-medium text-gray-700 mb-1">Email Body CN <span class="text-gray-400 font-normal">(tiếng Trung)</span></label>
+                                                <textarea id="wdn-email-body-cn" rows="10"
+                                                    class="w-full p-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-green-400"
+                                                    placeholder="[CN Email body content...]"></textarea>
+                                            </div>
+                                            <div>
+                                                <label for="wdn-internal-note-cn"
+                                                    class="block text-sm font-medium text-gray-700 mb-1">Internal Note CN <span class="text-gray-400 font-normal">(tiếng Trung)</span></label>
+                                                <textarea id="wdn-internal-note-cn" rows="3"
+                                                    class="w-full p-2 border border-gray-300 rounded-lg bg-white"
+                                                    placeholder="[CN Internal note...]"></textarea>
+                                            </div>
+                                        </div>
                                     </div>
 
                                     <!-- Supplier Template Builder - Primary interface for non-WDN projects -->
@@ -372,6 +411,34 @@ Best regards,"></textarea>
                                                     class="font-semibold mb-2 text-sm text-center text-[rgb(var(--color-text-secondary))]">
                                                     Components</h4>
                                                 <div id="component-source" class="space-y-2"></div>
+                                            </div>
+                                        </div>
+
+                                        <!-- CN Version Fields -->
+                                        <div id="supplier-cn-fields" class="hidden mt-4 space-y-3 p-3 bg-green-50 border border-green-300 rounded-lg">
+                                            <h5 class="font-semibold text-green-800 text-sm flex items-center gap-2">
+                                                <span>🇨🇳</span> Chinese Version (CN) - Phiên bản tiếng Trung
+                                            </h5>
+                                            <div>
+                                                <label for="template-description-cn"
+                                                    class="block text-sm font-medium text-gray-700 mb-1">Description CN <span class="text-gray-400 font-normal">(tiếng Trung)</span></label>
+                                                <textarea id="template-description-cn" rows="3"
+                                                    class="w-full p-2 border border-gray-300 rounded-lg bg-white"
+                                                    placeholder="[CN Description...]"></textarea>
+                                            </div>
+                                            <div>
+                                                <label for="template-content-cn"
+                                                    class="block text-sm font-medium text-gray-700 mb-1">Main Content CN <span class="text-gray-400 font-normal">(tiếng Trung)</span></label>
+                                                <textarea id="template-content-cn" rows="12"
+                                                    class="w-full p-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-green-400"
+                                                    placeholder="[CN Main content for supplier...]"></textarea>
+                                            </div>
+                                            <div>
+                                                <label for="internal-comment-body-cn"
+                                                    class="block text-sm font-medium text-gray-700 mb-1">Internal Comment CN <span class="text-gray-400 font-normal">(tiếng Trung)</span></label>
+                                                <textarea id="internal-comment-body-cn" rows="4"
+                                                    class="w-full p-2 border border-gray-300 rounded-lg bg-white"
+                                                    placeholder="[CN Internal comment...]"></textarea>
                                             </div>
                                         </div>
                                     </div>
@@ -447,6 +514,27 @@ Best regards,"></textarea>
                                                 class="w-full p-2 border border-gray-300 rounded-lg"
                                                 placeholder="Hello {{Customer_Name}},..."></textarea>
                                         </div>
+
+                                        <!-- CN Version Fields -->
+                                        <div id="customer-cn-fields" class="hidden space-y-3 p-3 bg-green-50 border border-green-300 rounded-lg">
+                                            <h5 class="font-semibold text-green-800 text-sm flex items-center gap-2">
+                                                <span>🇨🇳</span> Customer Email CN Version
+                                            </h5>
+                                            <div>
+                                                <label for="customer-subject-cn"
+                                                    class="block text-sm font-medium text-gray-700 mb-1">Customer Subject CN</label>
+                                                <input type="text" id="customer-subject-cn"
+                                                    class="w-full p-2 border border-gray-300 rounded-lg bg-white"
+                                                    placeholder="[CN Subject...]">
+                                            </div>
+                                            <div>
+                                                <label for="customer-body-cn"
+                                                    class="block text-sm font-medium text-gray-700 mb-1">Customer Body CN</label>
+                                                <textarea id="customer-body-cn" rows="6"
+                                                    class="w-full p-2 border border-gray-300 rounded-lg bg-white"
+                                                    placeholder="[CN Customer body...]"></textarea>
+                                            </div>
+                                        </div>
                                     </div>
                                     <div id="carrier-email-fields"
                                         class="hidden p-4 border-l-4 border-orange-400 bg-orange-50 space-y-4">
@@ -496,6 +584,17 @@ Best regards,"></textarea>
                                         <button type="button" id="add-movement-step-btn"
                                             class="mt-3 text-sm bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold py-1 px-3 rounded-md">+
                                             Add Step</button>
+
+                                        <!-- CN Movement Guide -->
+                                        <div id="movement-guide-cn-editor" class="hidden space-y-3 p-3 bg-green-50 border border-green-300 rounded-lg">
+                                            <h5 class="font-semibold text-green-800 text-sm flex items-center gap-2">
+                                                <span>🇨🇳</span> Movement Guide CN - Tiếng Trung
+                                            </h5>
+                                            <div id="movement-guide-cn-steps-container" class="space-y-3"></div>
+                                            <button type="button" id="add-movement-cn-step-btn"
+                                                class="mt-2 text-sm bg-green-100 hover:bg-green-200 text-green-800 font-semibold py-1 px-3 rounded-md">+
+                                                Add CN Step</button>
+                                        </div>
                                     </div>
 
                                     <div id="follow-up-guide-editor"
@@ -506,6 +605,17 @@ Best regards,"></textarea>
                                         <button type="button" id="add-follow-up-step-btn"
                                             class="mt-3 text-sm bg-blue-100 hover:bg-blue-200 text-blue-800 font-semibold py-1 px-3 rounded-md">+
                                             Add Step</button>
+
+                                        <!-- CN Follow-up Guide -->
+                                        <div id="follow-up-guide-cn-editor" class="hidden space-y-3 p-3 bg-green-50 border border-green-300 rounded-lg">
+                                            <h5 class="font-semibold text-green-800 text-sm flex items-center gap-2">
+                                                <span>🇨🇳</span> Follow-up Guide CN - Tiếng Trung
+                                            </h5>
+                                            <div id="follow-up-guide-cn-steps-container" class="space-y-3"></div>
+                                            <button type="button" id="add-follow-up-cn-step-btn"
+                                                class="mt-2 text-sm bg-green-100 hover:bg-green-200 text-green-800 font-semibold py-1 px-3 rounded-md">+
+                                                Add CN Step</button>
+                                        </div>
                                     </div>
 
                                     <div class="flex justify-end gap-3 pt-4">

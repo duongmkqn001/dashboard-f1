@@ -126,7 +126,17 @@ document.addEventListener('DOMContentLoaded', () => {
         helpModal: document.getElementById('help-modal'), closeHelpModalBtn: document.getElementById('close-help-modal-btn'),
         helpContent: document.getElementById('help-content'), importOptionsModal: document.getElementById('import-options-modal'),
         signatureSelectionModal: document.getElementById('signature-selection-modal'), signatureSelectDropdown: document.getElementById('signature-select-dropdown'),
-        signatureConfirmBtn: document.getElementById('signature-confirm-btn')
+        signatureConfirmBtn: document.getElementById('signature-confirm-btn'),
+        cnLangToggle: document.getElementById('cn-lang-toggle'),
+        wdnCnFields: document.getElementById('wdn-cn-fields'),
+        supplierCnFields: document.getElementById('supplier-cn-fields'),
+        customerCnFields: document.getElementById('customer-cn-fields'),
+        movementGuideCnStepsContainer: document.getElementById('movement-guide-cn-steps-container'),
+        movementGuideCnEditor: document.getElementById('movement-guide-cn-editor'),
+        addMovementCnStepBtn: document.getElementById('add-movement-cn-step-btn'),
+        followUpGuideCnStepsContainer: document.getElementById('follow-up-guide-cn-steps-container'),
+        followUpGuideCnEditor: document.getElementById('follow-up-guide-cn-editor'),
+        addFollowUpCnStepBtn: document.getElementById('add-follow-up-cn-step-btn')
     };
 
     // --- Caching & Sync Logic ---
@@ -293,6 +303,8 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.editorForm.reset();
         dom.movementGuideStepsContainer.innerHTML = '';
         dom.followUpGuideStepsContainer.innerHTML = '';
+        dom.movementGuideCnStepsContainer.innerHTML = '';
+        dom.followUpGuideCnStepsContainer.innerHTML = '';
         dom.includeFooterCheckbox.checked = true;
         populateIssuesDatalist();
 
@@ -333,6 +345,38 @@ document.addEventListener('DOMContentLoaded', () => {
 
             if (template.movementGuide) template.movementGuide.forEach(step => dom.movementGuideStepsContainer.appendChild(createGuideStepEditor('movement', step)));
             if (template.followUpGuide) template.followUpGuide.forEach(step => dom.followUpGuideStepsContainer.appendChild(createGuideStepEditor('follow-up', step)));
+
+            // Load CN fields
+            const cnDoc = document.getElementById('wdn-subject-cn');
+            const cnEmailBody = document.getElementById('wdn-email-body-cn');
+            const cnInternalNote = document.getElementById('wdn-internal-note-cn');
+            const cnDesc = document.getElementById('template-description-cn');
+            const cnContent = document.getElementById('template-content-cn');
+            const cnInternalBody = document.getElementById('internal-comment-body-cn');
+            const cnCustSubject = document.getElementById('customer-subject-cn');
+            const cnCustBody = document.getElementById('customer-body-cn');
+
+            if (cnDoc) cnDoc.value = template.customer_subject_cn || '';
+            if (cnEmailBody) cnEmailBody.value = template.content_cn || '';
+            if (cnInternalNote) cnInternalNote.value = template.internal_comment_cn || '';
+            if (cnDesc) cnDesc.value = template.description_cn || '';
+            if (cnContent) cnContent.value = template.content_cn || '';
+            if (cnInternalBody) cnInternalBody.value = template.internal_comment_cn || '';
+            if (cnCustSubject) cnCustSubject.value = template.customer_subject_cn || '';
+            if (cnCustBody) cnCustBody.value = template.customer_body_cn || '';
+
+            // Auto-enable CN toggle if any CN field has content
+            const hasCNContent = (template.content_cn || template.description_cn || template.customer_body_cn || template.internal_comment_cn || template.customer_subject_cn || (template.movement_guide_cn && template.movement_guide_cn.length) || (template.follow_up_guide_cn && template.follow_up_guide_cn.length));
+            if (dom.cnLangToggle) dom.cnLangToggle.checked = !!hasCNContent;
+            if (dom.cnLangToggle?.checked) {
+                if (dom.wdnCnFields) dom.wdnCnFields.classList.remove('hidden');
+                if (dom.supplierCnFields) dom.supplierCnFields.classList.remove('hidden');
+                if (dom.customerCnFields) dom.customerCnFields.classList.remove('hidden');
+                if (dom.movementGuideCnEditor) dom.movementGuideCnEditor.classList.remove('hidden');
+                if (dom.followUpGuideCnEditor) dom.followUpGuideCnEditor.classList.remove('hidden');
+            }
+            if (template.movement_guide_cn) template.movement_guide_cn.forEach(step => dom.movementGuideCnStepsContainer.appendChild(createGuideStepEditor('movement_cn', step)));
+            if (template.follow_up_guide_cn) template.follow_up_guide_cn.forEach(step => dom.followUpGuideCnStepsContainer.appendChild(createGuideStepEditor('follow_up_cn', step)));
         } else {
             const currentProjectName = getFromCache(CACHE_KEYS.PROJECTS).find(p => p.id === currentProject)?.name || '';
             dom.formTitle.textContent = `Create New Template for ${currentProjectName}`;
@@ -345,6 +389,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (dom.wdnCcInput) dom.wdnCcInput.value = '';
             if (dom.wdnEmailBodyInput) dom.wdnEmailBodyInput.value = '';
             if (dom.wdnInternalNoteInput) dom.wdnInternalNoteInput.value = '';
+
+            // Hide CN fields for new templates
+            if (dom.cnLangToggle) dom.cnLangToggle.checked = false;
+            if (dom.wdnCnFields) dom.wdnCnFields.classList.add('hidden');
+            if (dom.supplierCnFields) dom.supplierCnFields.classList.add('hidden');
+            if (dom.customerCnFields) dom.customerCnFields.classList.add('hidden');
+            if (dom.movementGuideCnEditor) dom.movementGuideCnEditor.classList.add('hidden');
+            if (dom.followUpGuideCnEditor) dom.followUpGuideCnEditor.classList.add('hidden');
         }
         setupInteractiveEditor(templateContent);
         updateFormVisibility();
@@ -662,7 +714,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function createGuideStepEditor(type, stepData = {}) {
         const stepId = `${type}-step-${Date.now()}`;
         const details = document.createElement('details');
-        details.className = 'bg-white p-3 rounded-lg border guide-step-editor';
+        const isCN = type === 'movement_cn' || type === 'follow_up_cn';
+        const bgClass = isCN ? 'bg-green-50' : 'bg-white';
+        const borderClass = isCN ? 'border-green-300' : 'border-gray-200';
+        details.className = `${bgClass} p-3 rounded-lg border ${borderClass} guide-step-editor`;
         details.open = true;
 
         if (type === 'follow-up') {
@@ -673,6 +728,15 @@ document.addEventListener('DOMContentLoaded', () => {
       </summary>
       <div class="mt-2">
         <textarea class="guide-item-action w-full p-1 text-sm bg-transparent border rounded" rows="2" placeholder="Hành động / Link.">${stepData.action || ''}</textarea>
+      </div>`;
+        } else if (type === 'follow_up_cn') {
+            details.innerHTML = `
+      <summary class="flex justify-between items-center font-semibold cursor-pointer">
+        <input type="text" class="guide-step-title flex-grow font-semibold bg-transparent" value="${stepData.title || ''}" placeholder="Tên bước CN.">
+        <button type="button" class="remove-guide-step-btn text-red-500 hover:text-red-700 ml-2">&times;</button>
+      </summary>
+      <div class="mt-2">
+        <textarea class="guide-item-action w-full p-1 text-sm bg-transparent border rounded" rows="2" placeholder="Hành động / Link CN.">${stepData.action || ''}</textarea>
       </div>`;
         } else {
             details.innerHTML = `
@@ -751,6 +815,20 @@ document.addEventListener('DOMContentLoaded', () => {
         dom.addMovementStepBtn.addEventListener('click', () => dom.movementGuideStepsContainer.appendChild(createGuideStepEditor('movement')));
         dom.addFollowUpStepBtn.addEventListener('click', () => dom.followUpGuideStepsContainer.appendChild(createGuideStepEditor('follow-up')));
 
+        // CN Language Toggle - show/hide CN fields
+        dom.cnLangToggle.addEventListener('change', (e) => {
+            const isCN = e.target.checked;
+            if (dom.wdnCnFields) dom.wdnCnFields.classList.toggle('hidden', !isCN);
+            if (dom.supplierCnFields) dom.supplierCnFields.classList.toggle('hidden', !isCN);
+            if (dom.customerCnFields) dom.customerCnFields.classList.toggle('hidden', !isCN);
+            if (dom.movementGuideCnEditor) dom.movementGuideCnEditor.classList.toggle('hidden', !isCN);
+            if (dom.followUpGuideCnEditor) dom.followUpGuideCnEditor.classList.toggle('hidden', !isCN);
+        });
+
+        // CN Guide Step buttons
+        dom.addMovementCnStepBtn.addEventListener('click', () => dom.movementGuideCnStepsContainer.appendChild(createGuideStepEditor('movement_cn')));
+        dom.addFollowUpCnStepBtn.addEventListener('click', () => dom.followUpGuideCnStepsContainer.appendChild(createGuideStepEditor('follow_up_cn')));
+
         dom.editorForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const issue = dom.mainIssueInput.value.trim();
@@ -817,7 +895,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 carrierEmailSubject: dom.carrierEmailSubjectInput.value.trim() || null,
                 bolNamingMethod: dom.bolNamingMethodInput.value.trim() || null,
                 movementGuide: getGuideData(dom.movementGuideStepsContainer),
-                followUpGuide: dom.addFollowUpCheckbox.checked ? getGuideData(dom.followUpGuideStepsContainer, true) : null
+                followUpGuide: dom.addFollowUpCheckbox.checked ? getGuideData(dom.followUpGuideStepsContainer, true) : null,
+
+                // CN Version fields
+                content_cn: isWdnProject
+                    ? (document.getElementById('wdn-email-body-cn')?.value?.trim() || null)
+                    : (document.getElementById('template-content-cn')?.value?.trim() || null),
+                description_cn: document.getElementById('template-description-cn')?.value?.trim() || null,
+                customer_subject_cn: isWdnProject
+                    ? (document.getElementById('wdn-subject-cn')?.value?.trim() || null)
+                    : (document.getElementById('customer-subject-cn')?.value?.trim() || null),
+                customer_body_cn: document.getElementById('customer-body-cn')?.value?.trim() || null,
+                internal_comment_cn: isWdnProject
+                    ? (document.getElementById('wdn-internal-note-cn')?.value?.trim() || null)
+                    : (document.getElementById('internal-comment-body-cn')?.value?.trim() || null),
+                movement_guide_cn: getGuideData(dom.movementGuideCnStepsContainer),
+                follow_up_guide_cn: dom.addFollowUpCheckbox.checked ? getGuideData(dom.followUpGuideCnStepsContainer, true) : null
             };
 
             const id = dom.templateIdInput.value;

@@ -33,6 +33,8 @@ let allSignatures = [];
 let allSettings = {};
 let allProjects = [];
 let messageTimeout;
+let cnModeEnabled = localStorage.getItem('cnModeEnabled') === 'true';
+let cnPreviewEng = false;
 
 // Realtime subscriptions
 let notificationsChannel = null;
@@ -298,6 +300,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     popupProjectTabs.addEventListener('click', handlePopupProjectClick);
     popupIssuesList.addEventListener('click', handlePopupIssueClick);
     popupTemplateList.addEventListener('click', handlePopupTemplateClick);
+
+    // CN Language Toggle
+    const cnToggle = document.getElementById('cn-lang-toggle');
+    if (cnToggle) {
+        cnToggle.checked = cnModeEnabled;
+        updateCnToggleStyle(cnToggle);
+        cnToggle.addEventListener('change', (e) => {
+            cnModeEnabled = e.target.checked;
+            localStorage.setItem('cnModeEnabled', cnModeEnabled);
+            updateCnToggleStyle(e.target);
+            // Refresh template preview if one is open
+            if (popupCurrentTemplateId) {
+                cnPreviewEng = false;
+                closeCnPreviewIfActive();
+                renderTemplatePreview(popupCurrentTemplateId);
+            }
+        });
+    }
 
     // Ticket type filter header click
     const ticketTypeHeader = document.getElementById('ticket-type-header');
@@ -1623,10 +1643,13 @@ async function showTemplateViewer(templateId, ticketData) {
     const toggleDescriptionBtn = document.getElementById('toggle-description-btn');
     const descriptionIcon = document.getElementById('description-icon');
 
-    if (template.description && template.description.trim()) {
+    const displayDescription = (cnModeEnabled && !cnPreviewEng && template.description_cn?.trim())
+        ? template.description_cn
+        : (template.description || '');
+    if (displayDescription.trim()) {
         // Show description section if template has a description
         descriptionSection.classList.remove('hidden');
-        descriptionContent.textContent = template.description;
+        descriptionContent.textContent = displayDescription;
 
         // Set up toggle functionality
         toggleDescriptionBtn.addEventListener('click', () => {
@@ -1664,9 +1687,15 @@ async function showTemplateViewer(templateId, ticketData) {
         if (wdnEmailFrom) wdnEmailFrom.value = template.emailFrom || '';
         if (wdnEmailTo) wdnEmailTo.value = ticketData.supplier_email || ticketData.suid || '';  // Supplier email or SUID
         if (viewerAgentName) viewerAgentName.value = '';  // Supplier contact name - user fills this in
-        if (wdnEmailSubject) wdnEmailSubject.value = template.customerSubject || '';
+        const wdnSubject = (cnModeEnabled && !cnPreviewEng)
+            ? (template.customer_subject_cn || template.customerSubject || '')
+            : (template.customerSubject || '');
+        if (wdnEmailSubject) wdnEmailSubject.value = wdnSubject;
         if (wdnEmailCc) wdnEmailCc.value = template.cc || '';
-        if (wdnInternalNoteOutput) wdnInternalNoteOutput.textContent = template.internalComment || '';
+        const wdnInternalNote = (cnModeEnabled && !cnPreviewEng)
+            ? (template.internal_comment_cn || template.internalComment || '')
+            : (template.internalComment || '');
+        if (wdnInternalNoteOutput) wdnInternalNoteOutput.textContent = wdnInternalNote;
 
         // Setup copy buttons for WDN fields
         const copyBodyBtn = document.getElementById('copy-body-btn');
@@ -1714,6 +1743,7 @@ async function showTemplateViewer(templateId, ticketData) {
     popupTemplateViewer.querySelectorAll('input, select, textarea').forEach(el => el.addEventListener('input', updateFinalOutput));
     document.getElementById('copy-btn').addEventListener('click', handleCopyAndContinue);
     updateFinalOutput();
+    renderEngPreviewToggle();
 }
 
 function renderAllPlaceholders(template, placeholderMap) {
@@ -1725,7 +1755,7 @@ function renderAllPlaceholders(template, placeholderMap) {
     optionalsContainer.innerHTML = '';
     dynamicOptionalsContainer.innerHTML = '';
 
-    const content = template.content || '';
+    const content = getContentForDisplay(template) || '';
     const ignoredPlaceholders = new Set(['signature', 'greeting', 'Customer_Name', 'Order_Number', 'Brand']);
 
     const createPlaceholderInput = (pKey) => {
@@ -1816,7 +1846,7 @@ function updateFinalOutput() {
     const manualSupplierNameEl = document.getElementById('viewer-manual-supplier-name');
     const manualSupplierName = manualSupplierNameEl ? manualSupplierNameEl.value.trim() : '';
 
-    let content = template.content || '';
+    let content = getContentForDisplay(template) || '';
     let greeting = '';
 
     // Get signature data
@@ -1965,9 +1995,12 @@ function updateFinalOutput() {
         }
 
         // Update internal note with placeholder replacements
+        const wdnInternalNoteForPreview = (cnModeEnabled && !cnPreviewEng)
+            ? (template.internal_comment_cn || template.internalComment || '')
+            : (template.internalComment || '');
         const wdnInternalNoteOutput = document.getElementById('wdn-internal-note-output');
-        if (wdnInternalNoteOutput && template.internalComment) {
-            const processedNote = replacePlaceholdersInText(template.internalComment, true);
+        if (wdnInternalNoteOutput && wdnInternalNoteForPreview) {
+            const processedNote = replacePlaceholdersInText(wdnInternalNoteForPreview, true);
             wdnInternalNoteOutput.textContent = processedNote;
             wdnInternalNoteOutput.dataset.plainText = processedNote;
         }
@@ -2033,7 +2066,10 @@ async function handleCopyAndContinue() {
         (wdnProject && template.project_id === wdnProject.id);
 
     setTimeout(async () => {
-        if (template.followUpGuide) await openFollowUpGuideModal(template.followUpGuide);
+        const followUpGuide = (cnModeEnabled && !cnPreviewEng)
+            ? (template.follow_up_guide_cn || template.followUpGuide)
+            : template.followUpGuide;
+        if (followUpGuide) await openFollowUpGuideModal(followUpGuide);
 
         // For WDN projects, show WDN supplier email modal (skip customer modal entirely)
         if (isWDNProject) {
@@ -2464,15 +2500,17 @@ function openWdnSupplierEmailModal(template) {
         // Show template description at the top of the modal if available
         const descriptionSection = document.getElementById('wdn-template-description-section');
         const descriptionText = document.getElementById('wdn-template-description-text');
-        if (descriptionSection && descriptionText) {
-            const templateDescription = template.description?.trim();
-            if (templateDescription) {
-                descriptionText.innerHTML = templateDescription.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-accent hover:underline">$1</a>');
-                descriptionSection.classList.remove('hidden');
-            } else {
-                descriptionSection.classList.add('hidden');
+            const displayDescription = (cnModeEnabled && !cnPreviewEng && template.description_cn?.trim())
+                ? template.description_cn
+                : (template.description || '');
+            if (descriptionSection && descriptionText) {
+                if (displayDescription.trim()) {
+                    descriptionText.innerHTML = displayDescription.replace(/(https?:\/\/[^\s]+)/g, '<a href="$1" target="_blank" class="text-accent hover:underline">$1</a>');
+                    descriptionSection.classList.remove('hidden');
+                } else {
+                    descriptionSection.classList.add('hidden');
+                }
             }
-        }
 
         // Get output fields
         const subjectOutput = document.getElementById('wdn-modal-subject-output');
@@ -2505,18 +2543,19 @@ function openWdnSupplierEmailModal(template) {
         // Pre-fill email from
         if (emailFromInput) emailFromInput.value = template.emailFrom || '';
 
-        // Extract all placeholders from template content, subject, and internal note
-        const allText = [
-            template.content || '',
-            template.customerSubject || '',
-            template.internalComment || ''
-        ].join(' ');
+        // Get CN or ENG content based on mode
+        const wdnContent = (cnModeEnabled && !cnPreviewEng)
+            ? (template.content_cn || template.content || '')
+            : (template.content || '');
+        const wdnSubject = (cnModeEnabled && !cnPreviewEng)
+            ? (template.customer_subject_cn || template.customerSubject || '')
+            : (template.customerSubject || '');
 
         // Find all {{placeholder}} patterns
         const placeholderRegex = /\{\{([^}]+)\}\}/g;
         const foundPlaceholders = new Set();
         let match;
-        while ((match = placeholderRegex.exec(allText)) !== null) {
+        while ((match = placeholderRegex.exec(wdnContent + ' ' + wdnSubject)) !== null) {
             foundPlaceholders.add(match[1]);
         }
 
@@ -2526,7 +2565,6 @@ function openWdnSupplierEmailModal(template) {
         // Extract team name from greeting text for Supplier_Name placeholder
         // Look for patterns like "Dear Logistics Team," or "Kính gửi Customer Service Team,"
         let extractedTeamName = '';
-        const templateContent = template.content || '';
         const greetingPatterns = [
             /Dear\s+([^,\n]+?)(?:,|\n)/i,                    // "Dear Logistics Team,"
             /Kính gửi\s+([^,\n]+?)(?:,|\n)/i,               // "Kính gửi Team Logistics,"
@@ -2535,7 +2573,7 @@ function openWdnSupplierEmailModal(template) {
         ];
 
         for (const pattern of greetingPatterns) {
-            const greetingMatch = templateContent.match(pattern);
+            const greetingMatch = wdnContent.match(pattern);
             if (greetingMatch && greetingMatch[1]) {
                 extractedTeamName = greetingMatch[1].trim();
                 // Remove {{Supplier_Name}} or similar placeholder if it's part of the greeting
@@ -2615,7 +2653,7 @@ function openWdnSupplierEmailModal(template) {
         // Update preview function - compose greeting + body + footer + closing + signature
         const updatePreview = () => {
             // Update subject
-            const subject = replacePlaceholders(template.customerSubject || '');
+            const subject = replacePlaceholders(wdnSubject);
             if (subjectOutput) {
                 subjectOutput.textContent = subject;
                 subjectOutput.dataset.plainText = subject;
@@ -2632,7 +2670,7 @@ function openWdnSupplierEmailModal(template) {
             }
 
             // Compose full email body: greeting + content + footer + closing + signature
-            let content = replacePlaceholders(template.content || '');
+            let content = replacePlaceholders(wdnContent);
 
             // Get supplier name for greeting
             const supplierName = manualSupplierInput?.value?.trim() || '';
@@ -2689,9 +2727,12 @@ function openWdnSupplierEmailModal(template) {
             }
 
             // Update internal note (show/hide section based on whether note exists)
-            const note = replacePlaceholders(template.internalComment || '');
+            const wdnInternalNote = (cnModeEnabled && !cnPreviewEng)
+                ? (template.internal_comment_cn || template.internalComment || '')
+                : (template.internalComment || '');
+            const note = replacePlaceholders(wdnInternalNote);
             if (noteSection) {
-                noteSection.classList.toggle('hidden', !template.internalComment);
+                noteSection.classList.toggle('hidden', !wdnInternalNote);
             }
             if (noteOutput) {
                 noteOutput.innerHTML = note.replace(/\n/g, '<br>');
@@ -2791,6 +2832,28 @@ function openWdnSupplierEmailModal(template) {
         // Initial preview update
         updatePreview();
 
+        // Render ENG preview toggle if CN mode is active
+        if (cnModeEnabled) {
+            const engContainer = document.getElementById('wdn-preview-eng-container');
+            if (engContainer) {
+                engContainer.innerHTML = `<button id="wdn-preview-eng-btn" class="text-xs bg-amber-500 hover:bg-amber-600 text-white font-medium py-1 px-2 rounded flex items-center gap-1">
+                    <span id="wdn-preview-eng-label">👁 Xem bản Eng</span>
+                </button>`;
+                document.getElementById('wdn-preview-eng-btn')?.addEventListener('click', () => {
+                    cnPreviewEng = true;
+                    updatePreview();
+                    // Hide the toggle button after switching to Eng
+                    const btn = document.getElementById('wdn-preview-eng-btn');
+                    if (btn) {
+                        btn.innerHTML = '✅ Đã chuyển sang Eng';
+                        btn.disabled = true;
+                        btn.classList.remove('bg-amber-500', 'hover:bg-amber-600');
+                        btn.classList.add('bg-green-500');
+                    }
+                });
+            }
+        }
+
         // Helper for copy feedback
         const showCopyFeedback = () => {
             const feedback = document.getElementById('wdn-modal-copy-feedback');
@@ -2803,7 +2866,9 @@ function openWdnSupplierEmailModal(template) {
         // Helper function to show WDN follow-up actions modal
         const showWdnFollowUpActions = () => {
             return new Promise(resolveFollowUp => {
-                const followUpGuide = template.followUpGuide;
+                const followUpGuide = (cnModeEnabled && !cnPreviewEng)
+                    ? (template.follow_up_guide_cn || template.followUpGuide || [])
+                    : (template.followUpGuide || []);
 
                 // Only show follow-up modal if we have followUpGuide steps
                 // (Template description is now shown at the top of WDN modal instead)
@@ -2851,7 +2916,10 @@ function openWdnSupplierEmailModal(template) {
         };
 
         // Check if we have follow-up content to show (only followUpGuide now)
-        const hasFollowUpContent = template.followUpGuide?.length > 0;
+        const wdnFollowUpGuide = (cnModeEnabled && !cnPreviewEng)
+            ? (template.follow_up_guide_cn || [])
+            : (template.followUpGuide || []);
+        const hasFollowUpContent = wdnFollowUpGuide.length > 0;
 
         // Track if follow-up was already shown
         let followUpShown = false;
@@ -2883,6 +2951,7 @@ function openWdnSupplierEmailModal(template) {
                 followUpShown = true;
                 await showWdnFollowUpActions();
             }
+            cnPreviewEng = false;
             _closeModal(modal);
             resolve();
         };
@@ -2914,9 +2983,16 @@ function openCustomerEmailModal(template) {
         nameInput.value = (popupCurrentTicket.customer || '').split(' ')[0];
         orderInput.value = popupCurrentTicket.order_number || '';
 
+        const custSubject = (cnModeEnabled && !cnPreviewEng)
+            ? (template.customer_subject_cn || template.customerSubject || '')
+            : (template.customerSubject || '');
+        const custBody = (cnModeEnabled && !cnPreviewEng)
+            ? (template.customer_body_cn || template.customerBody || '')
+            : (template.customerBody || '');
+
         const updatePreview = () => {
-            let subject = replacePlaceholdersInText(template.customerSubject || '', true);
-            let body = replacePlaceholdersInText(template.customerBody || '', true);
+            let subject = replacePlaceholdersInText(custSubject, true);
+            let body = replacePlaceholdersInText(custBody, true);
 
             const subjectOutput = document.getElementById('customer-email-subject-output');
             const bodyOutput = document.getElementById('customer-email-body-output');
@@ -2948,6 +3024,53 @@ function openLabelReminderModal(label) {
     });
 }
 
+function updateCnToggleStyle(toggle) {
+    const labelEng = document.getElementById('cn-toggle-label-eng');
+    const labelCn = document.getElementById('cn-toggle-label-cn');
+    if (toggle.checked) {
+        if (labelEng) labelEng.classList.remove('text-secondary', 'font-medium');
+        if (labelCn) labelCn.classList.remove('text-secondary', 'font-medium');
+    } else {
+        if (labelEng) labelEng.classList.add('text-secondary', 'font-medium');
+        if (labelCn) labelCn.classList.add('text-secondary', 'font-medium');
+    }
+}
+
+function closeCnPreviewIfActive() {
+    const engToggle = document.getElementById('cn-preview-eng-toggle');
+    if (engToggle) {
+        engToggle.closest('.cn-preview-toggle-container')?.remove();
+    }
+}
+
+function getContentForDisplay(template) {
+    if (cnModeEnabled && !cnPreviewEng) {
+        return template.content_cn || template.content || '';
+    }
+    return template.content || '';
+}
+
+function renderEngPreviewToggle() {
+    if (!cnModeEnabled || cnPreviewEng) return;
+    const finalOutput = document.getElementById('final-output');
+    if (!finalOutput) return;
+
+    const container = document.createElement('div');
+    container.className = 'cn-preview-toggle-container flex items-center gap-2 mb-2 p-2 bg-amber-100 border border-amber-300 rounded-lg';
+    container.innerHTML = `
+        <span class="text-sm font-medium text-amber-800">Đang xem bản CN</span>
+        <button id="cn-preview-eng-toggle" class="text-sm bg-amber-500 hover:bg-amber-600 text-white font-medium py-1 px-3 rounded-md flex items-center gap-1">
+            👁 Xem bản Eng
+        </button>
+    `;
+    finalOutput.parentElement.insertBefore(container, finalOutput);
+
+    container.querySelector('#cn-preview-eng-toggle').addEventListener('click', () => {
+        cnPreviewEng = true;
+        updateFinalOutput();
+    });
+}
+
 function copyPlainTextToClipboard(text, feedbackElement) {
     navigator.clipboard.writeText(text).then(() => {
         if (feedbackElement) {
@@ -2964,6 +3087,8 @@ function openTemplateSelectionModal() {
     setTimeout(() => templateSelectionModal.querySelector('.modal-content').classList.remove('scale-95', 'opacity-0'), 10);
 }
 function closeTemplateSelectionModalHandler() {
+    cnPreviewEng = false;
+    closeCnPreviewIfActive();
     const content = templateSelectionModal.querySelector('.modal-content');
     content.classList.add('scale-95', 'opacity-0');
     setTimeout(() => templateSelectionModal.classList.add('hidden'), 300);
