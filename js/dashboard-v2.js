@@ -66,8 +66,8 @@ let currentViewMode = 'normal'; // 'normal', 'leader', 'mos'
 let otModeEnabled = localStorage.getItem('otMode') === 'true';
 const otModeTickets = new Set(JSON.parse(localStorage.getItem('otModeTickets') || '[]'));
 
-// Team Mode State Management (EU/NA)
-let currentTeamMode = localStorage.getItem('teamMode') || 'NA'; // 'NA' or 'EU'
+// Team Mode State Management (NA/EU/CN)
+let currentTeamMode = localStorage.getItem('teamMode') || 'NA'; // 'NA', 'EU', or 'CN'
 
 // =================================================================================
 // == INITIALIZATION & DATA FETCHING =============================================
@@ -143,45 +143,63 @@ function setupUserInterface() {
             });
         }
 
-        // Setup Team Toggle (EU/NA)
-        const teamToggle = document.getElementById('team-toggle');
+        // Setup Team Toggle (NA/EU/CN) - 3-button segmented control
+        const teamBtnNa = document.getElementById('team-btn-na');
+        const teamBtnEu = document.getElementById('team-btn-eu');
+        const teamBtnCn = document.getElementById('team-btn-cn');
+        const teamToggleSlider = document.getElementById('team-toggle-slider');
         const csvImportBtn = document.getElementById('csv-import-btn');
         const euImportBtn = document.getElementById('import-eu-btn');
 
-        if (teamToggle) {
-            // Restore team mode state from localStorage
-            teamToggle.checked = currentTeamMode === 'EU';
+        function setTeamMode(team) {
+            currentTeamMode = team;
+            localStorage.setItem('teamMode', team);
 
-            // Show/hide appropriate import button based on current team
-            if (currentTeamMode === 'EU') {
+            // Update button active states
+            [teamBtnNa, teamBtnEu, teamBtnCn].forEach(btn => btn.classList.remove('active'));
+            const activeBtn = { NA: teamBtnNa, EU: teamBtnEu, CN: teamBtnCn }[team];
+            if (activeBtn) activeBtn.classList.add('active');
+
+            // Move slider to active button
+            if (teamToggleSlider) {
+                const idx = { NA: 0, EU: 1, CN: 2 }[team];
+                teamToggleSlider.style.left = `calc(${idx * 33.333}% + 4px)`;
+            }
+
+            // Show/hide import buttons
+            if (team === 'EU') {
                 if (csvImportBtn) csvImportBtn.classList.add('hidden');
                 if (euImportBtn) euImportBtn.classList.remove('hidden');
+                showMessage('🇪🇺 EU Team Mode - Viewing EU tickets only', 'info', 3000);
+            } else if (team === 'CN') {
+                if (csvImportBtn) csvImportBtn.classList.add('hidden');
+                if (euImportBtn) euImportBtn.classList.add('hidden');
+                showMessage('🇨🇳 CN Team Mode - Viewing CN tickets only', 'info', 3000);
             } else {
                 if (csvImportBtn) csvImportBtn.classList.remove('hidden');
                 if (euImportBtn) euImportBtn.classList.add('hidden');
+                showMessage('🌍 NA Team Mode - Viewing NA tickets only', 'info', 3000);
             }
 
-            teamToggle.addEventListener('change', (e) => {
-                // Update global state and save to localStorage
-                currentTeamMode = e.target.checked ? 'EU' : 'NA';
-                localStorage.setItem('teamMode', currentTeamMode);
+            // Sync cnModeEnabled with team mode CN
+            cnModeEnabled = (team === 'CN');
+            localStorage.setItem('cnModeEnabled', cnModeEnabled);
+            // Update CN template modal toggle to reflect state
+            const cnToggle = document.getElementById('cn-lang-toggle');
+            if (cnToggle) cnToggle.checked = cnModeEnabled;
+            updateCnToggleStyle(cnToggle);
 
-                // Show/hide appropriate import button
-                if (currentTeamMode === 'EU') {
-                    if (csvImportBtn) csvImportBtn.classList.add('hidden');
-                    if (euImportBtn) euImportBtn.classList.remove('hidden');
-                    showMessage('🇪🇺 EU Team Mode - Viewing EU tickets only', 'info', 3000);
-                } else {
-                    if (csvImportBtn) csvImportBtn.classList.remove('hidden');
-                    if (euImportBtn) euImportBtn.classList.add('hidden');
-                    showMessage('🌍 NA Team Mode - Viewing NA tickets only', 'info', 3000);
-                }
-
-                // Refresh tickets to show appropriate team's tickets
-                invalidateTicketsCache();
-                fetchAndRenderTickets(true);
-            });
+            // Refresh tickets when team changes
+            loadTickets(true);
         }
+
+        // Attach click handlers
+        teamBtnNa?.addEventListener('click', () => setTeamMode('NA'));
+        teamBtnEu?.addEventListener('click', () => setTeamMode('EU'));
+        teamBtnCn?.addEventListener('click', () => setTeamMode('CN'));
+
+        // Initialize: apply saved team mode on page load
+        setTeamMode(currentTeamMode);
 
         // Initialize EU import button
         if (euImportBtn && typeof initializeEUImport === 'function') {
@@ -1864,14 +1882,8 @@ function updateFinalOutput() {
     content = content.replace(/\{\{signature\}\}/g, signatureText);
 
     // Get greeting templates
-    // Note: allSettings.X stores the full row { key, value: { value: 'text' } }
-    // So we need to access .value.value to get the actual string
-    const greetingPersonTpl = (typeof allSettings.greeting_person?.value?.value === 'string')
-        ? allSettings.greeting_person.value.value
-        : 'Hi {{name}},';
-    const greetingTeamTpl = (typeof allSettings.greeting_team?.value?.value === 'string')
-        ? allSettings.greeting_team.value.value
-        : 'Hi {{name}} Team,';
+    const greetingPersonTpl = getGreetingTpl(false);
+    const greetingTeamTpl = getGreetingTpl(true);
 
     // Handle {{greeting}} placeholder - works similar to greeting logic
     let greetingReplacement = '';
@@ -1895,15 +1907,11 @@ function updateFinalOutput() {
 
     // Handle Hi {{name}} placeholders in template content - should work exactly like greeting logic
     if (agentName) {
-        const greetingTemplate = (typeof allSettings.greeting_person?.value?.value === 'string')
-            ? allSettings.greeting_person.value.value
-            : 'Hi {{name}},';
+        const greetingTemplate = getGreetingTpl(false);
         const hiNameReplacement = greetingTemplate.replace('{{name}}', toTitleCase(agentName));
         content = content.replace(/Hi\s*\{\{name\}\}/gi, hiNameReplacement);
     } else if (manualSupplierName) {
-        const greetingTemplate = (typeof allSettings.greeting_team?.value?.value === 'string')
-            ? allSettings.greeting_team.value.value
-            : 'Hi {{name}} Team,';
+        const greetingTemplate = getGreetingTpl(true);
         const hiNameReplacement = greetingTemplate.replace('{{name}}', cleanSupplierName(manualSupplierName));
         content = content.replace(/Hi\s*\{\{name\}\}/gi, hiNameReplacement);
     } else {
@@ -1942,9 +1950,8 @@ function updateFinalOutput() {
     } else {
         // Normal templates: greeting + content + footer + closing + signature
         // Use random closing (Best regards, Warm regards, etc.)
-        const closings = ['Best regards', 'Warm regards', 'Kind regards', 'Regards'];
-        const randomClosing = closings[Math.floor(Math.random() * closings.length)];
-        finalPlainText = `${greeting ? greeting + '\n\n' : ''}${content.trim()}${footerPart}\n\n${randomClosing},\n${signatureText}`;
+        const closing = getClosingForMode();
+        finalPlainText = `${greeting ? greeting + '\n\n' : ''}${content.trim()}${footerPart}\n\n${closing},\n${signatureText}`;
     }
 
     // Format for display
@@ -2349,16 +2356,9 @@ async function openCarrierEmailModal(template, isBeforeTemplate = false) {
             const manualSupplierName = manualSupplierNameEl?.value.trim() || '';
             let greeting = '';
             if (agentName) {
-                // Note: allSettings.X stores the full row { key, value: { value: 'text' } }
-                const greetingTemplate = (typeof allSettings.greeting_person?.value?.value === 'string')
-                    ? allSettings.greeting_person.value.value
-                    : 'Hi {{name}},';
-                greeting = greetingTemplate.replace('{{name}}', toTitleCase(agentName));
+                greeting = getGreetingTpl(false).replace('{{name}}', toTitleCase(agentName));
             } else if (manualSupplierName) {
-                const greetingTemplate = (typeof allSettings.greeting_team?.value?.value === 'string')
-                    ? allSettings.greeting_team.value.value
-                    : 'Hi {{name}} Team,';
-                greeting = greetingTemplate.replace('{{name}}', cleanSupplierName(manualSupplierName));
+                greeting = getGreetingTpl(true).replace('{{name}}', cleanSupplierName(manualSupplierName));
             }
 
             // Auto-fill signature placeholder
@@ -2675,10 +2675,8 @@ function openWdnSupplierEmailModal(template) {
             // Get supplier name for greeting
             const supplierName = manualSupplierInput?.value?.trim() || '';
 
-            // Get greeting template from settings
-            const greetingTeamTpl = (typeof allSettings.greeting_team?.value?.value === 'string')
-                ? allSettings.greeting_team.value.value
-                : 'Hi {{name}} Team,';
+            // Get greeting template
+            const greetingTeamTpl = getGreetingTpl(true);
 
             // Build greeting
             let greeting = '';
@@ -2714,12 +2712,9 @@ function openWdnSupplierEmailModal(template) {
                 : '';
             const footerPart = (template.includeFooter && footerText) ? `\n\n${footerText}` : '';
 
-            // Random closing
-            const closings = ['Best regards', 'Warm regards', 'Kind regards', 'Regards'];
-            const randomClosing = closings[Math.floor(Math.random() * closings.length)];
-
             // Assemble final email body
-            const finalBody = `${greeting ? greeting + '\n\n' : ''}${content.trim()}${footerPart}\n\n${randomClosing},\n${signatureText}`;
+            const closing = getClosingForMode();
+            const finalBody = `${greeting ? greeting + '\n\n' : ''}${content.trim()}${footerPart}\n\n${closing},\n${signatureText}`;
 
             if (bodyOutput) {
                 bodyOutput.innerHTML = finalBody.replace(/\n/g, '<br>');
@@ -3048,6 +3043,27 @@ function getContentForDisplay(template) {
         return template.content_cn || template.content || '';
     }
     return template.content || '';
+}
+
+function getGreetingTpl(isTeam = false) {
+    if (cnModeEnabled) {
+        return '您好 {{name}}';
+    }
+    if (isTeam) {
+        return (typeof allSettings.greeting_team?.value?.value === 'string')
+            ? allSettings.greeting_team.value.value
+            : 'Hi {{name}} Team,';
+    }
+    return (typeof allSettings.greeting_person?.value?.value === 'string')
+        ? allSettings.greeting_person.value.value
+        : 'Hi {{name}},';
+}
+
+function getClosingForMode() {
+    if (cnModeEnabled) {
+        return '此致敬礼';
+    }
+    return ['Best regards', 'Warm regards', 'Kind regards', 'Regards'][Math.floor(Math.random() * 4)];
 }
 
 function renderEngPreviewToggle() {

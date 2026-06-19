@@ -393,15 +393,19 @@
         html.dark .theme-wheel-btn { background-color: #1f2937; border-color: #374151; }
         html.dark .team-toggle-track { background-color: #1f2937; border-color: #374151; }
         html.dark .ot-mode-button { background-color: #1f2937; border-color: #4b5563; }
-        html.dark .team-text { color: #9ca3af; }
+        html.dark .team-btn { color: #9ca3af; }
+        html.dark .team-btn.active { color: #ffffff; }
         html.dark .ot-mode-text { color: #9ca3af; }
 
         /* Daylight Theme */
         html.daylight .theme-wheel-btn { background-color: #ffffff; border-color: #e5e7eb; }
         html.daylight .team-toggle-track { background-color: #ffffff; border-color: #e5e7eb; }
         html.daylight .ot-mode-button { background-color: #ffffff; border-color: #d1d5db; }
-        html.daylight .team-na { color: #3b82f6; }
-        html.daylight .team-eu { color: #8b5cf6; }
+        html.daylight .team-btn { color: #9ca3af; }
+        html.daylight .team-btn.active { color: #ffffff; }
+        html.daylight #team-btn-na.active ~ #team-toggle-slider { background: linear-gradient(135deg, #3b82f6, #2563eb); }
+        html.daylight #team-btn-eu.active ~ #team-toggle-slider { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
+        html.daylight #team-btn-cn.active ~ #team-toggle-slider { background: linear-gradient(135deg, #ef4444, #dc2626); }
         html.daylight .ot-mode-text { color: #6b7280; }
         html.daylight .ot-mode-indicator { background: #9ca3af; }
 
@@ -409,40 +413,40 @@
         html.sunset .theme-wheel-btn { background-color: rgba(124, 45, 18, 0.8); border-color: #ea580c; }
         html.sunset .team-toggle-track { background-color: rgba(124, 45, 18, 0.8); border-color: #ea580c; }
         html.sunset .ot-mode-button { background-color: rgba(124, 45, 18, 0.8); border-color: #ea580c; }
-        html.sunset .team-na { color: #fbbf24; }
-        html.sunset .team-eu { color: #fcd34d; }
+        html.sunset .team-btn { color: #fcd34d; }
+        html.sunset .team-btn.active { color: #ffffff; }
         html.sunset .ot-mode-text { color: #fbbf24; }
 
         /* Twilight Theme */
         html.twilight .theme-wheel-btn { background-color: #1e293b; border-color: #334155; }
         html.twilight .team-toggle-track { background-color: #1e293b; border-color: #334155; }
         html.twilight .ot-mode-button { background-color: #1e293b; border-color: #475569; }
-        html.twilight .team-na { color: #60a5fa; }
-        html.twilight .team-eu { color: #a78bfa; }
+        html.twilight .team-btn { color: #94a3b8; }
+        html.twilight .team-btn.active { color: #ffffff; }
         html.twilight .ot-mode-text { color: #94a3b8; }
 
         /* Blossom Dawn Theme */
         html.blossom-dawn .theme-wheel-btn { background-color: #ffe4e9; border-color: #fecdd3; }
         html.blossom-dawn .team-toggle-track { background-color: #ffe4e9; border-color: #fecdd3; }
         html.blossom-dawn .ot-mode-button { background-color: #ffe4e9; border-color: #fda4af; }
-        html.blossom-dawn .team-na { color: #ec4899; }
-        html.blossom-dawn .team-eu { color: #d946ef; }
+        html.blossom-dawn .team-btn { color: #db2777; }
+        html.blossom-dawn .team-btn.active { color: #ffffff; }
         html.blossom-dawn .ot-mode-text { color: #8c435a; }
 
         /* Blue Sky Theme */
         html.blue-sky .theme-wheel-btn { background-color: #e0f2fe; border-color: #bae6fd; }
         html.blue-sky .team-toggle-track { background-color: #e0f2fe; border-color: #bae6fd; }
         html.blue-sky .ot-mode-button { background-color: #e0f2fe; border-color: #7dd3fc; }
-        html.blue-sky .team-na { color: #0369a1; }
-        html.blue-sky .team-eu { color: #7c3aed; }
+        html.blue-sky .team-btn { color: #0369a1; }
+        html.blue-sky .team-btn.active { color: #ffffff; }
         html.blue-sky .ot-mode-text { color: #0369a1; }
 
         /* Fresh Mint Theme */
         html.fresh-mint .theme-wheel-btn { background-color: #dcfce7; border-color: #bbf7d0; }
         html.fresh-mint .team-toggle-track { background-color: #dcfce7; border-color: #bbf7d0; }
         html.fresh-mint .ot-mode-button { background-color: #dcfce7; border-color: #86efac; }
-        html.fresh-mint .team-na { color: #15803d; }
-        html.fresh-mint .team-eu { color: #7c3aed; }
+        html.fresh-mint .team-btn { color: #15803d; }
+        html.fresh-mint .team-btn.active { color: #ffffff; }
         html.fresh-mint .ot-mode-text { color: #166534; }
 
         /* === CIRCULAR THEME WHEEL === */
@@ -530,7 +534,7 @@
         .theme-blue { background: linear-gradient(135deg, #bae6fd, #e0f2fe); }
         .theme-mint { background: linear-gradient(135deg, #bbf7d0, #dcfce7); }
 
-        /* === TEAM TOGGLE (NA/EU) === */
+        /* === TEAM TOGGLE (NA/EU/CN) === */
         .team-toggle-container {
             display: inline-block;
         }
@@ -542,15 +546,29 @@
 
         .team-toggle-track {
             position: relative;
-            width: 160px;
-            height: 48px;
-            border: 2px solid;
-            border-radius: 24px;
             display: flex;
             align-items: center;
-            justify-content: space-between;
-            padding: 4px;
+            border: 2px solid;
+            border-radius: 24px;
             overflow: hidden;
+            background: #ffffff;
+            border-color: #e5e7eb;
+        }
+
+        .team-btn {
+            position: relative;
+            z-index: 2;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 10px 16px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-family: inherit;
         }
 
         .team-option {
@@ -573,9 +591,8 @@
         .team-toggle-slider {
             position: absolute;
             top: 4px;
-            left: 4px;
-            width: calc(50% - 4px);
-            height: calc(100% - 8px);
+            bottom: 4px;
+            width: calc(33.333% - 8px);
             background: linear-gradient(135deg, #3b82f6, #2563eb);
             border-radius: 20px;
             transition: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
@@ -583,28 +600,15 @@
             z-index: 1;
         }
 
-        #team-toggle:checked ~ .team-toggle-track .team-toggle-slider {
-            left: calc(50%);
-            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
-            box-shadow: 0 2px 8px rgba(139, 92, 246, 0.4);
+        /* Active states controlled by JS */
+        .team-toggle-track .team-btn {
+            color: #9ca3af;
         }
-
-        #team-toggle:checked ~ .team-toggle-track .team-na {
-            opacity: 0.5;
-        }
-
-        #team-toggle:checked ~ .team-toggle-track .team-eu {
+        .team-toggle-track .team-btn.active {
             color: #ffffff;
-            opacity: 1;
         }
-
-        #team-toggle:not(:checked) ~ .team-toggle-track .team-na {
-            color: #ffffff;
-            opacity: 1;
-        }
-
-        #team-toggle:not(:checked) ~ .team-toggle-track .team-eu {
-            opacity: 0.5;
+        .team-toggle-track .team-btn:hover:not(.active) {
+            color: #6b7280;
         }
 
         /* === OT MODE BUTTON === */

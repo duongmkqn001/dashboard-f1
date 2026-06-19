@@ -97,26 +97,20 @@
                             <span id="user-greeting" class="font-semibold text-secondary whitespace-nowrap">Xin chào, </span>
                         </div>
 
-                        <!-- Team Toggle - EU/NA -->
+                        <!-- Team Toggle - NA / EU / CN -->
                         <div class="team-toggle-container">
-                            <label class="team-toggle-label">
-                                <input type="checkbox" id="team-toggle" class="sr-only peer">
-                                <div class="team-toggle-track">
-                                    <div class="team-option team-na">
-                                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                            <path d="M10 2a8 8 0 100 16 8 8 0 000-16zM8 10a1 1 0 112 0v3a1 1 0 11-2 0v-3zm1-4a1 1 0 100 2 1 1 0 000-2z"/>
-                                        </svg>
-                                        <span class="team-text">NA</span>
-                                    </div>
-                                    <div class="team-option team-eu">
-                                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clip-rule="evenodd"/>
-                                        </svg>
-                                        <span class="team-text">EU</span>
-                                    </div>
-                                    <div class="team-toggle-slider"></div>
-                                </div>
-                            </label>
+                            <div class="team-toggle-track">
+                                <button type="button" id="team-btn-na" class="team-option team-btn active" data-team="NA">
+                                    <span class="team-text">NA</span>
+                                </button>
+                                <button type="button" id="team-btn-eu" class="team-option team-btn" data-team="EU">
+                                    <span class="team-text">EU</span>
+                                </button>
+                                <button type="button" id="team-btn-cn" class="team-option team-btn" data-team="CN">
+                                    <span class="team-text">CN</span>
+                                </button>
+                                <div id="team-toggle-slider" class="team-toggle-slider"></div>
+                            </div>
                         </div>
 
                         <!-- OT Mode Toggle - Emphasized -->
