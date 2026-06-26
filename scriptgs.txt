@@ -1,10 +1,12 @@
 /********************** CONFIGURATION **********************/
-const SHEET_ID = '1NfwtNf9KgHeL5tdiOmJIfBOqTvGMiTcPSPEt4f_ZVSc';
+const SHEET_ID = '1hkpYqviG8IRaGwL9V30n3KRNkMf_eJYQ2kOiWtQU84o';
+const SHEET_ID_MOS = '1qRNAc-HahK6KPREE2o7n9tdGWPMwuWap5O8HOqUMjFqs8cUmNGpknp_k';
 
 // Tên các sheet
 const SHEET_AOPS = 'Work tracker (AOPS)';
 const SHEET_FMOP = 'Work tracker (FMOP)';
 const SHEET_OT_TRACKER = 'OT Tracker';
+const SHEET_MOS = 'MOS';
 
 // Cấu hình Supabase
 const SUPABASE_URL = 'https://pfbxtbydrjcmqlrklsdr.supabase.co';
@@ -32,6 +34,17 @@ const TRACKER_COLUMNS = {
 const DATE_FORMAT_FOR_TRACKER = "MM/dd/yyyy";
 const DATE_COMPLETED_FORMAT = "MM/dd/yyyy";
 
+// Cấu hình MOS TRACKER COLUMNS
+const MOS_COLUMNS = {
+  DATE_COMPLETE: 'Date Complete',
+  AGENT_VCN: 'Agent VCN',
+  ACCOUNT: 'Account',
+  TICKET_NUMBER: 'Ticket Number',
+  TICKET_URL: 'Ticket URL',
+  TICKET_TYPE: 'Ticket Type',
+  MOS_DETAIL: 'MOS Detail'
+};
+
 /********************** MAIN ENTRY POINT **********************/
 function doGet(e) {
   const callback = e.parameter.callback;
@@ -52,7 +65,7 @@ function doGet(e) {
        throw new Error(`Ticket ${ticketId} không tồn tại trên Supabase View`);
     }
 
-    // 2. Bật Lock (Giới hạn chờ 30 giây để tránh Exceeded Time Limit)
+    // 2. Bật Lock (Giới hạn chờ 60 giây để tránh Exceeded Time Limit)
     const lock = LockService.getScriptLock();
     const success = lock.tryLock(60000); 
 
@@ -84,6 +97,14 @@ function processTicketIntoSheet(ticket) {
   const ticketNumber = String(ticket['Ticket'] || ''); 
   const project = String(ticket['Project'] || '');
   const isOt = ticket['OT Mode'] === true;
+
+  // ===== LOGIC MỚI: KIỂM TRA PENDING (ASK IH) =====
+  const rawStatus = String(ticket['Ticket Status'] || '').trim();
+  const isPendingAskIH = (rawStatus === 'Pending (Ask IH)');
+  
+  // Nếu là Pending Ask IH thì xóa status trước khi ghi vào sheet
+  const displayStatus = isPendingAskIH ? '' : rawStatus;
+  // ================================================
 
   // Chuẩn bị ngày so sánh
   const timeZone = Session.getScriptTimeZone();
@@ -182,7 +203,7 @@ function processTicketIntoSheet(ticket) {
     [TRACKER_COLUMNS.TICKET_TYPE, ticket['Ticket Type'] || ''],
     [TRACKER_COLUMNS.SUPPLIER, ticket['Supplier'] || ''],
     [TRACKER_COLUMNS.PO, ticket['PO'] || ''],
-    [TRACKER_COLUMNS.TICKET_STATUS, ticket['Ticket Status'] || '']
+    [TRACKER_COLUMNS.TICKET_STATUS, displayStatus] // <-- Dùng displayStatus đã xử lý ở trên
   ]);
 
   // Bảo toàn công thức tại dòng được ghi (CHỈ ĐỌC KHI CẦN)
@@ -196,8 +217,13 @@ function processTicketIntoSheet(ticket) {
   const dataMapKeys = Array.from(dataToMap.keys()).map(k => normalize(k));
 
   const newRowData = new Array(lastCol).fill('');
-  const dateCompletedIdx = normalizedHeaders.findIndex(h => h.includes('datecompleted'));
-  if (dateCompletedIdx !== -1) newRowData[dateCompletedIdx] = completedDateStr;
+  
+  // Xử lý ghi Completed Date
+  const dateCompletedIdx = normalizedHeaders.findIndex(h => h.includes('datecompleted') || h.includes('completeddate'));
+  if (dateCompletedIdx !== -1) {
+    // Nếu là Pending Ask IH -> Để trống (như yêu cầu), ngược lại ghi ngày hoàn thành bình thường
+    newRowData[dateCompletedIdx] = isPendingAskIH ? '' : completedDateStr;
+  }
 
   for (let i = 0; i < headers.length; i++) {
     const headerNorm = normalizedHeaders[i];
@@ -281,5 +307,206 @@ function markTicketAsImported(ticketId) {
   } catch (e) {
     // Bỏ qua lỗi ngầm để không làm ảnh hưởng luồng chính nếu Supabase API chậm
     Logger.log('Error marking ticket as imported: ' + e.message);
+  }
+}
+
+/********************** MOS TRACKER ENDPOINT **********************/
+function doGetMOS(e) {
+  const callback = e.parameter.callback;
+  
+  if (!e.parameter.secret || e.parameter.secret !== SECRET_TOKEN) {
+    return createResponse({ error: 'Invalid secret token' }, callback);
+  }
+
+  const ticketId = e.parameter.ticketId;
+  if (!ticketId) {
+    return createResponse({ error: 'Missing ticketId' }, callback);
+  }
+
+  try {
+    // 1. Gọi Supabase để lấy dữ liệu từ escalate view (Bên ngoài Lock để không nghẽn hệ thống khi mạng chậm)
+    const ticketData = fetchEscalateTicketFromView(ticketId);
+    if (!ticketData || ticketData.length === 0) {
+       throw new Error(`Ticket ${ticketId} không tồn tại trên Supabase Escalate View hoặc đã được export`);
+    }
+
+    // 2. Bật Lock (Giới hạn chờ 60 giây để tránh Exceeded Time Limit)
+    const lock = LockService.getScriptLock();
+    const success = lock.tryLock(60000); 
+
+    if (!success) {
+       throw new Error("Server đang bận xử lý request khác. Vui lòng thử lại sau vài giây.");
+    }
+
+    let result;
+    try {
+      // 3. Xử lý ghi dữ liệu vào MOS Sheet
+      result = processEscalateTicketIntoMOSSheet(ticketData[0]);
+    } finally {
+      // Nhả Lock ngay lập tức sau khi ghi xong
+      lock.releaseLock();
+    }
+
+    // 4. Cập nhật trạng thái trên Supabase
+    markEscalateTicketAsImported(ticketId);
+
+    return createResponse(result, callback);
+
+  } catch (err) {
+    return createResponse({ success: false, error: err.message }, callback);
+  }
+}
+
+/********************** MOS CORE LOGIC **********************/
+function processEscalateTicketIntoMOSSheet(ticket) {
+  const ticketNumber = String(ticket['Ticket Number'] || '');
+
+  const ss = SpreadsheetApp.openById(SHEET_ID_MOS);
+  const sheet = ss.getSheetByName(SHEET_MOS);
+  if (!sheet) throw new Error(`Không tìm thấy sheet: ${SHEET_MOS}`);
+
+  // --- CACHE HEADERS ---
+  const lastRow = sheet.getLastRow();
+  const lastCol = sheet.getLastColumn();
+  const headers = getOrCacheHeaders(sheet, lastCol);
+  const normalize = (str) => String(str || '').toLowerCase().replace(/\s+/g, '').trim();
+
+  const ticketColIdx = headers.findIndex(h => normalize(h) === normalize(MOS_COLUMNS.TICKET_NUMBER));
+
+  if (ticketColIdx === -1) {
+    throw new Error(`Lỗi cấu hình: Không tìm thấy cột Ticket Number trong MOS sheet`);
+  }
+
+  // --- QUÉT CỘT TICKET ĐỂ TÌM TRÙNG LẶP ---
+  const SCAN_LIMIT = 5000;
+  let startScanRow = DATA_START_ROW;
+
+  if (lastRow > (DATA_START_ROW + SCAN_LIMIT)) {
+    startScanRow = lastRow - SCAN_LIMIT + 1;
+  }
+
+  let ticketColumn = [];
+  if (lastRow >= startScanRow) {
+    const numRows = lastRow - startScanRow + 1;
+    ticketColumn = sheet.getRange(startScanRow, ticketColIdx + 1, numRows, 1).getValues().map(r => r[0]);
+  }
+
+  // --- TÌM TRÙNG LẶP & DÒNG TRỐNG ---
+  let targetRow = -1;
+  let firstEmptyRowIndex = -1;
+
+  for (let i = 0; i < ticketColumn.length; i++) {
+    const rowTicket = String(ticketColumn[i] || '').trim();
+
+    // Ưu tiên 1: Update nếu trùng Ticket
+    if (rowTicket === ticketNumber) {
+      targetRow = startScanRow + i;
+      break;
+    }
+
+    // Ưu tiên 2: Tìm dòng trống
+    if (firstEmptyRowIndex === -1 && rowTicket === '') {
+      firstEmptyRowIndex = startScanRow + i;
+    }
+  }
+
+  // Chốt vị trí ghi nếu không phải Update
+  if (targetRow === -1) {
+    if (firstEmptyRowIndex !== -1) {
+      targetRow = firstEmptyRowIndex;
+    } else {
+      targetRow = lastRow + 1;
+      if (targetRow < DATA_START_ROW) targetRow = DATA_START_ROW;
+    }
+  }
+
+  // --- MAPPING DỮ LIỆU ---
+  const dataToMap = new Map([
+    [MOS_COLUMNS.DATE_COMPLETE, ticket['Date Complete'] || ''],
+    [MOS_COLUMNS.AGENT_VCN, ticket['Agent VCN'] || ''],
+    [MOS_COLUMNS.ACCOUNT, ticket['Account'] || ''],
+    [MOS_COLUMNS.TICKET_NUMBER, ticketNumber],
+    [MOS_COLUMNS.TICKET_URL, ticket['Ticket URL'] || ''],
+    [MOS_COLUMNS.TICKET_TYPE, ticket['Ticket Type'] || ''],
+    [MOS_COLUMNS.MOS_DETAIL, ticket['MOS Detail'] || '']
+  ]);
+
+  // Bảo toàn công thức tại dòng được ghi
+  let currentRowFormulas = [];
+  if (targetRow <= sheet.getLastRow()) {
+     currentRowFormulas = sheet.getRange(targetRow, 1, 1, lastCol).getFormulas()[0];
+  }
+
+  // Tạo normalized header map một lần
+  const normalizedHeaders = headers.map(h => normalize(h));
+  const dataMapKeys = Array.from(dataToMap.keys()).map(k => normalize(k));
+
+  const newRowData = new Array(lastCol).fill('');
+
+  for (let i = 0; i < headers.length; i++) {
+    const headerNorm = normalizedHeaders[i];
+    const mappedKeyIdx = dataMapKeys.indexOf(headerNorm);
+
+    if (mappedKeyIdx !== -1) {
+      const originalKey = Array.from(dataToMap.keys())[mappedKeyIdx];
+      newRowData[i] = dataToMap.get(originalKey);
+    } else if (currentRowFormulas[i] && currentRowFormulas[i] !== '') {
+      newRowData[i] = currentRowFormulas[i];
+    }
+  }
+
+  // --- THỰC THI GHI DỮ LIỆU ---
+  sheet.getRange(targetRow, 1, 1, newRowData.length).setValues([newRowData]);
+
+  return { 
+    success: true, 
+    row: targetRow, 
+    sheet: SHEET_MOS, 
+    ticket: ticketNumber, 
+    action: targetRow <= lastRow ? 'updated' : 'appended'
+  };
+}
+
+/********************** MOS HELPERS **********************/
+function fetchEscalateTicketFromView(ticketId) {
+  const url = `${SUPABASE_URL}/rest/v1/tickets_escalate_v?id=eq.${ticketId}&select=*`;
+  const options = {
+    method: 'GET',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Content-Type': 'application/json'
+    },
+    muteHttpExceptions: true,
+    validateHttpsCertificates: false
+  };
+
+  const response = UrlFetchApp.fetch(url, options);
+
+  if (response.getResponseCode() !== 200) {
+     throw new Error("Lỗi Supabase: " + response.getContentText());
+  }
+  return JSON.parse(response.getContentText());
+}
+
+function markEscalateTicketAsImported(ticketId) {
+  try {
+    const url = `${SUPABASE_URL}/rest/v1/tickets?id=eq.${ticketId}`;
+    const options = {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_KEY,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      payload: JSON.stringify({ import_to_mos_tracker: true }),
+      muteHttpExceptions: true,
+      validateHttpsCertificates: false
+    };
+
+    UrlFetchApp.fetch(url, options);
+  } catch (e) {
+    Logger.log('Error marking escalate ticket as imported: ' + e.message);
   }
 }

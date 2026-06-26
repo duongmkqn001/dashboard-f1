@@ -1213,7 +1213,6 @@ async function handleGroupAction(button, ticketIds, action) {
         payload.ticket_status_id = parseInt(statusSelect.value, 10);
         payload.time_end = new Date().toISOString();
 
-        // Check if EU team member and status is "Move to onshore - Unassign"
         const ticket = ticketsMap.get(firstTicketId);
         if (ticket) {
             // Get agent team
@@ -1223,14 +1222,14 @@ async function handleGroupAction(button, ticketIds, action) {
                 .eq('agent_account', ticket.assignee_account)
                 .single();
 
-            if (!agentError && agentData && agentData.team === 'EU') {
-                // Get status name
-                const selectedStatus = ticketStatuses.find(s => s.id == statusSelect.value);
-                if (selectedStatus && selectedStatus.status_name === 'Move to onshore - Unassign') {
-                    // Prompt for escalation reason
+            // Get status name
+            const selectedStatus = ticketStatuses.find(s => s.id == statusSelect.value);
+
+            if (!agentError && agentData) {
+                // EU team: "Move to onshore - Unassign" status
+                if (agentData.team === 'EU' && selectedStatus && selectedStatus.status_name === 'Move to onshore - Unassign') {
                     const reasonEscalate = prompt('Please provide the reason for escalation:');
                     if (reasonEscalate === null) {
-                        // User cancelled
                         button.disabled = false;
                         return;
                     }
@@ -1240,6 +1239,21 @@ async function handleGroupAction(button, ticketIds, action) {
                         return;
                     }
                     payload.reason_escalate = reasonEscalate.trim();
+                }
+
+                // NA/CN team: Escalate status (id=2) - require MOS detail
+                if ((agentData.team === 'NA' || agentData.team === 'CN') && selectedStatus && selectedStatus.id === 2) {
+                    const mosDetail = prompt('Please provide MOS Detail for this escalated ticket:');
+                    if (mosDetail === null) {
+                        button.disabled = false;
+                        return;
+                    }
+                    if (!mosDetail.trim()) {
+                        showMessage('MOS Detail is required for NA/CN agents when using Escalate status.', 'error');
+                        button.disabled = false;
+                        return;
+                    }
+                    payload.mos_detail = mosDetail.trim();
                 }
             }
         }
@@ -3532,6 +3546,9 @@ async function handleEndTicket(ticketId) {
         const status = ticketStatuses.find(s => s.id == selectedStatusId);
         if (!status) throw new Error('Status not found');
 
+        // Check if this is an Escalate ticket (NA/CN team)
+        const isEscalateTicket = status.id === 2 && (agentData.team === 'NA' || agentData.team === 'CN');
+
         // Get KPI ID from kpi_per_task table
         const { data: kpiData, error: kpiError } = await supabaseClient
             .from('kpi_per_task')
@@ -3571,10 +3588,35 @@ async function handleEndTicket(ticketId) {
         // The Apps Script will fetch data from tickets_export_v view (NA) or tickets_export_eu_v (EU)
         sendTicketToGoogleSheets(ticketId, agentData.team); // No await - runs in background
 
+        // If this is an Escalate ticket (NA/CN), also send to MOS tracker
+        if (isEscalateTicket) {
+            sendTicketToMOSTTracker(ticketId);
+        }
+
     } catch (error) {
         console.error('Error handling end ticket:', error);
         showMessage('Lỗi khi xử lý kết thúc ticket', 'error');
     }
+}
+
+// Send ticket to MOS Tracker for Escalate tickets
+function sendTicketToMOSTTracker(ticketId) {
+    const MOS_TRACKER_URL = 'https://script.google.com/macros/s/AKfycbwNKt6FQzLZ0g7kL6tJ3xGQJv6LqGfT9zVxUcjK1qZpVxJ6Z-5XcYZK9pB/exec';
+    
+    console.log(`📤 Sending ticket ${ticketId} to MOS Tracker...`);
+    
+    fetch(`${MOS_TRACKER_URL}?ticketId=${ticketId}&secret=14092000`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                console.log(`✅ Ticket ${ticketId} exported to MOS Tracker successfully`);
+            } else {
+                console.error(`❌ Failed to export ticket ${ticketId} to MOS Tracker:`, data.error);
+            }
+        })
+        .catch(error => {
+            console.error(`❌ Error sending ticket ${ticketId} to MOS Tracker:`, error);
+        });
 }
 
 // Enhanced queue system for Google Sheets requests with better error handling
