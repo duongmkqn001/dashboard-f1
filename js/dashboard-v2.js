@@ -3605,7 +3605,7 @@ function sendTicketToMOSTTracker(ticketId) {
     
     console.log(`📤 Sending ticket ${ticketId} to MOS Tracker...`);
     
-    fetch(`${MOS_TRACKER_URL}?ticketId=${ticketId}&secret=14092000`)
+    fetch(`${MOS_TRACKER_URL}?action=mos&ticketId=${ticketId}&secret=14092000`)
         .then(response => response.json())
         .then(data => {
             if (data.success) {
