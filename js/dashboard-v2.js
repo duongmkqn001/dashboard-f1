@@ -3569,10 +3569,12 @@ async function handleEndTicket(ticketId) {
         // Check if this ticket was started in OT Mode
         const isOTTicket = otModeTickets.has(ticketId);
 
-        // Update ticket with issue_type (KPI ID) and OT mode flag
+        // Update ticket with issue_type (KPI ID), OT mode flag, and time_end
+        // time_end is required for tickets_export_v / tickets_escalate_v views to pick up the ticket
         const updateData = {
             issue_type: kpiData ? kpiData.id : ticket.issue_type,
-            ot_mode: isOTTicket  // Mark ticket for OT Tracker routing
+            ot_mode: isOTTicket,  // Mark ticket for OT Tracker routing
+            time_end: new Date().toISOString()
         };
 
         const { error: updateError } = await supabaseClient
@@ -3590,12 +3592,13 @@ async function handleEndTicket(ticketId) {
         }
 
         // Send ticket ID to Google Sheets tracker in background (don't wait)
-        // The Apps Script will fetch data from tickets_export_v view (NA) or tickets_export_eu_v (EU)
+        // The Apps Script will fetch data from tickets_export_v view (NA/EU) or tickets_export_cn_v (CN)
         sendTicketToGoogleSheets(ticketId, agentData.team); // No await - runs in background
 
         // If this is an Escalate ticket (NA/CN), also send to MOS tracker
+        // Delay slightly so Supabase view reflects the new time_end before MOS picks it up
         if (isEscalateTicket) {
-            sendTicketToMOSTTracker(ticketId);
+            setTimeout(() => sendTicketToMOSTTracker(ticketId), 1500);
         }
 
     } catch (error) {
@@ -3604,24 +3607,37 @@ async function handleEndTicket(ticketId) {
     }
 }
 
-// Send ticket to MOS Tracker for Escalate tickets
+// Send ticket to MOS Tracker for Escalate tickets (NA/CN team)
+// MOS is hosted in the NA script (scriptgs.txt) at handleMOSImport
 function sendTicketToMOSTTracker(ticketId) {
-    const MOS_TRACKER_URL = 'https://script.google.com/macros/s/AKfycbwNKt6FQzLZ0g7kL6tJ3xGQJv6LqGfT9zVxUcjK1qZpVxJ6Z-5XcYZK9pB/exec';
+    // NA script URL is the host of handleMOSImport action=mos
+    const MOS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzDXf9HPZi9NiJy-f8Enw9ZINljy2njMSWcZFXnrKCDzRPpAwwipIsTTMjP3lTtPZM07A/exec';
     
-    console.log(`📤 Sending ticket ${ticketId} to MOS Tracker...`);
+    console.log(`📤 Sending ticket ${ticketId} to MOS Tracker via JSONP...`);
     
-    fetch(`${MOS_TRACKER_URL}?action=mos&ticketId=${ticketId}&secret=14092000`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                console.log(`✅ Ticket ${ticketId} exported to MOS Tracker successfully`);
-            } else {
-                console.error(`❌ Failed to export ticket ${ticketId} to MOS Tracker:`, data.error);
-            }
-        })
-        .catch(error => {
-            console.error(`❌ Error sending ticket ${ticketId} to MOS Tracker:`, error);
-        });
+    const SECRET_TOKEN = '14092000';
+    const callbackName = `mos_callback_${ticketId}_${Date.now()}`;
+    
+    window[callbackName] = (response) => {
+        delete window[callbackName];
+        const script = document.getElementById(callbackName);
+        if (script) script.parentNode.removeChild(script);
+        if (response && response.success) {
+            console.log(`✅ Ticket ${ticketId} exported to MOS Tracker successfully`);
+        } else {
+            console.error(`❌ Failed to export ticket ${ticketId} to MOS Tracker:`, response && response.error);
+        }
+    };
+    
+    const s = document.createElement('script');
+    s.id = callbackName;
+    s.src = `${MOS_SCRIPT_URL}?action=mos&ticketId=${ticketId}&secret=${SECRET_TOKEN}&callback=${callbackName}`;
+    s.onerror = () => {
+        console.error(`❌ Network error sending ticket ${ticketId} to MOS Tracker`);
+        delete window[callbackName];
+        if (s.parentNode) s.parentNode.removeChild(s);
+    };
+    document.head.appendChild(s);
 }
 
 // Enhanced queue system for Google Sheets requests with better error handling
