@@ -691,8 +691,8 @@ async function fetchAndRenderTickets(forceRefresh = false) {
             } else if (currentTeamMode === 'CN') {
                 query = query.eq('agent.team', 'CN');
             } else {
-                // NA mode: filter for NA team only (null or 'NA')
-                query = query.or('agent.team.is.null,agent.team.eq.NA');
+                // NA mode: agent.team = 'NA' (inner join already excludes null)
+                query = query.eq('agent.team', 'NA');
             }
 
             if (isLeaderView) {
