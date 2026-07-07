@@ -685,9 +685,14 @@ async function fetchAndRenderTickets(forceRefresh = false) {
             let query = supabaseClient.from('tickets').select(columns).is('time_end', null);
             if (selectedAssignee) query = query.eq('assignee_account', selectedAssignee);
 
-            // Filter by team mode (CN uses same query as NA until DB is set up for CN team)
+            // Filter by team mode - separate filtering for NA, EU, CN
             if (currentTeamMode === 'EU') {
                 query = query.eq('agent.team', 'EU');
+            } else if (currentTeamMode === 'CN') {
+                query = query.eq('agent.team', 'CN');
+            } else {
+                // NA mode: filter for NA team only (null or 'NA')
+                query = query.or('agent.team.is.null,agent.team.eq.NA');
             }
 
             if (isLeaderView) {
@@ -3775,18 +3780,31 @@ sendSingleTicket(ticketId, team = 'NA') {
                 // Use different script URLs based on team
                 const NA_GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzDXf9HPZi9NiJy-f8Enw9ZINljy2njMSWcZFXnrKCDzRPpAwwipIsTTMjP3lTtPZM07A/exec';
                 const EU_GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbxx70shS7RkOO0lWmn3bVSH1Mw5vNprz5RJYHMZakOfZSMbMipciaDBzKaAfU0TbxKl/exec';
+                const CN_GOOGLE_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwNKt6FQzLZ0g7kL6tJ3xGQJv6LqGfT9zVxUcjK1qZpVxJ6Z-5XcYZK9pB/exec';
 
-                const GOOGLE_SHEETS_URL = team === 'EU' ? EU_GOOGLE_SHEETS_URL : NA_GOOGLE_SHEETS_URL;
+                let GOOGLE_SHEETS_URL;
+                if (team === 'EU') {
+                    GOOGLE_SHEETS_URL = EU_GOOGLE_SHEETS_URL;
+                } else if (team === 'CN') {
+                    GOOGLE_SHEETS_URL = CN_GOOGLE_SHEETS_URL;
+                } else {
+                    GOOGLE_SHEETS_URL = NA_GOOGLE_SHEETS_URL;
+                }
                 const SECRET_TOKEN = '14092000';
 
                 console.log(`📤 Sending ticket ${ticketId} to ${team} tracker: ${GOOGLE_SHEETS_URL}`);
 
-                // CHỈ CẦN GỬI TICKET ID - Data sẽ tự lấy từ View (tickets_export_v for NA, tickets_export_eu_v for EU)
+                // CHỈ CẦN GỬI TICKET ID - Data sẽ tự lấy từ View
+                // CN team sử dụng action=cn để route đến Work Tracker (Mandarin T2)
                 const params = new URLSearchParams({
                     secret: SECRET_TOKEN,
                     ticketId: ticketId
-                    // KHÔNG GỬI 'ot' NỮA
                 });
+                
+                // Thêm action=cn cho CN team để route đúng sheet
+                if (team === 'CN') {
+                    params.set('action', 'cn');
+                }
 
                 const callbackName = `callback_${ticketId}_${Date.now()}`;
 

@@ -6,6 +6,7 @@ const SHEET_AOPS = 'Work tracker (AOPS)';
 const SHEET_FMOP = 'Work tracker (FMOP)';
 const SHEET_OT_TRACKER = 'OT Tracker';
 const SHEET_MOS = 'MOS';
+const SHEET_CN = 'Work Tracker (Mandarin T2)';
 
 // Cấu hình Supabase
 const SUPABASE_URL = 'https://pfbxtbydrjcmqlrklsdr.supabase.co';
@@ -56,6 +57,7 @@ function logDebug(message, data) {
 /********************** MAIN ENTRY POINT - ROUTING **********************/
 // URL patterns:
 // AOPS/FMOP: ?secret=xxx&ticketId=xxx
+// CN:        ?secret=xxx&action=cn&ticketId=xxx
 // MOS:       ?secret=xxx&action=mos&ticketId=xxx
 // MOS Batch: ?secret=xxx&action=mos_batch
 // Test:      ?secret=xxx&action=test
@@ -69,6 +71,11 @@ function doGet(e) {
   }
 
   try {
+    // Route: CN Work Tracker (Mandarin T2)
+    if (action === 'cn') {
+      return handleCNImport(e, callback);
+    }
+    
     // Route: MOS
     if (action === 'mos') {
       return handleMOSImport(e, callback);
@@ -134,6 +141,59 @@ function handleAOPSImport(e, callback) {
 
   } catch (err) {
     logDebug('AOPS/FMOP: Error', { ticketId, error: err.message });
+    return createResponse({ success: false, error: err.message }, callback);
+  }
+}
+
+/********************** HANDLER: CN WORK TRACKER (MANDARIN T2) **********************/
+function handleCNImport(e, callback) {
+  const ticketId = e.parameter.ticketId;
+  if (!ticketId) {
+    return createResponse({ error: 'Missing ticketId' }, callback);
+  }
+
+  try {
+    logDebug('CN: Starting import', { ticketId });
+    
+    // 1. Gọi Supabase để lấy dữ liệu từ CN export view (Bên ngoài Lock)
+    const ticketData = fetchCNTicketFromView(ticketId);
+    if (!ticketData || ticketData.length === 0) {
+       throw new Error(`Ticket ${ticketId} không tồn tại trên Supabase CN View hoặc đã được export`);
+    }
+    
+    logDebug('CN: Ticket data fetched', { ticketId, ticket: ticketData[0]['Ticket Number'] });
+
+    // 2. Bật Lock (Giới hạn chờ 60 giây)
+    const lock = LockService.getScriptLock();
+    const success = lock.tryLock(60000); 
+
+    if (!success) {
+       throw new Error("Server đang bận xử lý request khác. Vui lòng thử lại sau vài giây.");
+    }
+
+    let result;
+    try {
+      // 3. Xử lý ghi dữ liệu vào CN Sheet
+      result = processTicketIntoCNSheet(ticketData[0]);
+      logDebug('CN: Sheet write complete', { ticketId, result });
+    } finally {
+      // Nhả Lock ngay lập tức sau khi ghi xong
+      lock.releaseLock();
+    }
+
+    // 4. Cập nhật trạng thái trên Supabase - CRITICAL: PHẢI ĐỢI KẾT QUẢ
+    const updateResult = markTicketAsImported(ticketId);
+    logDebug('CN: PATCH result', { ticketId, updateResult });
+
+    return createResponse({
+      success: true, 
+      imported: true,
+      ticketId: ticketId,
+      ...result
+    }, callback);
+
+  } catch (err) {
+    logDebug('CN: Error', { ticketId, error: err.message, stack: err.stack });
     return createResponse({ success: false, error: err.message }, callback);
   }
 }
@@ -573,6 +633,82 @@ function processEscalateTicketIntoMOSSheet(ticket) {
     success: true, 
     row: targetRow, 
     sheet: SHEET_MOS, 
+    ticket: ticketNumber, 
+    action: targetRow <= lastRow ? 'updated' : 'appended'
+  };
+}
+
+/********************** CN WORK TRACKER FUNCTIONS **********************/
+function fetchCNTicketFromView(ticketId) {
+  const url = `${SUPABASE_URL}/rest/v1/tickets_export_cn_v?id=eq.${ticketId}&select=*`;
+  const options = {
+    method: 'GET',
+    headers: {
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Content-Type': 'application/json'
+    },
+    muteHttpExceptions: true,
+    validateHttpsCertificates: false
+  };
+
+  const response = UrlFetchApp.fetch(url, options);
+  logDebug('CN: Fetch ticket', { ticketId, status: response.getResponseCode() });
+
+  if (response.getResponseCode() !== 200) {
+     throw new Error("Lỗi Supabase CN view: " + response.getContentText());
+  }
+  return JSON.parse(response.getContentText());
+}
+
+function processTicketIntoCNSheet(ticket) {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const sheet = ss.getSheetByName(SHEET_CN);
+  
+  if (!sheet) {
+    throw new Error(`Sheet '${SHEET_CN}' không tồn tại`);
+  }
+
+  const ticketNumber = ticket['Ticket Number'];
+  const lastRow = sheet.getLastRow();
+  
+  // Tìm dòng hiện có của ticket hoặc tìm dòng trống
+  let targetRow = null;
+  
+  for (let row = DATA_START_ROW; row <= lastRow; row++) {
+    const cellValue = sheet.getRange(row, 1).getValue();
+    if (cellValue && cellValue.toString().trim() === ticketNumber) {
+      targetRow = row;
+      break;
+    }
+  }
+  
+  // Nếu không tìm thấy, tìm dòng trống đầu tiên
+  if (!targetRow) {
+    targetRow = lastRow + 1;
+  }
+
+  // Chuẩn bị dữ liệu (theo đúng thứ tự cột trong sheet)
+  const newRowData = [
+    ticket['Date'] || '',
+    ticket['Ticket Number'] || '',
+    ticket['Time Start'] || '',
+    ticket['Time End'] || '',
+    ticket['Agent Name'] || '',
+    ticket['Account'] || '',
+    ticket['Ticket Type'] || '',
+    ticket['Ticket Status'] || ''
+  ];
+
+  // Ghi dữ liệu
+  sheet.getRange(targetRow, 1, 1, newRowData.length).setValues([newRowData]);
+  
+  logDebug('CN: Data written to sheet', { ticketNumber, row: targetRow });
+
+  return { 
+    success: true, 
+    row: targetRow, 
+    sheet: SHEET_CN, 
     ticket: ticketNumber, 
     action: targetRow <= lastRow ? 'updated' : 'appended'
   };
