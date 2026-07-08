@@ -3593,6 +3593,10 @@ async function handleEndTicket(ticketId) {
 
         // Send ticket ID to Google Sheets tracker in background (don't wait)
         // The Apps Script will fetch data from tickets_export_v view (NA/EU) or tickets_export_cn_v (CN)
+        // The DB-side tickets_import_queue (see sql/create_tickets_import_queue.sql) is the
+        // durable source of truth and is drained by the Edge Function; the legacy
+        // googleSheetsQueue inside dashboard-v2.js is kept as a harmless no-op when
+        // js/tickets-import-queue.js is loaded.
         sendTicketToGoogleSheets(ticketId, agentData.team); // No await - runs in background
 
         // If this is an Escalate ticket (NA/CN), also send to MOS tracker
@@ -3906,11 +3910,25 @@ async function checkAndRetryFailedImports() {
     }
 }
 
-// Start periodic check for failed imports (every 10 minutes)
-setInterval(checkAndRetryFailedImports, 10 * 60 * 1000);
-
-// Also run an initial check after 30 seconds (to allow system to initialize)
-setTimeout(checkAndRetryFailedImports, 30000);
+// Cheap queue-health poll: every 60s (was 10min in the previous design). The
+// DB trigger + pg_cron now own the actual import work, so this loop only
+// refreshes the operator-visible count.  Uses ticketsImportBridge from
+// ./tickets-import-queue.js (loaded before this file).
+setInterval(async () => {
+    try {
+        if (typeof ticketsImportBridge === 'undefined') return;
+        const health = await ticketsImportBridge.readHealth();
+        if (!health) return;
+        const pending = health.filter(r => r.status === 'pending').reduce((a, r) => a + r.row_count, 0);
+        const failed = health.filter(r => r.status === 'failed').reduce((a, r) => a + r.row_count, 0);
+        console.log(`🩺 Import queue: ${pending} pending, ${failed} failed`);
+    } catch (err) {
+        console.warn('queue health poll failed:', err);
+    }
+}, 60 * 1000);
+setTimeout(async () => {
+    try { await ticketsImportBridge?.readHealth(); } catch (e) {}
+}, 10 * 1000);
 
 async function updateNotificationCounts() {
     try {
