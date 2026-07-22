@@ -6,6 +6,3 @@ atlassian-python-api>=3.21.0
 
 # HTTP client (used by atlassian-python-api and our own Discord calls)
 requests>=2.32.0
-
-# PostgreSQL adapter for direct Supabase connection
-psycopg2-binary>=2.9.10

@@ -37,11 +37,7 @@ from html.parser import HTMLParser
 
 import requests
 
-try:
-    import psycopg2
-except ImportError:
-    sys.stderr.write("psycopg2 not installed. Run: pip install psycopg2-binary\n")
-    sys.exit(1)
+import requests
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -317,85 +313,75 @@ class ConfluenceClient:
 
 
 # ---------------------------------------------------------------------------
-# Supabase Client
+# Supabase Client (REST API)
 # ---------------------------------------------------------------------------
 class SupabaseDB:
-    """Direct PostgreSQL connection to Supabase."""
+    """Supabase REST API client - works from GitHub Actions."""
     
     def __init__(self, url: str, service_role_key: str):
         self.url = url.rstrip("/")
         self.service_role_key = service_role_key
-        
-        try:
-            self.project_ref = self.url.split("//")[1].split(".")[0]
-        except Exception as exc:
-            log.error("Could not parse Supabase project ref: %s", exc)
-            raise
-        
-        self._conn_string = (
-            f"postgresql://postgres.{self.project_ref}:{service_role_key}"
-            f"@{self.project_ref}.supabase.co:5432/postgres"
-        )
+        self.headers = {
+            "apikey": service_role_key,
+            "Authorization": f"Bearer {service_role_key}",
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal"
+        }
     
-    def connect(self):
-        conn = psycopg2.connect(self._conn_string, connect_timeout=15)
-        conn.autocommit = True
-        return conn
-    
-    def upsert_changelog_entry(self, conn, page_id: int, page_title: str, page_url: str, entry: dict) -> bool:
-        """Insert or update a change log entry."""
+    def _post(self, path: str, body: dict) -> bool:
+        """Execute POST request to Supabase REST API."""
         try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    SELECT public.upsert_changelog_entry(
-                        %(page_id)s,
-                        %(page_title)s,
-                        %(page_url)s,
-                        %(change_number)s,
-                        %(date_added)s,
-                        %(effective_date)s,
-                        %(qc_impact_date)s,
-                        %(who_affects)s,
-                        %(applicable_sop)s,
-                        %(what_changing)s,
-                        %(reason_change)s
-                    )
-                    """,
-                    {
-                        "page_id": page_id,
-                        "page_title": page_title,
-                        "page_url": page_url,
-                        "change_number": entry.get("change_number"),
-                        "date_added": entry.get("date_added"),
-                        "effective_date": entry.get("effective_date"),
-                        "qc_impact_date": entry.get("qc_impact_date"),
-                        "who_affects": entry.get("who_affects", ""),
-                        "applicable_sop": entry.get("applicable_sop", ""),
-                        "what_changing": entry.get("what_changing", ""),
-                        "reason_change": entry.get("reason_change", ""),
-                    }
-                )
-                return True
-        except psycopg2.Error as exc:
-            log.error("Failed to upsert changelog entry: %s", exc)
+            resp = requests.post(
+                f"{self.url}{path}",
+                headers=self.headers,
+                json=body,
+                timeout=30
+            )
+            if resp.status_code not in (200, 201, 204):
+                log.error("API error %s: %s", resp.status_code, resp.text[:200])
+                return False
+            return True
+        except requests.RequestException as exc:
+            log.error("Request failed: %s", exc)
             return False
     
-    def get_latest_change_number(self, conn, page_id: int) -> Optional[int]:
+    def upsert_changelog_entry(self, page_id: int, page_title: str, page_url: str, entry: dict) -> bool:
+        """Insert or update a change log entry via RPC."""
+        return self._post(
+            "/rest/v1/rpc/upsert_changelog_entry",
+            {
+                "in_page_id": page_id,
+                "in_page_title": page_title,
+                "in_page_url": page_url,
+                "in_change_number": entry.get("change_number"),
+                "in_date_added": entry.get("date_added"),
+                "in_effective_date": entry.get("effective_date"),
+                "in_qc_impact_date": entry.get("qc_impact_date"),
+                "in_who_affects": entry.get("who_affects", ""),
+                "in_applicable_sop": entry.get("applicable_sop", ""),
+                "in_what_changing": entry.get("what_changing", ""),
+                "in_reason_change": entry.get("reason_change", "")
+            }
+        )
+    
+    def get_latest_change_number(self, page_id: int) -> Optional[int]:
         """Get the latest change number for a page."""
         try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    SELECT MAX(change_number) 
-                    FROM public.confluence_changelog_entries 
-                    WHERE page_id = %s
-                    """,
-                    (page_id,)
-                )
-                result = cur.fetchone()
-                return result[0] if result and result[0] else None
-        except psycopg2.Error:
+            resp = requests.get(
+                f"{self.url}/rest/v1/confluence_changelog_entries",
+                headers=self.headers,
+                params={
+                    "select": "change_number",
+                    "page_id": f"eq.{page_id}",
+                    "order": "change_number.desc",
+                    "limit": 1
+                },
+                timeout=30
+            )
+            if resp.status_code == 200 and resp.json():
+                return resp.json()[0].get("change_number")
+            return None
+        except requests.RequestException:
             return None
     
     def count_entries(self, conn, page_id: int) -> int:
@@ -498,9 +484,7 @@ def sync_changelogs(
     # Initialize clients
     cf = ConfluenceClient(confluence_email, confluence_api_key)
     db = SupabaseDB(supabase_url, supabase_srk)
-    
-    conn = db.connect()
-    log.info("Connected to Supabase")
+    log.info("Supabase client initialized")
     
     # Determine pages to sync
     if page_ids:
@@ -544,7 +528,7 @@ def sync_changelogs(
                 continue
             
             # Get current latest entry for comparison
-            current_latest = db.get_latest_change_number(conn, page_id)
+            current_latest = db.get_latest_change_number(None, page_id)
             
             # Filter to only new entries
             new_entries = []
@@ -560,7 +544,7 @@ def sync_changelogs(
                 page_url = f"{CONFLUENCE_BASE}/wiki/spaces/GPS/pages/{page_id}"
                 for entry in new_entries:
                     db.upsert_changelog_entry(
-                        conn, page_id, page_info["title"], page_url, entry
+                        None, page_id, page_info["title"], page_url, entry
                     )
                 
                 stats["new_entries"] += len(new_entries)
