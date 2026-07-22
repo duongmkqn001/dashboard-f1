@@ -34,6 +34,10 @@ This folder contains all documentation for the F1 Dashboard project.
 ### 🤖 AI Features
 - **[AI_CHATBOT_INTEGRATION_GUIDE.md](AI_CHATBOT_INTEGRATION_GUIDE.md)** - AI chatbot integration guide
 
+### 📡 Confluence Monitoring
+- **[CONFLUENCE_MONITOR_SETUP.md](CONFLUENCE_MONITOR_SETUP.md)** - GPS space changelog monitor + Discord webhook
+- **[CONFLUENCE_API_DOCUMENTATION.md](../CONFLUENCE_API_DOCUMENTATION.md)** - Confluence REST API reference
+
 ### 🧪 Testing & Optimization
 - **[FIXES_TESTING_GUIDE.md](FIXES_TESTING_GUIDE.md)** - Testing guide for all fixes
 - **[OPTIMIZATION_SUMMARY.md](OPTIMIZATION_SUMMARY.md)** - Performance optimization summary
@@ -87,6 +91,7 @@ All SQL files are located in the `/sql` folder:
 - [CELEBRATION_FIX_COMPLETE.md](CELEBRATION_FIX_COMPLETE.md) - Celebrations
 - [GOOGLE_SHEETS_INTEGRATION_FIX.md](GOOGLE_SHEETS_INTEGRATION_FIX.md) - Google Sheets
 - [AI_CHATBOT_INTEGRATION_GUIDE.md](AI_CHATBOT_INTEGRATION_GUIDE.md) - AI Chatbot
+- [CONFLUENCE_MONITOR_SETUP.md](CONFLUENCE_MONITOR_SETUP.md) - Confluence changelog monitor
 
 ### Setup & Configuration
 - [REALTIME_NOTIFICATIONS_SETUP.md](REALTIME_NOTIFICATIONS_SETUP.md)
@@ -180,6 +185,7 @@ dashboard f1/
 - ✅ MoS Request System
 - ✅ Ticket Management
 - ✅ Agent Rotation Lists
+- ✅ Confluence GPS Space Changelog Monitor (GitHub Actions + Discord)
 
 ---
 

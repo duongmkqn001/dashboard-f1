@@ -1,0 +1,5 @@
+#,Steps,Actions,Visuals
+1,Review Order,Review order,
+2,Confirm Shipping Information,Confirm shipping information supplier provided is valid,
+3,Update Shipping Info,Update shipping info,
+4,Send Template,Respond to the supplier utilizing the Wrong Carrier Used template.,

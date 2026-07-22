@@ -1,0 +1,4 @@
+#,Steps,Actions,Visuals
+1,Review order in ServiceHub,Open the order details to see when the order was placed.,
+2,Cancel Impacted PO(s),"Cancel the impacted PO(s): Full PO Cancellation Enter the PO or OPID# into the Bulk Order Cancellation tool to cancel the replacement PO. Select Reason for Cancellation: OUT_OF_STOCK_NO_RESTOCK_DATE Be sure to select email notifications for the supplier and customer so they are notified. For Part Cancellation Run the Cancellation Wizard in ServiceHub and cancel the part(s) impacted. Again, be sure to send a notification email to our customer. The supplier will be notified automatically via email.",
+3,Send Template,"Respond to the supplier utilizing the Supplier is Fill/Kill *Or Ashley Furniture template, and close the ticket under a Done resolution.",

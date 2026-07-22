@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="vi" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOP Dashboard - GPS DSC2S</title>
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- Styles -->
+    <link rel="stylesheet" href="css/sop-templates.css">
+    
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <div class="app-container">
+        <!-- Header -->
+        <header class="page-header">
+            <div class="header-left">
+                <h1>SOP Dashboard</h1>
+                <div class="nav-buttons">
+                    <button class="nav-btn active" id="btn-sop" title="Standard Operating Procedures">
+                        📋 SOPs
+                    </button>
+                    <button class="nav-btn" id="btn-templates" onclick="window.location.href='templates-dashboard.html'" title="Canned Responses Templates">
+                        ✉️ Templates
+                    </button>
+                    <button class="nav-btn" onclick="window.location.href='dashboard-v2.html'" title="Main Dashboard">
+                        🏠 Main
+                    </button>
+                </div>
+            </div>
+            <div class="header-right">
+                <select id="theme-select" class="filter-select" title="Select Theme">
+                    <option value="dark">Dark</option>
+                    <option value="daylight">Daylight</option>
+                    <option value="sunset">Sunset</option>
+                    <option value="twilight">Twilight</option>
+                    <option value="blossom-dawn">Blossom Dawn</option>
+                    <option value="blue-sky">Blue Sky</option>
+                    <option value="fresh-mint">Fresh Mint</option>
+                </select>
+                <button class="expand-btn" id="expand-all-btn">
+                    <span class="toggle-icon">▼</span>
+                    Expand All
+                </button>
+            </div>
+        </header>
+
+        <!-- Stats -->
+        <div class="stats-row">
+            <div class="stat-card primary">
+                <span class="stat-label">Total Tables</span>
+                <span class="stat-value" id="stat-tables">—</span>
+            </div>
+            <div class="stat-card">
+                <span class="stat-label">Total Rows</span>
+                <span class="stat-value" id="stat-rows">—</span>
+            </div>
+            <div class="stat-card success">
+                <span class="stat-label">Last Updated</span>
+                <span class="stat-value" id="stat-updated" style="font-size: 1rem;">—</span>
+            </div>
+        </div>
+
+        <!-- Search & Filters -->
+        <div class="search-container">
+            <div class="search-box">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="search-input" class="search-input" 
+                       placeholder="Search SOP content...">
+            </div>
+            <div class="filter-group">
+                <span class="filter-label">Table:</span>
+                <select id="table-filter" class="filter-select">
+                    <option value="">All Tables</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Tables Container -->
+        <div id="tables-container">
+            <!-- Loading State -->
+            <div class="loader-container" id="loading-state">
+                <div class="loader"></div>
+                <span class="loading-text">Loading SOP data...</span>
+            </div>
+            
+            <!-- Empty State -->
+            <div class="empty-state" id="empty-state" style="display: none;">
+                <span class="empty-icon">📋</span>
+                <h3 class="empty-title">No SOP Data Found</h3>
+                <p class="empty-description">
+                    No SOP tables match your search criteria. Try adjusting your filters.
+                </p>
+            </div>
+            
+            <!-- Tables will be rendered here -->
+            <div id="tables-list"></div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/sop-templates-data.js"></script>
+    <script src="js/sop-templates-search.js"></script>
+    <script src="js/sop-templates-ui.js"></script>
+    
+    <script>
+        // Initialize SOP Dashboard
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Initialize theme
+            SOPUI.initTheme();
+            
+            // Load SOP data
+            await SOPData.loadAllTables();
+            
+            // Initialize UI
+            SOPUI.init();
+            SOPUI.renderAllTables(SOPData.getTables());
+            SOPUI.updateStats();
+            
+            // Initialize search
+            SOPSearch.init();
+            
+            // Hide loading state
+            document.getElementById('loading-state').style.display = 'none';
+        });
+        
+        // Theme change handler
+        document.getElementById('theme-select').addEventListener('change', (e) => {
+            SOPUI.setTheme(e.target.value);
+        });
+        
+        // Expand/Collapse All
+        document.getElementById('expand-all-btn').addEventListener('click', () => {
+            SOPUI.toggleAllTables();
+        });
+    </script>
+</body>
+</html>

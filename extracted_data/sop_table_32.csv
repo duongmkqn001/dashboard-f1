@@ -1,0 +1,5 @@
+#,Steps,Actions,Visuals
+1,Determine if SP or LP,IF: Small Parcel Move to Step 2 to provide return tracking in order. IF: Large Parcel We do not have return tracking but the supplier will be contacted to schedule the return shipment. If the supplier reports not receiving a return on an LTL item and the return is 45+ days old then transfer to claims as the supplier only has 60 days to dispute the deduction.,
+2,Locate Return Tracking,"From the Product tab, expand the Service History section to open the return details. You will find the tracking for the returned item here, (Visual 2.1; Tip 1) Tip 1: This will be different to the tracking information listed in the Destination section (unless the item was RTS).",Visual 2.1:
+3,Send Template,Update the Supplier using the Return_Tracking template.,
+4,Move to Resolve Ticket,Move to the Resolve Ticket tab.,

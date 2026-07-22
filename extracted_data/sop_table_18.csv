@@ -1,0 +1,5 @@
+#,Steps,Actions,Visuals
+1,Cancel the Replacement PO,Enter the PO or OPID# into the Bulk Order Cancellation tool to cancel the replacement PO. Note : Be sure to select email notification for the supplier and customer so they are notified.,
+2,Refresh Cancellation Details,Refresh the cancellation results to confirm the PO has been cancelled successfully.,
+3,Run WIMS Wizard to submit parts request on the original PO,Run the WIMS Wizard against an item on the original PO utilizing the following Wizard Path: Select Eligible Item Indicate if CT has received item: Select Yes or No as applicable Select Reason of Customer Contact: Notified of a delay/issue Select Issue Diagnosis: Damaged In Transit Continue Select Resolution: Get replacement parts for free! Continue Enter Item Parts,
+4,Send Template,"Respond to the supplier utilizing the MOQ - Can Fill As Parts template, and close the ticket under a Done resolution.",

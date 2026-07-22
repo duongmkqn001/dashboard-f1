@@ -1,0 +1,3 @@
+#,Steps,Actions,Visuals
+1,Review Shipping Address,Confirm the current Cross Dock address listed on the BOL in Order Management,
+2,Send Template,"Respond to the supplier utilizing the Canadian Crossdock Clarification template, and close the ticket under a Done resolution.",

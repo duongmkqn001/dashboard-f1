@@ -1,0 +1,10 @@
+#,Steps,Actions,Visuals
+1,Confirm PO is shipping to a restricted location,Utilize Google to check product compliance laws for area that PO is shipping to,
+2,Cancel PO via Bulk Cancellation tool,Enter the PO or OPID# into the Bulk Order Cancellation tool to cancel the PO. Select Reason for Cancellation: OPS_ORDER_PROCESSING_ISSUE,
+3,Refresh Cancellation Details,Refresh the cancellation results to confirm the PO has been cancelled successfully.,
+4,Send Template,Respond to the supplier utilizing the Cannot Ship to Location / Product Compliance template.,
+5,"Directly after sending the Response above, follow the instructions below to transfer to MCOMPLY",,
+6,Change issue status to Waiting for Support before starting if necessary,Utilize Change Status button in ServiceHub to change to correct status,
+7,Open ticket in SupportHub to add SKUs (NOT Part Numbers) to 'Order' tab,"Use &lsquo;Edit&rsquo; button on top left to open pop-up, then click on &lsquo;Order&rsquo; Tab and enter SKUs into SKU field, then click &lsquo;Update&rsquo;",
+8,Transfer Ticket: Merch Compliance (MCOMPLY),"In SupportHub, select More > Move Select New Project: Merch Compliance (MCOMPLY) Select New Issue Type: Partner Home External Request Select New Status > Open Select Customer Request >Type: Compliance Findability Select Move to complete transfer",
+9,"After transferring, insert the template for internal comment","Add template as an internal comment for the MCOMPLY agent, and provide the context for the request and/or actions taken",

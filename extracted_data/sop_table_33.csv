@@ -1,0 +1,3 @@
+#,Steps,Actions,Visuals
+1,Determine if Ticket is Related to RP Topic,"Replacement parts are on order and SU is reaching out in query to these. We&rsquo;d like to gauge how many RP tickets are coming through AOPS/POS, as not all tickets are clearly labeled with ""-R-"" when raised. If the ticket IS related to RP: Navigate to components section of ServiceHub Click on the Pencil icon Insert ""RP"" Select ""RP"" when it appears. Click on the ✓ symbol. (Visual 2.1)",Visual 2.1 : 250
+2,Continue Working the Ticket,"The task of adding the tracking component has been completed. Next, support the supplier with their query, using additional SOPs to fully resolve the ticket.",

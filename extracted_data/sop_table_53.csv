@@ -1,0 +1,2 @@
+#,Steps,Actions,Visuals
+1,Review the PO Status,"Determine if the PO is currently shipped, or pending shipping confirmation in the Shipping View or Partner Home IF: PO Unshipped medium tip false Respond to the supplier utilizing the Address Change for Canada Shipment: PO Unshipped template, and close the ticket under a Done resolution. IF: PO has Shipped medium tip false Respond to the supplier utilizing the Address Change for Canada Shipment: PO Shipped template, and close the ticket under a Done resolution.",

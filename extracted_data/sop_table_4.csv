@@ -1,0 +1,3 @@
+#,Steps,Actions,Visuals
+1,Check tracking for PO/Item number indicated by supplier,"Utilize FedEx website to check tracking information. If it shows as delivered, no replacement is necessary",
+2,Send Template,Respond to the supplier utilizing the Ashley Reports Item Returned - Item Delivered template and close the ticket under a Done resolution.,

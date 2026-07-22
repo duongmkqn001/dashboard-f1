@@ -1,0 +1,3 @@
+#,Steps,Actions,Visuals
+1,Use Product Tab of ServiceHub to identify original & replacement POs,ServiceHub will show the PO breakdown of the items on the order,
+2,Review for related claims tickets,"Review for related claims tickets: If a claim was removed due to customer reports wrong item, received correct or requested part is not included with the item and PO was not cancelled by claims, cancel the PO. If the claim was not removed due to customer states receiving the wrong item but they received the correct item or requested part not included, r espond to the supplier utilizing the Replacement or Duplicate template and close the ticket under a Done resolution.",

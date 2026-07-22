@@ -1,0 +1,1507 @@
+
+
+Search Global Dropship Click to Ship Content: 
+[id=c98e56710b80][id=be951c2039b9]QC is based on the most recent Change # . 
+
+[id=8054cef2a9b1][id=2fb59e75d771][id=e5db1fe935a3]Change # 
+
+[id=82661085398b]Date Added to Change Log 
+
+[id=4ca49a52249a]Effective Date 
+
+[id=00cf0ec7767b]QC Impact Date 
+
+[id=c5ff0ef9a414]Who This Affects 
+
+[id=6516daaa41bc]Applicable SOP/Resource 
+
+[id=d5b4b7996f5a]What is Changing 
+
+[id=f960994e221c]Reason for Change 
+
+[id=252dfe8cf097][id=121b568e2a74]63 
+
+[id=c2511a2455e3]02 Jul 2026 
+
+[id=51afeb4178ab]02 Jul 2026 
+
+[id=bd57c2d450c5]09 Jul 2026 
+
+[id=ae4bcef1c092]Onshore & Offshore/VCN 
+
+[id=af62322b9243]Carrier Pickup Delay SOP (DSC2S) 
+
+[id=d8c86e511a44]New SOP instructions introduced for Carrier Inquiries and updated SOP steps for Carrier Pickup Delay/Carrier Did Not Pick Up All POs 
+
+[id=b6bfcbc47f8f]New instructions 
+
+[id=fbdee07b4425][id=6a267722b606]62 
+
+[id=29505264-97d1-4b09-98de-e5e1dca97225]01 Jul 2026 
+
+[id=7be68ec4-17c7-4b02-ad2a-20b8b4348ba1]01 Jul 2026 
+
+[id=e546db04-33f1-40d6-a5d8-0d62480ebfa4]08 Jul 2026 
+
+[id=6d296b5c-78dc-4e42-bad9-b7e802628210]Onshore & Offshore/VCN 
+
+[id=82ce5d66-00c6-4d85-b003-7515d99b1001]PO Reroutes SOP (DSC2S) 
+
+PO Reroutes SOP (DSC2S) - VCN 
+
+[id=a1ba4e503ea3]The banner at the top of the PO Reroutes tab has been updated to add info for specific supplier, Emery Jensen. 
+
+[id=140fcc442c13]Exception use case to DS to DS reroutes and warehouse compliance for Emery Jensen noted for T1 escalation 
+
+[id=0e6542e2cfa4][id=35923d246a53]61 
+
+[id=57a3afce7efc]18 Jun 2026 
+
+[id=76f55f4a44e5]18 Jun 2026 
+
+[id=2c0afb974257]25 Jun 2026 
+
+[id=4b676f5d402d]Onshore & Offshore/VCN 
+
+[id=d2680232c05a]Problem with an Order (PWAO) SOP (DSC2S) 
+
+Problem with an Order (PWAO) SOP (DSC2S) - VCN 
+
+Global Transfer Matrix SOP (DSC2S) 
+
+Global Transfer Matrix SOP (DSC2S) - VCN 
+
+Canned Responses/Templates (DSC2S) 
+
+Canned Responses/Templates (DSC2S) - VCN 
+
+[id=a8766f33d8c9]1-2. A new section and process has been added, "Part Information Requested" with a link to a new template. 
+3-4. The process for Replacement Part Operations (RPOps) has been replaced by "No tickets can be transferred to RPOps." 
+5-6. The " Replacement Parts (RPOPS) Ticket Transfers" template has been replaced by "Replacement Parts - Part information needed" template. 
+
+[id=4e4e610e31d7]Alignment between journeys. 
+
+[id=a79d9aef1b55][id=fe7d6222a270]60 
+
+[id=b04a0cbfc4c3]11 Jun 2026 
+
+[id=9866f0e5a43a]16 Jun 2026 
+
+[id=70fdca390a4e]21 Jun 2026 
+
+[id=3d0440849a79]Onshore & Offshore/VCN 
+
+[id=e6b7452a92c1]Best Practices and Ticket Etiquette (DSC2S) 
+
+Best Practices and Ticket Etiquette (DSC2S) - VCN 
+
+[id=b1368e793c4f]The following tabs have been updated: 
+Ticket Updates 
+
+Managing Tickets and Emails in SupportHub and Service Hub 
+Actioning Tickets/Emails in ServiceHub 
+
+SupportHub Ticket Navigation 
+
+Linking Tickets 
+
+Communication in Tickets 
+
+General Best Practices 
+Previously Tips and Tricks 
+
+Tagging a Tech Issue 
+
+Closing Auto Replies 
+Previously Preventing Auto Replies from Reopening 
+
+[id=c50aa60abf05]No changes have been made to the following tabs within the Managing Tickets and Emails in SupportHub and Service Hub tab at this time: 
+Searching for Tickets/Emails within Supporthub 
+
+Correct Ticket Entry Pathways 
+
+[id=7d8cc904b820]Updated to align with the new SOP Style Guide. 
+
+The updates encompasses multiple facets of ticket and email management, focusing on professional communication and efficient workflow within Wayfair's Service Hub and SupportHub environments. 
+
+[id=0b670136ab11][id=0205c41f662c]59 
+
+[id=ed53c7319f52]21 May 2026 
+
+[id=01e30209ce92]26 May 2026 
+
+[id=9ea3b80277e9]31 May 2026 
+
+[id=267b0cb25bd1]Onshore & Offshore/VCN 
+
+[id=3e75812a77b7]Tier 1 Ad Hoc Requests SOP (DSC2S) 
+
+Tier 1 Ad Hoc Requests SOP (DSC2S) - VCN 
+
+Canned Responses/Templates (DSC2S) 
+
+Canned Responses/Templates (DSC2S) - VCN 
+
+[id=c80ea8bf6757]NA > PO Reroute Request 
+Updated informational textbox 
+
+Removed steps 1-5 
+
+EU > Logistics/Carrier Switch Support > EU Logistics Adhoc Support > Reroute PO to Correct Warehouse Address 
+Updated informational textbox 
+
+Removed steps 1-3 
+
+Canned Responses/Templates > AOPS / POS Templates 
+Tier 1 Ad Hoc Requests 
+Removed the following templates: 
+Adhoc Reroute 
+
+PO Rerouted 
+
+InfoHub and the ServiceHub template directory have been updated accordingly. 
+
+[id=e9cdacf0580f]All Adhoc Reroute requests are now blocked from being raised. 
+
+Should a stakeholder try to raise the ticket they are advised to go to HC articles or slack channels with their questions no reroutes are permitted moving forwards via adhoc tickets. 
+
+[id=874a95306584][id=9438008ff18d]58 
+
+[id=1344ff1d1ac2]21 May 2026 
+
+[id=fc57893c74f1]26 May 2026 
+
+[id=f2b7688b5f4b]31 May 2026 
+
+[id=7ed9431436c5]Onshore & Offshore/VCN 
+
+[id=7e8a1a06621c]PO Reroutes SOP (DSC2S) 
+
+PO Reroutes SOP (DSC2S) - VCN 
+
+Canned Responses/Templates (DSC2S) 
+
+Canned Responses/Templates (DSC2S) - VCN 
+
+[id=952517dc6a8b]PO Reroutes SOP 
+Updated tab – PO Reroutes 
+Added Step 8 
+
+Canned Responses/Templates > AOPS / POS Templates 
+PO Reroutes 
+Added template – SU Reported No Stock - PO Rerouted & Reinstated 
+
+InfoHub and the ServiceHub template directory have been updated accordingly. 
+
+[id=644a42b85fb2]Addition to SOP process 
+
+New template added 
+
+[id=82326f3cc125][id=63d0127c1167]57 
+
+[id=8fbfd839decb]12 May 2026 
+
+[id=3aacbb58ccee]12 May 2026 
+
+[id=f2dd270ffd42]17 May 2026 
+
+[id=7d92f133a3ef]Onshore & Offshore/VCN 
+
+[id=8ee54940f1d7]WDN Supplier Outreach SOP (DSC2S) - VCN 
+
+Canned Responses/Templates (DSC2S) 
+
+Canned Responses/Templates (DSC2S) - VCN 
+
+[id=8b4992081eed]Identify Reason for Outreach 
+Updated tab – Incorrect Supplier Address 
+
+Updated tab – Supplier states they do not ship Wayfair POs 
+
+Canned Responses/Templates > FMOP > Supplier Templates > Supplier Email Templates 
+Added template – Follow-Up: Address Confirmation Required 
+
+Added template – Follow-Up: Wayfair Local Dedicated Pickup Delay 
+
+InfoHub and the ServiceHub template directory have been updated accordingly. 
+
+[id=05d648e5658a]Required to keep tickets open in Waiting for Supplier status for some aspects for 2 days 
+
+Tickets will move back to Waiting for Support after 2 days for the agent to send follow up comms to the supplier 
+
+[id=a9175128e5fe][id=22fad2959fc9]56 
+
+[id=3df0b19cc9f7]08 May 2026 
+
+[id=34f3478683c8]12 May 2026 
+
+[id=4b9e0e35444b]17 May 2026 
+
+[id=de14b0a10006]Onshore & Offshore/VCN 
+
+[id=c8d35812153e]Canned Responses/Templates (DSC2S) 
+
+Canned Responses/Templates (DSC2S) - VCN 
+
+Update Tracking Number/Order Status SOP (DSC2S) - VCN 
+
+[id=63ad57ec0147]Canned Responses/Templates > AOPS/POS > Update Tracking or Ship Status 
+Added template – Overdue Order Status Reply 
+
+InfoHub and the ServiceHub template directory have been updated accordingly. 
+
+Update Tracking SOP 
+Updated tab – Check Current Order Status 
+Updated Step 3: Identify Fulfillment Status 
+In Transit (Awaiting Carrier Scan) has been updated to Picked Up (Awaiting Carrier Scan) 
+
+In Transit has been updated to In Transit (Carrier Scan Received) 
+
+Updated tab – Identify Fulfillment Status 
+Updated tab – In Transit (Awaiting Carrier Scan) 
+Renamed to Picked Up (Awaiting Carrier Scan) 
+
+Updated Step 1 IF: No Scans on Tracking 
+Added 3.4 and 3.5 
+
+Updated tab – In Transit 
+Renamed to In Transit (Carrier Scan Received) 
+
+[id=9b4362fffe95]There was a Partner Home change for order statuses 
+
+In Transit (Awaiting Carrier Scan) is now called Picked Up (Awaiting Carrier Scan) and In Transit is now called In Transit (Carrier Scan Received). 
+
+[id=f51ba14c0a4a][id=b99c02e3e14f]55 
+
+[id=69e401ba00d0]07 May 2026 
+
+[id=3ad21e53494f]12 May 2026 
+
+[id=d79468f611b6]17 May 2026 
+
+[id=5c7eb5c07592]Onshore & Offshore/VCN 
+
+[id=c5a0f595337c]GPS QC Rubric (DSC2S) 
+
+GPS QC Rubric (DSC2S) - VCN 
+
+[id=9ce35e5aa1c5]Updated Q5: Utilized Correct Tools 
+Removed the following bullet point: "If requesting support on Slack in a team channel or the #global-c2s-ticket-help channel, you must add an internal comment on the ticket with either a link to the Slack message or the name of the channel that you have reached out in." 
+
+[id=37d8d3d15092]Requirement for updating Slack support in the ticket body has been removed. 
+
+This is to align and reduce touch points on tickets in an effort to maintain first contact resolution. We are exploring additional visibility options like labels and components for tickets to signify when Slack outreach is taking place 
+
+[id=bce64abfa387][id=9981e79bc9f0]54 
+
+[id=54e6377b9f05]06 May 2026 
+
+[id=9301a65d3b17]12 May 2026 
+
+[id=0e0ebea45da8]17 May 2026 
+
+[id=b1242dced0b0]Onshore & Offshore/VCN 
+
+[id=291a6dd6bf0a]Change Ship Method or Carrier on PO Due to Item Count / Size (Supplier Entered) SOP (DSC2S) - VCN 
+
+Onshore Escalations SOP (DSC2S) 
+
+Global Transfer Matrix SOP (DSC2S) 
+
+Global Transfer Matrix SOP (DSC2S) - VCN 
+
+Canned Responses/Templates (DSC2S) 
+
+Canned Responses/Templates (DSC2S) - VCN 
+
+[id=8f22fab89b79]Change Ship Method or Carrier on PO Due to Item Count / Size (Supplier Entered) SOP > NA 
+Updated tab – Changing a Ship Speed 
+Step 5 has been updated 
+
+Onshore Escalations SOP > NA 
+Removed tab – Remove 2 Day or Next Day Delivery 
+
+Added tab – Change a Ship Speed: Ship Speed Exclusions 
+
+Global Transfer Matrix  > Supplier Service Desk Transfers 
+Updated tab – DESK Transfers 
+Added "Ship Speed Exclusions" to Issues that SHOULD NOT be Transferred to DESK 
+
+Canned Responses/Templates > AOPS/POS 
+Change Ship Method (Supplier Entered) 
+Updated the following templates: 
+Changing FedEx Ship Speed 
+
+Changing a Ship Speed 
+
+Onshore Escalations 
+Added template – Ship Speed Exclusions Applied 
+
+Removed template – Ship Speed Restriction Submitted 
+
+InfoHub and the ServiceHub template directory have been updated accordingly. 
+
+[id=d98efb60d403]T0 : 
+SOP steps updated to escalate tickets to Tier 1 if the supplier is flagging ship speed exclusions that need to be applied permanently at their warehouses. 
+
+Related canned responses have been updated as well to reflect instructions to the supplier to respond directly with warehouses requiring restrictions and redirect the DESK teams have been removed 
+
+T1 : 
+Updated escalation SOP with instructions on applying ship speed exclusions for T1 and applicable update canned responses to the supplier 
+
+[id=a28a6eb04e3c][id=de6f16a7c420]53 
+
+[id=aa39afa8fa77]05 May 2026 
+
+[id=c1ae1b951659]05 May 2026 
+
+[id=250ddf737150]10 May 2026 
+
+[id=2682b1bfb08b]Onshore & Offshore/VCN 
+
+[id=f022cc962bdd]Shipping/Carrier Questions SOP (DSC2S) - VCN 
+
+[id=b713bcf4fc80]Can't Ship to Postcode 
+Updated tab – Supplier Shipping on Own Account 
+
+[id=0c329a21e3e9]For SSOA experiencing issues shipping to postal codes no longer require an outreach to CAT to communicate the order status to customers, as cancellation confirmations are sent when the PO is cancelled. 
+
+[id=b9dd2e03f1a8][id=7ba35750eed8]52 
+
+[id=fd5607111fec]05 May 2026 
+
+[id=761fe8ed8b8e]05 May 2026 
+
+[id=df0a02c602b0]10 May 2026 
+
+[id=83d8ba1e6cbe]Onshore & Offshore/VCN 
+
+[id=4c3d02c3c493]Escalating for Onshore Support (Tier 0 to Tier 1) SOP (DSC2S) - VCN 
+
+[id=b0bcbfab6ba1]Updated tab – Escalate Ticket 
+
+[id=07c43c1ae271]Offshore (T0) will no longer complete the manual “Dropship Order Fulfillment Support Needed” escalation template. 
+
+New Trigger Method: If T0 cannot action the ticket, they must update it using the Supplier-Facing (SU) “Escalation to T1 & SU Update” template exactly as written which will trigger rule sending ticket onshore the VCN agent will be unassigned and the Tier updated to T1 from T0. 
+
+[id=c55caba71eb5][id=175bfa194192]51 
+
+[id=a4e8f258c4c7]05 May 2026 
+
+[id=35d8bf3bb574]05 May 2026 
+
+[id=6c9dcb62d4d7]10 May 2026 
+
+[id=7c8d708fbb98]Onshore & Offshore/VCN 
+
+[id=400d0f9225ad]Carrier Pickup Delay SOP (DSC2S) 
+
+[id=a9260a52fb41]Carrier Specifications 
+Added tab – Wayfair Pool Points 
+
+[id=393dae1427d1]List of active Wayfair Pool Points added for visibility 
+
+[id=fafa7c030ac1][id=f65b5c3affcc]50 
+
+[id=47fecfb87711]05 May 2026 
+
+[id=6494cac83239]05 May 2026 
+
+[id=de07b0105bc0]10 May 2026 
+
+[id=f1f927a7c887]Onshore 
+
+[id=e664659b405f]Onshore Escalations SOP (DSC2S) 
+
+[id=926f7d654a4c]NA > Cannot Print SOP 
+Updated tab – Unable to Retrieve Order Details - Missing MPID 
+
+[id=09dbb361d38b]When suppliers are blocked from the 'Print Documents' page on Partner Home with the error message "1 order has been removed from your selection because of issues retrieving order details," it is often because the PO is missing MPID. 
+
+In order to resolve this error GPS can manually request a backfill of MPID for the impacted PO via ServiceNow ticket. 
+
+[id=ee3f4bd80825][id=b4548fddd086]49 
+
+[id=0f043df75cca]05 May 2026 
+
+[id=55d35dccaec4]05 May 2026 
+
+[id=e9b1398acc0a]10 May 2026 
+
+[id=88cc5ba1379d]Onshore & Offshore/VCN 
+
+[id=4fd322c2769c]PO Reroutes SOP (DSC2S) 
+
+PO Reroutes SOP (DSC2S) - VCN 
+
+Problem with an Order (PWAO) SOP (DSC2S) 
+
+Problem with an Order (PWAO) SOP (DSC2S) - VCN 
+
+Product Out of Stock SOP (DSC2S) - VCN 
+
+Canned Responses/Templates (DSC2S) 
+
+Canned Responses/Templates (DSC2S) - VCN 
+
+[id=858d1ac2d6f8]PO Reroutes SOP 
+Removed the following tabs: 
+Reroute Order 
+
+Confirm Reroute 
+
+Ashley Furniture Reports Incorrect Ship Method 
+
+Supplier Requests to Split PO due to Low/No Stock - Insufficient Inventory 
+
+Supplier Requests to Split PO due to Low/No Stock - Sufficient Inventory 
+
+Added tab – PO Reroutes 
+
+PWAO SOP > Specialty Supplier Exceptions 
+Removed tab – Ashley Furniture Reports Incorrect Ship Method 
+
+PWAO SOP > General Order Inquiries 
+Added tab – PO Reroutes 
+
+Product Out of Stock SOP 
+Added tab – PO Reroutes 
+
+Canned Responses/Templates > AOPS / POS Templates 
+PO Reroutes 
+Removed the following templates: 
+Split PO Approval (Split_PO_Approval) 
+
+CG Reroute Approved 
+
+CG Reroute Denied 
+
+Reroute to US WH from CAN 
+
+Reroute to CAN WH from US 
+
+Approved Split Shipment 
+
+Denied Reroute Request 
+
+Reroute to Other Warehouse (Reroute_to_other_WH) 
+
+Added the following templates: 
+Assigned Warehouse Policy – No Dropship Reroute 
+
+No Dropship Reroute: SU Pushback 
+
+Supplier Reports Wayfair Inventory Tech Issue 
+
+Cancellation 
+
+Alternative Escalation Response 
+
+InfoHub and the ServiceHub template directory have been updated accordingly. 
+
+[id=325856ee8850]Effective December 15, 2025, a compliance policy requires all suppliers to ship orders from the warehouse assigned by the Wayfair system at the time the order is placed. 
+
+We will be denying PO reroutes raised by SUs moving forward; this applies globally. 
+
+[id=7939c82352fc][id=5f1718aac208]48 
+
+[id=bc26b196c5dc]28 Apr 2026 
+
+[id=cf01045857f9]28 Apr 2026 
+
+[id=5cad234cf41e]03 May 2026 
+
+[id=9da63d971189]Onshore & Offshore/VCN 
+
+[id=fdfe44a373df]Canned Responses/Templates (DSC2S) 
+
+[id=dee7b742f1fe]AOPS / POS Templates > Update Tracking or Ship Status 
+Updated template – Update to Other Status 
+
+InfoHub and the ServiceHub template directory have been updated accordingly. 
+
+[id=b906684c5ea0]Updated status logic and clarification have been added to the template to provide correct expectations to the supplier 
+
+[id=80da9ee47496][id=578c0d0615c9]47 
+
+[id=e8083cc2d19b]21 Apr 2026 
+
+[id=947fdd315db3]21 Apr 2026 
+
+[id=a66b6ba08cfd]26 Apr 2026 
+
+[id=04b24083dc18]Onshore & Offshore/VCN 
+
+[id=b6e8ac075efb]NMFC and Freight Code Requests SOP (DSC2S) 
+
+Canned Responses/Templates (DSC2S) 
+
+[id=c380fdc4355b]New SOP created 
+AOPS / POS Templates > Miscellaneous Processes 
+Added template – NMFC and Freight Code Requests 
+
+InfoHub and the ServiceHub template directory have been updated accordingly. 
+
+[id=5e53d4d0838e]Information was never put into the SOP as it comes up infrequently and was specifically handled by BP Account Operations contacts. 
+
+[id=5a19e94cbe71][id=615394c92057]46 
+
+[id=7ddc58e2df36]21 Apr 2026 
+
+[id=86c469be1f90]21 Apr 2026 
+
+[id=aeee3b2e3c8e]26 Apr 2026 
+
+[id=5df86e68aa44]Onshore 
+
+[id=1391513ae0c4]WIMS - Ship Status SOP (DSC2S) 
+
+[id=59afc5e71487]Process > Bulk Cancel 
+Updated Scenario #2: Is the item MTO? 
+
+Labels > Automatically Applied Labels 
+Added label – WIMS_MTO 
+
+[id=458fcd6a5e44]New MTO labels defined and process updated to reflect redirect to CSO 
+
+[id=5ed88ec278c4][id=d9b71e3343cc]45 
+
+[id=f4f0cf5eb5ab]20 Apr 2026 
+
+[id=1d5d4dd66996]21 Apr 2026 
+
+[id=5ecbb0c09d77]26 Apr 2026 
+
+[id=b1ac9d3df340]Onshore & Offshore/VCN 
+
+[id=29faa4f62e6a]GPS QC Rubric (DSC2S) 
+
+[id=1d24b8959be3]Updated Q1: Response Structure 
+Updated Supplier Name Hierarchy tab 
+Added a secondary visual for Scenario #4 i.e. Visual 4.2 
+
+[id=61a58d51bc2e]A WGS (Wayfair Global Support) supplier name does not consist of only a long, concatenated legal name such as: dongguanshiyimuyijiamuyeyouxiangongsi 
+It can also look like this: Jiaxing Anyu Zhineng Jiaju Youxiangongsi 
+
+[id=d7efc4f61733][id=7bedc66c4fd8]44 
+
+[id=846e96fc60ca]20 Apr 2026 
+
+[id=4c8f628006d0]21 Apr 2026 
+
+[id=977623c139da]26 Apr 2026 
+
+[id=99440d2e49e3]Onshore & Offshore/VCN 
+
+[id=10c74a6aa73b]Cannot Print a BOL / Packing Slip or Shipping Label SOP (DSC2S) - VCN 
+
+[id=7713f98f79d1]Review Ticket > Supplier Entered 
+Updated blue textbox 
+Added #5 The customer has listed a PO Box or APO address which cannot be shipped to; the PO will need to be cancelled 
+
+[id=fa27baeb81ad]Information is currently only available on the Wayfair website in the customer shipping information resulting in BPO is unaware 
+
+[id=08a9eb286ec1][id=d357dc670118]43 
+
+[id=9822f3956fb8]16 Apr 2026 
+
+[id=41f5e365495a]21 Apr 2026 
+
+[id=e23f558d52ab]26 Apr 2026 
+
+[id=a396e4208606]Onshore & Offshore/VCN 
+
+[id=a7cf91aaf64e]Problem with an Order (PWAO) SOP (DSC2S) 
+
+Canned Responses/Templates (DSC2S) 
+
+[id=66fe76edad3d]Problem with an Order SOP > Specialty Supplier Exceptions 
+Added tab – Serta/Simmons reports shipped PO undeliverable/returned to sender 
+
+AOPS / POS Templates > Problem with an Order (PWAO) 
+Added template – Serta/Simmons Reports PO Undeliverable/RTS 
+
+InfoHub and the ServiceHub template directory have been updated accordingly. 
+
+[id=8a437854a141]New SOP to process cancellations for PO's non deliverable by Serta/Simmons 3rd party carrier 
+
+[id=97994751c730][id=37858d7c0de1]42 
+
+[id=bdae196c08c2]13 Apr 2026 
+
+[id=8b67140a650f]14 Apr 2026 
+
+[id=e70cc80ed0fb]19 Apr 2026 
+
+[id=d9038375c4c5]Onshore & Offshore/VCN 
+
+[id=878e22dca289]Problem with an Order (PWAO) SOP (DSC2S) 
+
+[id=aaf42ea350c5]Problem with an Order SOP > Specialty Supplier Exceptions 
+Added tab – Emery Jensen Reports Item OOS 
+
+[id=125341b4305d]An exception to cancel PO's for Emery Jensen when they report items are OOS has been added 
+
+[id=92303e08d4c8][id=6a2469b96ade]41 
+
+[id=b84735aedfd1]10 Apr 2026 
+
+[id=4f15bb5d6ed5]14 Apr 2026 
+
+[id=1fb03f47043f]19 Apr 2026 
+
+[id=b55ba81bacda]Onshore & Offshore/VCN 
+
+[id=f23acf651735]Canned Responses/Templates (DSC2S) 
+
+[id=a03965b8604b]AOPS / POS Templates > Department Transfers 
+Removed template – Supplier Claims FKA Credit Recovery -Credit Hold 
+
+InfoHub and the ServiceHub template directory have been updated accordingly. 
+
+[id=c9e02b77cdfc]CR- does not take transferred tickets any more and the intake for the supplier has changed from what is currently listed in the template. 
+
+Suppliers reporting credit hold should now be escalated to Tier II if they continue to refuse to ship 
+
+[id=e918f3969de5][id=c9288f614554]40 
+
+[id=2b50fd47fd3e]06 Apr 2026 
+
+[id=4bb7f1f02562]07 Apr 2026 
+
+[id=a73e8d58079e]12 Apr 2026 
+
+[id=ff99455817db]Onshore & Offshore/VCN 
+
+[id=874dc19438d5]Canned Responses/Templates (DSC2S) 
+
+[id=274778a72906]AOPS / POS Templates > Problem with an Order 
+AOPS / POS Templates > PO Reroutes 
+AOPS / POS Templates > Product Out of Stock 
+Added template – Supplier Shipping and Fulfillment Policy Education 
+
+InfoHub and the ServiceHub template directory have been updated accordingly. 
+
+[id=f447460dce24]This request is due to the recent change in our warehouse shipping compliance policy wherein suppliers are subject to credit deductions if fulfilling from a warehouse other than the one assigned. 
+
+Due to it's educational nature and that the relevance of this question comes up frequently within all three of the aforementioned topics, we'd like to have it in multiple CR spaces for visibility. 
+
+[id=d158d27c8ba4][id=1e254243ed39]39 
+
+[id=9d3ad13f185c]06 Apr 2026 
+
+[id=fea047b73c4f]07 Apr 2026 
+
+[id=500643b3ad56]12 Apr 2026 
+
+[id=5b827218c2fa]Onshore & Offshore/VCN 
+
+[id=d7c667f453cd]Onshore Escalation Lead Time Query SOP (DSC2S) 
+
+[id=e8e26e0a7eff]Added tab – Ticket Escalation 
+
+[id=372da05b9fc3]New tab added to the SOP 
+
+If there are no updates on the EUFSR ticket after being raised for 5 business days then flag in the channel and tag Ingrid Compton for tracking purposes. 
+
+[id=c162525805bd][id=f94624bd780b]38 
+
+[id=73e13b25b313]01 Apr 2026 
+
+[id=111303af6a3f]01 Apr 2026 
+
+[id=5a667021affb]08 Apr 2026 
+
+[id=a279d50435cd]Onshore & Offshore/VCN 
+
+[id=67b4a05624b8]Tier 1 Ad Hoc Requests SOP (DSC2S) - VCN 
+
+[id=09e83d9d8a93]A mirrored copy of this SOP has been added to AOPS Project SOPs (DSC2S) - VCN . 
+
+[id=458df45e6d53]These requests are routing VCN first and this SOP was previously only in the onshore space. 
+
+[id=8646b92e51d2][id=777b417560e2]37 
+
+[id=5b67b0034a97]01 Apr 2026 
+
+[id=0d8cbbe2dbc1]01 Apr 2026 
+
+[id=36b4bc4064ae]08 Apr 2026 
+
+[id=3c46e897bdff]Onshore & Offshore/VCN 
+
+[id=a77879c7a32a]Canned Responses/Templates (DSC2S) 
+
+[id=b4a5dc37b452]AOPS / POS Templates > Cannot Print Shipping Documents 
+Updated the HC article in the following templates: 
+Conflicting Dimensions/Weight (Conflicting_Dims/Weight) 
+
+Incorrect Label Count 
+
+SU wants additional labels (additional_labels) 
+
+Previous : https://partners.wayfair.com/help/2/article/611 
+New : https://partners.wayfair.com/help/2/article/2949 
+__________________________________________________________________________________ 
+AOPS / POS Templates > Change Ship Method (Supplier Entered) 
+Updated the HC article in the following templates: 
+LP to SP Denied 
+
+SP to LP Denied 
+
+LP to SP 
+
+SP to LP 
+
+Previous : https://partners.wayfair.com/help/2/article/611 
+New : https://partners.wayfair.com/help/2/article/3377 
+
+[id=2607223d0f82]Help Center articles were outdated 
+
+Agents are expected to use HC articles referenced within canned responses as they are accurate and most up-to-date 
+
+If agents see issues with articles, they should flag in the help channel on Slack 
+
+[id=80ebbcfab351][id=9dba81d1e86d]36 
+
+[id=d5f74abb3f0c]24 Mar 2026 
+
+[id=ba5f6ff7516c]24 Mar 2026 
+
+[id=b10d2b6f38e9]29 Mar 2026 
+
+[id=e26808215dee]Onshore & Offshore/VCN 
+
+[id=b12a1a72e346]Global Transfer Matrix SOP (DSC2S) 
+
+Canned Responses/Templates (DSC2S) 
+
+[id=83bc8411214a]Interdepartment Transfers > Supplier Claims (previously Credit Recovery) 
+Updated "Common Dispute Themes" 
+
+AOPS / POS Templates > Department Transfers 
+Added template –  Redirect to Deduction/Remittance Tool 
+
+InfoHub and the ServiceHub template directory have been updated accordingly. 
+
+[id=277b8ef96ff3]Transfers to CR will be limited moving forward as all deductions/disputes must be registered through the appopriate deductions and remittance tools in Partner Home 
+
+[id=7ed5a5a0b055][id=44c967937ef3]35 
+
+[id=9b192e9685ce]24 Mar 2026 
+
+[id=01d99a34e0d1]24 Mar 2026 
+
+[id=c8cc24cd7a7b]29 Mar 2026 
+
+[id=cb0626a9feea]Onshore & Offshore/VCN 
+
+[id=1efb1b5b89d4]Canned Responses/Templates (DSC2S) 
+
+[id=9486f2a68b54]AOPS / POS Templates > PO has a Wrong Price 
+Added template – Incorrect Pricing: First Update 
+
+InfoHub and the ServiceHub template directory have been updated accordingly. 
+
+[id=9eb4e87b7bbc]New template 
+
+[id=ceeba1508d12][id=e31317432237]34 
+
+[id=75f3870ad57a]24 Mar 2026 
+
+[id=e4409f18cb78]24 Mar 2026 
+
+[id=5692232f9756]29 Mar 2026 
+
+[id=53a17f0d046a]Onshore & Offshore/VCN 
+
+[id=f4b0250aa83d]Problem with an Order (PWAO) SOP (DSC2S) 
+
+Cancellation Inquiry SOP (DSC2S) - VCN 
+
+PO has a Wrong Price SOP (DSC2S) - VCN 
+
+[id=ea3524029204]Problem with an Order SOP > General Order Inquiries 
+Added tab – Incorrect Pricing 
+
+Cancellation Inquiry SOP > Miscellaneous Processes 
+Added tab – Incorrect Pricing 
+
+PO has a Wrong Price SOP 
+Updated tab – Review the Ticket 
+Added Step 2.2 
+
+Added tab – Review Incorrect CRT 
+
+Updated tab – Cancelling the Order 
+Updated visuals within Step 1 
+
+Updated Step 1.5 
+
+[id=aae8e09ed5f2]Updates to 3 SOPS in relation to pricing tickets and instructing agents to navigate to correct SOP when suppliers raise incorrect pricing topics under another customer request type. 
+
+We no longer update the customer request type we run the ticket through on the raised request and educate the SU for future reference. 
+
+[id=d0841e61547a][id=63db2db7c90e]33 
+
+[id=6bafe9d888f2]13 Mar 2026 
+
+[id=9d5e7994bbc3]17 Mar 2026 
+
+[id=2ed8cbee22ea]22 Mar 2026 
+
+[id=ad0104dd064b]Onshore & Offshore/VCN 
+
+[id=3c476ecd0198]Product Out of Stock SOP (DSC2S) - VCN 
+
+PO Reroutes SOP (DSC2S) 
+
+[id=d41ce2a4d8e9]Product Out of Stock SOP > Backorder Unavailable: PO Marked Shipped 
+Added Step 4.9: "Wait up to 15 minutes for the new PO to generate (it is recommended you work other tickets while this generates)." 
+
+PO Reroutes SOP > Confirm Reroutes 
+Updated Step 1 
+Previous : If the new PO is not generated after 5 minutes, select 'Get help with this order' and enter a 'Take Off General Hold' ticket. (See Visual 1.2 & 1.3) 
+
+New : Wait up to 15 minutes for the new PO to generate (it is recommended you work other tickets while this generates). If an order hold banner generates and the PO fails to generate, select 'Get help with this order' and enter a 'Take Off General Hold' ticket. (See Visual 1.2 & 1.3) 
+
+[id=e1f4c15a1f6d]Updated following QA appeal discussion (special thanks to Samantha Moon for flagging!) 
+
+Guidance was removed in error during our globalization efforts 
+
+[id=87a832413cc9][id=75c7a2b5ba2d]33 
+
+[id=4327f64399a4]13 Mar 2026 
+
+[id=106a986374be]17 Mar 2026 
+
+[id=55000fdd7a61]22 Mar 2026 
+
+[id=f9221b470e77]Onshore & Offshore/VCN 
+
+[id=c1fce56d4cd8]Canned Responses/Templates (DSC2S) 
+
+[id=f42905a7cb6a]AOPS / POS Templates > Change Ship Method (Supplier Entered) 
+Updated template – Consolidated Delivery LP to SP Denied 
+Template name has been updated to Consolidated Delivery LP to SP Clarification 
+
+Template body has been updated 
+
+InfoHub and the ServiceHub template directory have been updated accordingly. 
+
+[id=19292d7bb289]We have confirmed that SP shipments in Consolidated Delivery do in fact ship with SP carriers, though instead of shipping directly to customer, they ship to our Wayfair Consolidated Delivery centers to be delivered by WDN carriers. 
+
+[id=38e0cddec13c][id=a606e0b07410]32 
+
+[id=da156eef24fc]11 Mar 2026 
+
+[id=e84a5c8311f5]17 Mar 2026 
+
+[id=af6958d0a5d4]22 Mar 2026 
+
+[id=cb73c954bad2]Onshore & Offshore/VCN 
+
+[id=73a9fdd4d190]ServiceHub template directory 
+
+[id=dd1ec800bb59]Organized AOPS / POS Templates via request type 
+
+[id=c369d89db4cd]To make templates easier to navigate and locate for agents 
+
+[id=9822119e6190][id=cf34e7ba52e9]31 
+
+[id=dfdd039ddea4]10 Mar 2026 
+
+[id=2f44fd1d949b]10 Mar 2026 
+
+[id=0fdaa22caf7a]15 Mar 2026 
+
+[id=64df4000a4d3]Onshore & Offshore/VCN 
+
+[id=ee947417b5e0]Best Practices and Ticket Etiquette (DSC2S) 
+
+[id=7701c3b06809]Tagging a Tech Issue 
+Added Step 1.1c 
+If a ticket has not been found, check to see if a ticket has been raised to T3 Tech support; navigate to GPSTHD on the top of the page (Visual 1.1) 
+
+[id=bbd2e59366b2]Two sections of the dashboard are required to be checked in advance of sending ticket onshore: Engineering dashboard and T3 dashboard. 
+
+[id=fa432f849766][id=2c0a12083b9a]30 
+
+[id=fb01fc0b7815]10 Mar 2026 
+
+[id=57134433744a]10 Mar 2026 
+
+[id=ddee5bfd3dc1]15 Mar 2026 
+
+[id=9e221fc4e4b6]Onshore & Offshore/VCN 
+
+[id=6925ebd878bc]Best Practices and Ticket Etiquette (DSC2S) 
+
+[id=eda10c792d40]Merged onshore and offshore versions into one 
+
+Onshore-specific policies (Virtual Remote Working Guidelines, Attendance Policy, Work Avoidance) have been moved to /wiki/spaces/GPS/pages/1256161431 . 
+This page is only relevant to onshore agents and has been restricted. 
+
+Tagging a Tech Issue tab 
+The informational textbox and Step 2 are Offshore Specific 
+
+The page lives in Tools & Resources (DSC2S) and a mirrored copy has been added to Tools & Resources (DSC2S) - VCN . 
+
+[id=966f26546201]More efficient to maintain one resource for both onshore and offshore than to have two separate resources with the same information (now that the Wayfair specific policies have been removed) 
+
+[id=71063f276d7e][id=425e62ced971]29 
+
+[id=b52de4f6f479]10 Mar 2026 
+
+[id=e2309a1aa7fb]10 Mar 2026 
+
+[id=75012479c91e]15 Mar 2026 
+
+[id=9c55a5de1f17]Onshore & Offshore/VCN 
+
+[id=43ed4b95864c]Cancellation Inquiry SOP (DSC2S) - VCN 
+
+[id=76b731a3bd1c]Supplier Requests I cancel the PO 
+Added tab – 20+ POs to be Cancelled 
+
+[id=c65ed6b9f2d9]For EU Based POs (IE/UK PO Prefix’s) we must raise a CAT ticket when more than 20 POs are being canceled 
+
+[id=79b84a43fd12][id=17ee50d2bf5b]28 
+
+[id=85530abcded9]10 Mar 2026 
+
+[id=fde4c0abc15c]10 Mar 2026 
+
+[id=67ae0103a449]15 Mar 2026 
+
+[id=7d27f511761f]Onshore & Offshore/VCN 
+
+[id=0cdb54faa77a]Cannot Print a BOL / Packing Slip or Shipping Label SOP (DSC2S) - VCN 
+
+Onshore Escalations SOP (DSC2S) 
+
+[id=32b8ea641728]Cannot Print SOP > NA > Common Label Print Errors 
+Added expand – Label Printing Error - Unable to Retrieve Order Details 
+
+Cannot Print SOP > NA + EU > Common Label Print Errors 
+Added expand – The given origin or destination postal code is not in a format that conforms to the specified country's postal system 
+
+Onshore Escalations SOP > NA > Cannot Print SOP 
+Added tab – Label Printing Error - Unable to Retrieve Order Details 
+
+[id=c4e4e91347c2]Additional tech issue label print error instruction additions for the following erorr messages: 
+Label Printing Error - Unable to Retrieve Order Details 
+
+The given origin or destination postal code is not in a format that conforms to the specified country's postal system 
+
+[id=63047e3a7121][id=6a513e43562f]27 
+
+[id=e0cfc568d32d]09 Mar 2026 
+
+[id=6b3e746809c5]10 Mar 2026 
+
+[id=9d2aac3b95e2]15 Mar 2026 
+
+[id=1d862bbd809a]Onshore & Offshore/VCN 
+
+[id=cf207fef717c]GPS QC Rubric (DSC2S) 
+
+[id=a9352cf3d1f5]Updated Q1: Response Structure 
+Added the following bullets: 
+Opening statements are required in the following scenarios specifically: 
+Required on the initial response to an inbound supplier ticket i.e. "Thank you for submitting this request. I can resolve this for you today...." 
+
+Required for a follow-up comment where we were waiting on an internal team/fix to update the Supplier i.e. "Thank you for your patience while our team reviewed this..." 
+
+Required if a closed ticket is reopened by a supplier i.e. "Thanks for getting back to us to confirm..." 
+
+For all other scenarios, an opening statement is recommended where appropriate but is not required for QA purposes. 
+
+[id=392f99a66f00]Edited the guidance for using opening statements to: 
+Reduce the number of appeals being submitted 
+
+Provide more clarity for agents 
+
+[id=dcdc21206b3b][id=9d4daef0e262]26 
+
+[id=7ae07d3bd03d]06 Mar 2026 
+
+[id=dda479b387f3]10 Mar 2026 
+
+[id=d746f357b7a1]15 Mar 2026 
+
+[id=947161121178]Onshore & Offshore/VCN 
+
+[id=80b4b6ce1ab7]Canned Responses/Templates (DSC2S) 
+
+[id=5c5ddd51c76d]FMOP Templates > Supplier Templates > Supplier Email Templates 
+Added note: "Agents are permitted to use the email templates to respond in a ticket update, but are expected to make any necessary edits or additions, as per the GPS QC Rubric ." 
+
+[id=2203ea187a3a]Updated following QA appeal discussion 
+
+[id=379b13285a71][id=da9fc2d85dcb]25 
+
+[id=bfeaab9b574f]02 Mar 2026 
+
+[id=471d2a1b879a]03 Mar 2026 
+
+[id=8868bb1bad74]08 Mar 2026 
+
+[id=8155cb175af8]Onshore & Offshore/VCN 
+
+[id=f6a89488c43f]Problem with an Order (PWAO) SOP (DSC2S) 
+
+Cancellation Inquiry SOP (DSC2S) - VCN 
+
+[id=fb29a0fb08a9]Problem with an Order (PWAO) > Replacement PO/Parts Investigation > Supplier Needs Replacement PO - SCT Enrolled 
+The blue textbox has been updated 
+
+Cancellation Inquiry > Supplier Requests I cancel the PO 
+Updated Step 1: Review Reason for Cancellation, adding "SCT Alternative Resolution" expand 
+
+[id=bf954253deac]Additional information received, SOP gap between SCT, RPOPS and C2S no one has a SOP in place to take care of replacements or parts that did not cancel when the supplier and customer agree to an alternative resolution 
+
+[id=0742327414b3][id=3c1acd51366c]24 
+
+[id=ad03eb53eb8c]03 Mar 2026 
+
+[id=278cecf5bf18]03 Mar 2026 
+
+[id=c996ca8b041e]08 Mar 2026 
+
+[id=faa56970a139]Onshore & Offshore/VCN 
+
+[id=d67a6e0e409c]Product Out of Stock SOP (DSC2S) - VCN 
+
+[id=07f3af05f556]The NA & EU tabs have been combined to form a globalized standard for this SOP. 
+
+[id=79aa6a0f4b87]The final phase of globalization of AOPS and POS projects is to combine NA & EU into one SOP to form a fully globalized standard. 
+
+[id=06398b35b6b7][id=0a213c3f8316]23 
+
+[id=7b94b4c73b0e]03 Mar 2026 
+
+[id=edc4b096e5b2]03 Mar 2026 
+
+[id=ee1995183039]08 Mar 2026 
+
+[id=a448f96a3076]Onshore & Offshore/VCN 
+
+[id=2ef19303bc06]Problem with an Order (PWAO) SOP (DSC2S) 
+
+[id=702595fe6d9f]The NA & EU tabs have been combined to form a globalized standard for this SOP. 
+
+[id=b1839a5e102c]The final phase of globalization of AOPS and POS projects is to combine NA & EU into one SOP to form a fully globalized standard. 
+
+[id=c2811cc497f9][id=84f564cce901]22 
+
+[id=3e27abdf0afa]03 Mar 2026 
+
+[id=8823e1e9c9ca]03 Mar 2026 
+
+[id=9f69b5719fa4]08 Mar 2026 
+
+[id=0a0c8fa1cc79]Onshore & Offshore/VCN 
+
+[id=008a99763712]Cancellation Inquiry SOP (DSC2S) - VCN 
+
+[id=1ac79561070e]The NA & EU tabs have been combined to form a globalized standard for this SOP. 
+
+[id=fd58e3f91179]The final phase of globalization of AOPS and POS projects is to combine NA & EU into one SOP to form a fully globalized standard. 
+
+[id=21cb0d278991][id=8256e94d10ce]21 
+
+[id=5f3717e77d1e]03 Mar 2026 
+
+[id=d750399cb099]03 Mar 2026 
+
+[id=ba39c76235ac]08 Mar 2026 
+
+[id=06fff5b0ded9]Onshore & Offshore/VCN 
+
+[id=1b3dbd8e2c18]Update Tracking Number/Order Status SOP (DSC2S) - VCN 
+
+[id=c1844a2a5728]The NA & EU tabs have been combined to form a globalized standard for this SOP. 
+
+[id=5d3229a36a15]The final phase of globalization of AOPS and POS projects is to combine NA & EU into one SOP to form a fully globalized standard. 
+
+[id=a1efafb42d6d][id=c7c392bff4d6]20 
+
+[id=856c67a37ef3]02 Mar 2026 
+
+[id=6c7c231f5636]03 Mar 2026 
+
+[id=f338bcc529b3]08 Mar 2026 
+
+[id=2100808be86d]Onshore & Offshore/VCN 
+
+[id=eaf971da579b]Cannot Print a BOL / Packing Slip or Shipping Label SOP (DSC2S) - VCN 
+
+[id=646b9b0272c0]EU > Common Label Print Errors > Replacement Parts for EUForteFurniture or EUMariola 
+
+[id=ec0387fe74a1]The previous SOP was outdated and contained old screenshots and unnessesarry updates to DE orders which are no longer required 
+and the carriers have changed. 
+
+[id=2104168cf03c][id=63c9c2aa0b07]19 
+
+[id=3807e4c4d5e3]25 Feb 2026 
+
+[id=5178395f48ed]03 Mar 2026 
+
+[id=d618c9e471b3]08 Mar 2026 
+
+[id=25a30e0ae45c]Onshore & Offshore/VCN 
+
+[id=f4bce78cbb0d]Canned Responses/Templates (DSC2S) 
+
+[id=517deb83f25e]Combined Tier 1 - Adhoc Request (Email Templates) and Tier 1 Ad Hoc Requests tabs 
+
+Tier 1 - Adhoc Request (Email Templates) have been moved to the very bottom of the Tier 1 Ad Hoc Requests tab 
+
+The following templates have been deleted from the Tier 1 - Adhoc Request (Email Templates) tab as we no longer support them: 
+Confirm Dimensions 
+
+FN Compliance 1st Outreach 
+
+FN Compliance 2nd Outreach 
+
+[id=cf1888caa856]The final phase of globalization of AOPS and POS projects is to combine NA & EU to form a fully globalized standard. 
+
+[id=67d40af02122][id=e6a940b4a512]18 
+
+[id=8ded61aa7605]19 Feb 2026 
+
+[id=08df9273eb95]24 Feb 2026 
+
+[id=34f10443fe21]01 Mar 2026 
+
+[id=abe53b7b6fc1]Onshore & Offshore/VCN 
+
+[id=42934409d66b]Canned Responses/Templates (DSC2S) 
+
+[id=b16135f8c80e]All AOPS and POS templates have been reviewed and the tabs have been combined into one: AOPS / POS Templates. 
+
+Due to overlap in context, some templates have been deleted while others have been revised or consolidated. 
+
+InfoHub and the ServiceHub template directory have been updated accordingly. 
+
+Please note that SOPs are still being updated to reference  updated template names. 
+
+[id=5f5796732302]The final phase of globalization of AOPS and POS projects is to combine NA & EU to form a fully globalized standard. 
+
+[id=f3cfd7bd8767][id=93406249377c]17 
+
+[id=bb08e2ac88fc]18 Feb 2026 
+
+[id=6498ab8ea713]24 Feb 2026 
+
+[id=db8caa2e2f52]01 Mar 2026 
+
+[id=fc25b67772f1]Onshore & Offshore/VCN 
+
+[id=70d330192c7d]PO Reroutes SOP (DSC2S) 
+
+[id=3fa1d99b1b1e]The NA & EU tabs have been combined to form a globalized standard for this SOP. 
+
+[id=5382f1d8f3b0]The final phase of globalization of AOPS and POS projects is to combine NA & EU into one SOP to form a fully globalized standard. 
+
+[id=3c5259635627][id=e67a53124889]16 
+
+[id=add0ee52b58b]18 Feb 2026 
+
+[id=c9fa89ffef13]24 Feb 2026 
+
+[id=9f3494e48729]01 Mar 2026 
+
+[id=891e783fb54d]Onshore & Offshore/VCN 
+
+[id=071c78e4e780]Global Transfer Matrix SOP (DSC2S) 
+
+[id=c5c6bd64ec15]The NA & EU tabs have been combined to form a globalized standard for this SOP. 
+*Adopted NA tabs for global standard but did move over Collections Support (SC) tab as we will need this once EU tickets start coming into the AOPS queue. 
+
+[id=a3488eaab9be]The final phase of globalization of AOPS and POS projects is to combine NA & EU into one SOP to form a fully globalized standard. 
+
+[id=efcf1598e802][id=7b3d5195f0e7]15 
+
+[id=81decdfa541a]18 Feb 2026 
+
+[id=8e416de8bd3c]24 Feb 2026 
+
+[id=41e809e7e5c1]01 Mar 2026 
+
+[id=517fe30883a2]Onshore & Offshore/VCN 
+
+[id=d46e584faea3]Need PO to be Resent SOP (DSC2S) - VCN 
+
+[id=c7f462cdcd2e]The NA & EU tabs have been combined to form a globalized standard for this SOP. 
+
+[id=cfe927384c80]The final phase of globalization of AOPS and POS projects is to combine NA & EU into one SOP to form a fully globalized standard. 
+
+[id=43a911e8b0f4][id=afe5a196d976]14 
+
+[id=be7c03ec4d45]17 Feb 2026 
+
+[id=21d37178a41e]17 Feb 2026 
+
+[id=53db5e8ded15]22 Feb 2026 
+
+[id=cb85ea891758]Onshore & Offshore/VCN 
+
+[id=0351a652745e]PO has a Wrong Price SOP (DSC2S) - VCN 
+
+[id=d138e6acef47]The NA & EU tabs have been combined to form a globalized standard for this SOP. 
+*Adopted EU tabs for global standard 
+
+[id=23b509db1c70]The final phase of globalization of AOPS and POS projects is to combine NA & EU into one SOP to form a fully globalized standard. 
+
+[id=7707186581ba][id=b218e0b8af37]13 
+
+[id=86af936feb33]10 Feb 2026 
+
+[id=1f3c353af1bb]10 Feb 2026 
+
+[id=5e7ec22be8c1]15 Feb 2026 
+
+[id=dd83192ae26f]Onshore & Offshore/VCN 
+
+[id=01eca9d4166b]Canned Responses/Templates (DSC2S) 
+
+Problem with an Order (PWAO) SOP (DSC2S) 
+
+[id=481cd473f7c7]AOPS > Problem with an Order (PWAO) 
+Updated template – Supplier Warm/Cold Transfer Programs 
+
+InfoHub and the ServiceHub template directory have been updated accordingly. 
+NA > Replacement PO Investigation > Supplier Needs Replacement PO - SCT Enrolled > Step 1: Review the Supplier Transfer Enrollment List 
+Updated Step 1 to remove the "IF: Enrolled" scenario as this no longer applies and we only need to validate enrollment, as opposed to which program the SU is apart of specifically. 
+
+[id=e178d24db0c4]Verifying warm/cold program enrollment is no longer required as the only email redirect we should provide is to wfsuppliertransfers@wayfair.com 
+
+[id=e012e5ca7fc3][id=94c24308fe23]12 
+
+[id=17853165be93]10 Feb 2026 
+
+[id=d25f694956e8]10 Feb 2026 
+
+[id=926d749d0fd6]15 Feb 2026 
+
+[id=c314e224b1cf]Onshore 
+
+[id=ba8f1c8c1b5a]Logistics Matrix Updates (DSC2S) 
+
+[id=70e8d68b5ee3]New SOP created 
+
+[id=24a584a877be]This is a new process that covers updating supplier logistics metrics for North America (US and CAN) First Mile pickups, which involves assigning a routing type (dedicated, LTL to pool point, or LTL to HDO) and a pool point based on distance 
+
+[id=2a810d5e95a1][id=6a8f8a048d96]11 
+
+[id=0310ce70aa8c]09 Feb 2026 
+
+[id=481b8cbbe38f]10 Feb 2026 
+
+[id=3ba6fb10be74]15 Feb 2026 
+
+[id=14f11d09524b]Offshore/VCN 
+
+[id=de9a3e39752d]Change Ship Method or Carrier on PO Due to Item Count / Size (Supplier Entered) SOP (DSC2S) - VCN 
+
+[id=a08a35658c22]NA > Changing a Ship Speed 
+Updated Step 3: IF: Shipping or Service Upgrades Wizard Fails 
+
+Added new Step 4: IF: Both Wizards Failed to Run 
+
+[id=e86b87a156c6]Additions if wizards will not run how to manully update the ship via speed and ensure CT is refunded the difference in shipping cost. 
+
+[id=6d45ed0b4b3d][id=96a40c8adaba]10 
+
+[id=49c8760ef2bb]30 Jan 2026 
+
+[id=7932fef5ae51]03 Feb 2026 
+
+[id=3f844562a55c]08 Feb 2026 
+
+[id=f0e60c263fca]Onshore & Offshore/VCN 
+
+[id=1833b368b99f]Cancellation Inquiry SOP (DSC2S) - VCN 
+
+[id=1b2fb52c4178]NA > Supplier Requests I cancel the PO 
+Updated Step 3: Utilize Template 
+
+[id=91005f03bc2b]Updated SOP steps to respond to SU and leave ticket in Waiting for Supplier after initial outreach 
+
+[id=d2e01eb1c9aa][id=06b7f3836fb8]9 
+
+[id=24c3860f67d5]30 Jan 2026 
+
+[id=d546d490ab9b]03 Feb 2026 
+
+[id=a646d187d6b2]08 Feb 2026 
+
+[id=7eeab178378f]Onshore & Offshore/VCN 
+
+[id=bbfbbde3015c]Canned Responses/Templates (DSC2S) 
+
+[id=1bef52d6a464]AOPS > Cancellation Inquiries 
+Updated template - Cancellation Pushback 
+
+InfoHub and the ServiceHub template directory have been updated accordingly. 
+
+[id=01147fd5c536]Updated template language to encourage supplier to respond 
+
+[id=e99dc9f5a2c0][id=cc430584bee0]8 
+
+[id=ecb094f4e0c9]30 Jan 2026 
+
+[id=26e3394023b1]03 Feb 2026 
+
+[id=65b5c6a4a9c8]08 Feb 2026 
+
+[id=e1a88f21768a]Offshore/VCN 
+
+[id=b130455637ee]Escalating for Onshore Support (Tier 0 to Tier 1) SOP (DSC2S) - VCN 
+
+[id=6215d94dc848]Before You Start > Red Box 
+The text that was previously in this box has been deleted and replaced. 
+
+[id=60fa0b79edf6]Allows onshore POCs to focus on reviewing escalations and identifying SOP improvement opportunities. 
+
+Helps proactively address knowledge gaps and provide targeted training support. 
+
+Ensures the channel is used for process improvement rather than ticket handling. 
+
+[id=96a30693415d][id=135c787ddefe]7 
+
+[id=b5c9be954a6c]30 Jan 2026 
+
+[id=9936472552e2]03 Feb 2026 
+
+[id=97a8a159b206]08 Feb 2026 
+
+[id=648b1a9f7f3c]Onshore & Offshore/VCN 
+
+[id=eaf6599938d1]Global Transfer Matrix SOP (DSC2S) 
+
+[id=b529c8763893]NA > Interdepartment Transfers > GSCI 
+Added new Step 1: Complete Pre-Transfer Investigation 
+
+These steps are ONLY applicable to GSCIEXE (Execute) 
+
+For GSCI, GSCIOPS and GSCIADO, follow steps 2-5 per usual 
+
+[id=9d8f7d14548c]Additional steps to investigate and reduce unnecessary ticket transfers to GSCIEXE (Execute) by confirming whether the supplier can complete warehouse changes using the Warehouse DIY tool in Partner Home. 
+
+[id=129aabe6279d][id=e38ea5db3cdc]6 
+
+[id=1bdf1feacf47]13 Jan 2026 
+
+[id=f0aee05fd4e1]13 Jan 2026 
+
+[id=c465255b7306]18 Jan 2026 
+
+[id=aa6fcd037636]Onshore & Offshore/VCN 
+
+[id=0ec9feca44dc]Canned Responses/Templates (DSC2S) 
+
+[id=fe37932f64c7]FMOP Templates > FTL (Full Truckload) 
+Updated template – FedEx (SP) Shipments 
+
+InfoHub and the ServiceHub template directory have been updated accordingly. 
+
+[id=1008d2b153bb]Aligned expectations for SU's to provide their own account information when contacting FedEx for missed pickups. 
+
+[id=1566113d3d12][id=9b651f8fad17]5 
+
+[id=686b03ae0bb5]13 Jan 2026 
+
+[id=7d0f489838f9]13 Jan 2026 
+
+[id=7882c8575a41]18 Jan 2026 
+
+[id=2c4172a49643]Onshore & Offshore/VCN 
+
+[id=d4e035a41657]GPS QC Rubric (DSC2S) 
+
+[id=8354f1148e5a]Updated Q3: Ticket Data Field Usage 
+Previous : PO # or RP PO # needs to be referenced in all updates involving more than one PO, regardless if it is contained within the ticket title. 
+
+New : PO # or RP PO # needs to be referenced in all updates involving more than one PO, regardless if it is contained within the ticket title. If 10+ POs, only the POs that could not be remedied need to be referenced in the ticket update. 
+
+Added to Correct Example : If 10+ POs, only the POs that could not be remedied need to be referenced in the ticket update i.e. "We have been able to delay the majority of the POs, however, I have reached out for assistance with the below POs which could not be delayed manually: PO12345, PO678910..." 
+
+[id=9fec21e7064d]Updating guidance on required documentation for POs in tickets 
+
+[id=1c69aecd9370][id=a4add3a67e0c]4 
+
+[id=cf4a20b8462f]12 Jan 2026 
+
+[id=502cbfc09bc4]13 Jan 2026 
+
+[id=e0956b475dc8]18 Jan 2026 
+
+[id=63d56a8ccc63]Onshore & Offshore/VCN 
+
+[id=4110d6f814c3]Canned Responses/Templates (DSC2S) 
+
+[id=23659da4532d]AOPS Project > Problem with an Order (PWAO) 
+Added template – Self Service - Update Parts Tracking 
+
+InfoHub and the ServiceHub template directory have been updated accordingly. 
+
+[id=96c1acb7d94e]New template for self-service guidance on parts tracking updates 
+
+[id=b078d337a212][id=f24a50b43c84]3 
+
+[id=5b43d1dfbd55]07 Jan 2026 
+
+[id=30bf510fdd70]13 Jan 2026 
+
+[id=cb712d4ed147]N/A 
+
+[id=37353d2e5748]Onshore & Offshore/VCN 
+
+[id=c6d99830b3af]Canned Responses/Templates (DSC2S) 
+
+[id=c8598e373cfa]AOPS Project > Problem with an Order (PWAO) 
+
+[id=b807a8321970]The templates on the PWAO> Returns, Fulfillment Blockers, Cancellations and Fulfillment Questions tabs have been reorganized due to globalization and the breakout of the PWAO SOP 
+
+The templates now align with the updated SOPs 
+
+[id=e73b059df893][id=acc516b4844e]2 
+
+[id=42e3433dfcad]05 Jan 2026 
+
+[id=74b406e381c6]06 Jan 2026 
+
+[id=b1d6ed0085f9]11 Jan 2026 
+
+[id=ce64feda7910]Onshore & Offshore/VCN 
+
+[id=ae141c66649b]WDN Supplier Outreach SOP (DSC2S) - VCN 
+
+[id=885bd7827f93]Sending Outbound Email > Step 3: Send Email to Supplier 
+Added Tip 2 
+
+[id=f0c92a73e8d1]Tip 2 provides a workaround when SU contacts is not loading on ServiceHub 
+
+[id=f76907fb7058][id=2543d005d4e5]1 
+
+[id=e73bfaf54a7f]05 Jan 2026 
+
+[id=2c636864377d]06 Jan 2026 
+
+[id=f0c621e4ec97]11 Jan 2026 
+
+[id=d99f9848fe73]Onshore & Offshore/VCN 
+
+[id=5dcd9adebe05]GPS QC Rubric (DSC2S) 
+
+[id=46cef802bc7e]Updated Q3: Ticket Data Field Usage 
+Previous : Any ticket that is not able to be resolved due to a tech issue must include text “Related Tech Issue: [insert ticket key]”. 
+
+New : Any ticket that is related to a tech issue must include text “Related Tech Issue: [insert ticket key]”. 
+
+[id=9b68047ab7e8]Rubric was previously worded to make it seem like “Related Tech Issue” only needs to be added when a ticket cannot be closed out. 
+
+[id=e5fedbbe-c744-4150-aa64-b85f0acc184f]

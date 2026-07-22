@@ -1,0 +1,6 @@
+#,Steps,Actions,Visuals
+1,Message B2B Agent to Notify of PO Error,"Outreach the assigned B2B agent/BAM on the order in Slack to notify them that the PO cannot be fulfilled as is, and requires cancellation.",
+2,Confirm B2B Acknowledgement,Please wait for B2B response and acknowledgement of cancellation Note : If no response from B2B within 24 natural hours (except for outreach sent on Friday) please proceed to step 3.,
+3,Cancel Original PO,Enter the PO or OPID# into the Bulk Order Cancellation tool to cancel the replacement PO. Note : Be sure to select email notifications for the supplier and customer so they are notified.,
+4,Refresh Cancellation Details,Refresh the cancellation results to confirm the PO has been cancelled successfully.,
+5,Send Template,"Respond to the supplier utilizing the Original B2B Order template, and close the ticket under a Done resolution.",

@@ -1,0 +1,6 @@
+#,Steps,Actions,Visuals
+1,Check if the product is listed for commercial use,"This can be found on the Wayfair website under Specifications Warranty section If item is listed as &lsquo;Commercial Use&rsquo; and should not be, the product listing will need updated via a Merch ticket/transfer and we will cancel the order",
+2,If product is not listed for &lsquo;Commercial Use&rsquo; we need to verify if the customer is aware,"Reach out to sales agent via Slack to confirm if discussion was had with customer. If not, reach out to B2B agent listed for the account in the bannered order",
+3,Flag ticket to Platinum+ with internal note,"If the platinum customer is not aware and a discussion needs to happen, please place the ticket in &lsquo;Waiting for Supplier&rsquo; status until P+ team confirms that the customer accepts or wants to cancel",
+4,"If customer confirms awareness, we ask supplier to proceed with shipping","If supplier advises that a waiver is necessary, we can transfer request to CSO",
+5,Send Template,"Respond to the supplier utilizing the appropriate template based on previous steps, and close the ticket under a Done resolution. Template will vary",

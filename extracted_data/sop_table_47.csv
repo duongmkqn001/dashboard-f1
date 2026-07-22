@@ -1,0 +1,7 @@
+#,Steps,Actions,Visuals
+1,Check the product page on website to confirm if update has already been processed,Cross reference with information provided by supplier,
+2,Cancel PO via Bulk Cancellation tool,Enter the PO or OPID# into the Bulk Order Cancellation tool to cancel the PO. Select Reason for Cancellation: OPS_ORDER_PROCESSING_ISSUE,
+3,Refresh Cancellation Details,Refresh the cancellation results to confirm the PO has been cancelled successfully.,
+4,Send Template,"Respond to the supplier utilizing the SKU Enrichment - Update Product Description template. Be sure to: Prior to transferring to Enrich,if the supplier does not proactively provide the information that is missing or different from the current listing, the agent should: Request that information Provide self service instructions of making updates under the product section of the portal by selecting update product details Suggested Template: Requesting Product Details",
+5,Transfer Ticket: Merchandising (ENRICH),"In ServiceHub, select Transfer Select New Project: ENRICH Select New Issue Type: Partner Home External Request New Status (if asked): Open Customer Request Type: Update Product Description Select Move",
+6,"After Transferring, insert the template for internal comment","Add template as an internal comment for the ENRICH agent, and provide the context for the request and/or actions taken",

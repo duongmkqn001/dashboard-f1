@@ -1,0 +1,5 @@
+#,Steps,Actions,Visuals
+1,Log In as the Supplier,Open the Partner Home portal . Log in as the Supplier using the search bar in the red banner at the top of the page. (Visual 1.1),Visual 1.1:
+2,Confirm Supplier's Return Setup,"Select the person icon in the top right-hand corner to open the dropdown menu. Click Returns Management. (Visual 1.2) A new window will open showing the available options and which the Supplier has selected. (Visual 1.3; Tip 1) Tip 1: The Supplier also has the option here to change their selection or update their return address. (Visual 1.3) In Returns Management, you will see 3 options: Supplier-Managed Returns, Wayfair-Managed Returns (All Parcels), and Wayfair-Managed Returns (Large Parcels Only) Make note of the section with the purple box that notates Selected. Next to the Selected box, it will also notate which use selected this setting, and the date the setting was activated",Visual 1.2: Visual 1.3:
+3,Send Template,Update the Supplier using the Supplier Managed Returns (SMR) or Wayfair Managed Returns (WMR) template.,
+4,Update Ticket Status,Close the ticket out under a Done status.,

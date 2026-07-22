@@ -1,0 +1,3 @@
+#,Steps,Actions
+1,Send Template,"If the Supplier queries why we didn't encourage the Customer to accept a discount rather than ordering parts, use the RP_Decision template to educate the Supplier on our parts process."
+2,Move to Resolve Ticket,Move to the Resolve Ticket tab.

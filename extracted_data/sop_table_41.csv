@@ -1,0 +1,4 @@
+#,Steps,Actions,Visuals
+1,Determine the Supplier is not Enrolled in the SCT Program,Review the Supplier Transfer Enrollment List to confirm the supplier is not enrolled in the SCT Program,
+2,Run RAP Wizard to Generate the Replacement PO,"Run the RAP wizard against an item on the original PO utilizing the following Wizard Path: Select Eligible Item Indicate if issue is damage or detective, or the customer received the wrong item Select Does Customer Have Item? No Select Resolution: Replace the item with a brand new one! Continue",
+3,Send Template,Respond to the supplier utilizing the Supplier Needs a Replacement template and close the ticket under a Done resolution.,

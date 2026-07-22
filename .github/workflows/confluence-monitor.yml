@@ -1,0 +1,202 @@
+name: Confluence Monitor
+
+on:
+  # Run on schedule — every 6 hours. Adjust to '*/15 * * * *' (15 min) or
+  # '0 */1 * * *' (hourly) if you want faster detection.
+  schedule:
+    - cron: "0 */6 * * *"
+
+  # Allow manual trigger from GitHub Actions UI
+  workflow_dispatch:
+    inputs:
+      page_id:
+        description: "Specific page ID to check (optional)"
+        required: false
+        type: string
+      dry_run:
+        description: "Dry-run mode (no Supabase writes, no Discord)"
+        required: false
+        type: boolean
+        default: false
+      verbose:
+        description: "Verbose output"
+        required: false
+        type: boolean
+        default: false
+
+# Only one run at a time — if a previous run is still going, skip this one.
+concurrency:
+  group: confluence-monitor
+  cancel-in-progress: false
+
+env:
+  PYTHON_VERSION: "3.11"
+
+jobs:
+  monitor:
+    name: Check Confluence GPS Space
+    runs-on: ubuntu-latest
+
+    # Only run on the default branch
+    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+
+    steps:
+      # ------------------------------------------------------------------
+      # 1. Check out repo
+      # ------------------------------------------------------------------
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ------------------------------------------------------------------
+      # 2. Python setup
+      # ------------------------------------------------------------------
+      - name: Set up Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      # ------------------------------------------------------------------
+      # 3. Install dependencies
+      # ------------------------------------------------------------------
+      - name: Install Python dependencies
+        run: pip install -r requirements.txt
+
+      # ------------------------------------------------------------------
+      # 4. Validate required secrets are present
+      # ------------------------------------------------------------------
+      - name: Validate secrets
+        run: |
+          echo "Checking required secrets..."
+          if [[ -z "${{ secrets.CONFLUENCE_EMAIL }}" ]]; then
+            echo "ERROR: CONFLUENCE_EMAIL is not set"
+            exit 1
+          fi
+          if [[ -z "${{ secrets.CONFLUENCE_API_KEY }}" ]]; then
+            echo "ERROR: CONFLUENCE_API_KEY is not set"
+            exit 1
+          fi
+          if [[ -z "${{ secrets.SUPABASE_URL }}" ]]; then
+            echo "ERROR: SUPABASE_URL is not set"
+            exit 1
+          fi
+          if [[ -z "${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}" ]]; then
+            echo "ERROR: SUPABASE_SERVICE_ROLE_KEY is not set"
+            exit 1
+          fi
+          if [[ -z "${{ secrets.DISCORD_WEBHOOK_URL }}" ]]; then
+            echo "ERROR: DISCORD_WEBHOOK_URL is not set"
+            exit 1
+          fi
+          echo "All required secrets are present."
+
+      # ------------------------------------------------------------------
+      # 5. Dry-run check (optional)
+      # ------------------------------------------------------------------
+      - name: Dry-run check
+        if: github.event.inputs.dry_run == 'true'
+        env:
+          CONFLUENCE_EMAIL: ${{ secrets.CONFLUENCE_EMAIL }}
+          CONFLUENCE_API_KEY: ${{ secrets.CONFLUENCE_API_KEY }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "DRY-RUN MODE — no Supabase writes, no Discord notifications"
+          if [[ -n "${{ github.event.inputs.page_id }}" ]]; then
+            python confluence_monitor.py \
+              --page-id ${{ github.event.inputs.page_id }} \
+              --dry-run \
+              --verbose
+          else
+            python confluence_monitor.py --dry-run --verbose
+          fi
+
+      # ------------------------------------------------------------------
+      # 6. Sync Change Logs
+      # ------------------------------------------------------------------
+      - name: Sync Change Logs to Supabase
+        if: github.event.inputs.dry_run != 'true'
+        env:
+          CONFLUENCE_EMAIL: ${{ secrets.CONFLUENCE_EMAIL }}
+          CONFLUENCE_API_KEY: ${{ secrets.CONFLUENCE_API_KEY }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "Syncing change logs..."
+          python scripts/sync_changelogs.py --verbose
+
+      # ------------------------------------------------------------------
+      # 7. Specific page check (non-dry-run, page_id from dispatch)
+      # ------------------------------------------------------------------
+      - name: Run specific page check
+        if: github.event.inputs.dry_run != 'true' && github.event.inputs.page_id != ''
+        env:
+          CONFLUENCE_EMAIL: ${{ secrets.CONFLUENCE_EMAIL }}
+          CONFLUENCE_API_KEY: ${{ secrets.CONFLUENCE_API_KEY }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          echo "Running monitor for specific page: ${{ github.event.inputs.page_id }}"
+          python confluence_monitor.py \
+            --page-id ${{ github.event.inputs.page_id }} \
+            --verbose
+
+      # ------------------------------------------------------------------
+      # 8. Full run (default: all monitored pages, no page_id input)
+      # ------------------------------------------------------------------
+      - name: Run full monitor (all pages)
+        if: github.event.inputs.dry_run != 'true' && github.event.inputs.page_id == ''
+        env:
+          CONFLUENCE_EMAIL: ${{ secrets.CONFLUENCE_EMAIL }}
+          CONFLUENCE_API_KEY: ${{ secrets.CONFLUENCE_API_KEY }}
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python confluence_monitor.py --verbose
+
+      # ------------------------------------------------------------------
+      # 10. Upload run artifact (logs + changelog snapshot)
+      # ------------------------------------------------------------------
+      - name: Upload monitor artifacts
+        if: always()  # always upload even if the run fails
+        uses: actions/upload-artifact@v4
+        with:
+          name: monitor-run-${{ github.run_number }}
+          path: |
+            confluence_monitor.py
+            scripts/sync_changelogs.py
+          retention-days: 7
+
+      # ------------------------------------------------------------------
+      # 9. Notify on failure
+      # ------------------------------------------------------------------
+      - name: Notify on failure
+        if: failure()
+        uses: slackapi/slack-github-action@v1.26.0
+        with:
+          channel-id: ${{ vars.SLACK_CHANNEL_ID || '' }}
+          payload: |
+            {
+              "text": ":x: *Confluence Monitor failed* (run #${{ github.run_number }})",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Confluence Monitor FAILED* :x:\n"
+                            "Run: <${{ github.server_url }}/actions/runs/${{ github.run_id }}|#${{ github.run_number }}>\n"
+                            "Branch: `${{ github.ref_name }}`\n"
+                            "Trigger: `${{ github.event_name }}`"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_BOT_TOKEN: ${{ secrets.SLACK_BOT_TOKEN }}
+          SLACK_CHANNEL_ID: ${{ vars.SLACK_CHANNEL_ID }}
+        continue-on-error: true   # don't fail the job if Slack is not configured

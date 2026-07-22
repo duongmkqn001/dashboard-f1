@@ -1,0 +1,4 @@
+#,Steps,Actions,Visuals
+1,Request Images magenta location EU Specific,"If the Supplier has requested images, or if you feel images will be useful to clarify the information they are requesting, you should proactively request these from the Customer. From the Product tab, select the Request Photos dropdown and choose via Email. (Visual 1.1)",Visual 1.1:
+2,Send Template,Respond to the supplier utilizing the applicable template: NA: Utilize Supplier Requests Photos template EU: Utilize Incident_Photo_Request template,
+3,Update Status,Close the ticket under a Done resolution.,

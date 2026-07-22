@@ -1,0 +1,3 @@
+#,Steps,Actions,Visuals
+1,Review Order Trail,"Check if the customer contacted service to state that they did not need/want the item IF: Customer Elected to Return Item medium tip false Send Template: Carrier Returned - No Replacement, Normal Return IF: Customer Did not Elect Return medium tip false Issue Replacement PO Send Template: Item Returned by Carrier - Replacement Needed",
+2,Close Ticket under Done Status,Close the ticket out under a Done status,

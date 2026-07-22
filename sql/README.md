@@ -75,6 +75,30 @@ This folder contains all SQL scripts for the F1 Dashboard project.
 
 ---
 
+### 4. **confluence_changelog_setup.sql** ⭐ CONFLUENCE MONITOR
+**Purpose**: Confluence GPS space changelog tracking schema
+
+**What it does**:
+- Creates `confluence_pages` table (page snapshots)
+- Creates `confluence_changelog` table (immutable change log)
+- Creates `track_confluence_change()` function (upsert + changelog)
+- Creates `mark_confluence_notified()` function
+- Creates `confluence_pending_notifications` and `confluence_recent_changes` views
+- Seeds the known page (ID 1256185536)
+
+**When to run**: Once, before deploying the Confluence monitor GitHub Actions
+
+**How to run**:
+1. Open Supabase → SQL Editor
+2. Copy entire file content
+3. Paste and click "Run"
+
+**Expected result**: Tables, functions, and views created; 1 page seeded
+
+**Related docs**: `docs/CONFLUENCE_MONITOR_SETUP.md`
+
+---
+
 ## 🚀 Quick Start
 
 ### First Time Setup:
@@ -84,6 +108,7 @@ This folder contains all SQL scripts for the F1 Dashboard project.
    1. manual_schedule_complete_setup.sql  (required)
    2. fix_notifications_table.sql         (if needed)
    3. test_manual_schedule.sql            (optional, for testing)
+   4. confluence_changelog_setup.sql      (Confluence monitor — run once)
    ```
 
 2. **Verify**:

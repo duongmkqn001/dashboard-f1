@@ -1,0 +1,5 @@
+#,Steps,Actions,Visuals
+1,Review the Ticket,Review the ticket in full to determine what support the Supplier requires.,
+2,Confirm the action being requested,"Confirm the supplier's request is one of the following: Looking for part information (Part number missing, Orientation clarification, Color clarification, Description clarification, Quantity, Model/Batch number clarification) Saying parts won't solve the customer's issue (i.e. part already shipped, part isn't included) Saying that troubleshooting will solve the problem. Offering an alternative resolution (i.e. discount, replacement unit)",
+3,Send Template,Use the Replacement Parts - Part Information Needed template to update the supplier.,
+4,Update Status,Close the ticket under a Done resolution.,

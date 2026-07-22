@@ -1,0 +1,6 @@
+Template Use Case/Title,Applicable SOPs,Text,Last Updated
+Request BOL,,"Hello Supplier Team, Please provide a signed BOL for PO XXX. It was marked shipped on XXX but has no valid tracking available. Thank you",
+Day 2 - Request BOL,,"Hello Supplier Team, Please provide a signed BOL for PO XXX by XXX to prevent this PO from being deemed incomplete and a replacement ordered. Thank you",
+Deemed Incomplete Due to No Response (after 2 bus days),WIMS - Large Parcel SOP (DSC2S) Proof of Pickup,"Hello Supplier Team, PO XXX has been deemed incomplete due to no BOL being provided. A replacement may be ordered by our service team. Thank you",
+Request BOL to Confirm Carton Count,,"Hello Supplier Team, Please provide a signed BOL for PO XXX to confirm carton count. It was marked shipped on XXX but we cannot confirm the tracking provided is for all cartons shipped. Thank you",
+Day 2 - Request BOL to Confirm Carton Count,,"Hello Supplier Team, Please provide a signed BOL to confirm carton count for PO XXX by XXX to prevent this PO from being deemed incomplete and a replacement ordered. Thank you",

@@ -1,0 +1,3 @@
+#,Steps,Actions,Visuals
+1,Identify the Item,Utilize any information possible your supplier provides to locate the order. This can include: Tracking IDs PO numbers Item Descriptions Customer names/PII,
+2,Click on the PO ServiceHub,"When you click on the PO it will open a new window with the PO information, including the wholesale unit cost (Visual 2.1)",Visual 2.1:

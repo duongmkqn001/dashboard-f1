@@ -1,0 +1,3 @@
+#,Steps,Actions,Visuals
+1,Send Template,"If the Supplier responds to this looking for next steps, use the Return_Email template to update them.",Visual 1.1:
+2,Move to Resolve Ticket,Move to the Resolve Ticket tab.,

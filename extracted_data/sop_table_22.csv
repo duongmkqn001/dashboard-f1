@@ -1,0 +1,4 @@
+#,Steps,Actions,Visuals
+1,Identify the Return Voucher Status,Identify the Return Voucher status utilizing the Finance View in the Legacy Order View,
+2,Send Template,"IF: Item is LESS than $500 WSC Respond to the supplier utilizing the LP Return WSC <$/&euro;/&pound;500 template, then leave the ticket in Waiting for Support status. Make sure you update the template with the correct team name based on the voucher status. IF: Item is MORE than $500 WSC Respond to the supplier utilizing the LP Return WSC >$/&euro;/&pound;500 template, then leave the ticket in Waiting for Support status. Make sure you update the template with the correct team name based on the voucher status.",
+3,Transfer to the Appropriate Finance Group,"IF: Pre-Voucher If the return is pre-voucher, transfer the ticket to Finance Operations (FINSAP Project in SupportHub) IF: Post Voucher If the return is post-voucher, transfer the ticket to Supplier Claims (CR Project in SupportHub)",

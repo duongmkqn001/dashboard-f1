@@ -199,3 +199,17 @@ For issues or questions:
 3. Verify CSV format matches the expected structure
 4. Test with the provided sample files
 5. See **[docs/FIXES_TESTING_GUIDE.md](docs/FIXES_TESTING_GUIDE.md)** for testing help
+
+## Confluence GPS Space Monitor
+
+Watches Confluence for page changes in the GPS space, stores a changelog in Supabase, and sends Discord webhook notifications.
+
+### Setup (one-time)
+
+1. **Apply the SQL migration** in Supabase SQL Editor: `sql/confluence_changelog_setup.sql`
+2. **Add GitHub Secrets** (Settings → Secrets → Actions):
+   - `CONFLUENCE_EMAIL`, `CONFLUENCE_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `DISCORD_WEBHOOK_URL`
+3. **Push** the new files
+4. **Verify** at `github.com/duongmkqn001/dashboard-f1/actions`
+
+See **`docs/CONFLUENCE_MONITOR_SETUP.md`** for full setup guide.

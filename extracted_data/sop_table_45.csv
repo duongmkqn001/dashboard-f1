@@ -1,0 +1,5 @@
+#,Steps,Actions,Visuals
+1,Confirm User Experiencing Issue,Confirm User Experiencing Issue,
+2,Confirm User has Access,"Confirm user has access to issue If user has access proceed to 3 If user does not have access, grant access",
+3,Confirm Items being Requested,"Confirm items being requested are showing, suppliers may not see what they are requesting because there are no current requests",
+4,Transfer to Appropriate Team,If this does not resolve the issue transfer to the appropriate team for further troubleshooting,
