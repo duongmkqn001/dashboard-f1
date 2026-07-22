@@ -14,7 +14,7 @@ const { URL } = require('url');
 // Config
 // ============================================================================
 const CONFLUENCE_EMAIL = 'lle31@wayfair.com';
-const CONFLUENCE_API_KEY = 'ATATT3xFfGF0MylzpU43ITGrELXebo0zEdBvAdsWRWn4_M5ItRNHW_q6voY4YZbzwBURgN1od6o55TlXaCzI5Tf7hrdSkdIfhYCJEwpyN3bZ_aCrTG5caT7CNP4mnPqUpSNcNtcUvZGPzN3_s9sEet_jjxTfVYM-VPm1Gfn3Ob6SEI-G3QmC4AI=53EFE2CE';
+const CONFLUENCE_API_KEY = process.env.CONFLUENCE_API_KEY || 'YOUR_API_KEY_HERE';
 
 const OUTPUT_DIR = path.join(__dirname, 'extracted_data');
 

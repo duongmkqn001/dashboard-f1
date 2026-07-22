@@ -11,7 +11,7 @@ import requests
 from html.parser import HTMLParser
 
 EMAIL   = "lle31@wayfair.com"
-API_KEY = "ATATT3xFfGF0MylzpU43ITGrELXebo0zEdBvAdsWRWn4_M5ItRNHW_q6voY4YZbzwBURgN1od6o55TlXaCzI5Tf7hrdSkdIfhYCJEwpyN3bZ_aCrTG5caT7CNP4mnPqUpSNcNtcUvZGPzN3_s9sEet_jjxTfVYM-VPm1Gfn3Ob6SEI-G3QmC4AI=53EFE2CE"
+API_KEY = os.environ.get("CONFLUENCE_API_KEY", "YOUR_API_KEY_HERE")
 BASE    = "https://wayfaircorp.atlassian.net/wiki"
 API     = f"{BASE}/rest/api"
 

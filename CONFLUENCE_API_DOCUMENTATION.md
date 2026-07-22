@@ -11,7 +11,7 @@ This project integrates with Atlassian Confluence (wayfaircorp.atlassian.net) to
 | Base URL | `https://wayfaircorp.atlassian.net` |
 | Wiki Domain | `wayfaircorp.atlassian.net/wiki` |
 | User Email | `lle31@wayfair.com` |
-| API Key | `ATATT3xFfGF0MylzpU43ITGrELXebo0zEdBvAdsWRWn4_M5ItRNHW_q6voY4YZbzwBURgN1od6o55TlXaCzI5Tf7hrdSkdIfhYCJEwpyN3bZ_aCrTG5caT7CNP4mnPqUpSNcNtcUvZGPzN3_s9sEet_jjxTfVYM-VPm1Gfn3Ob6SEI-G3QmC4AI=53EFE2CE` |
+| API Key | `ATATT3x...` | Stored in GitHub Secrets only |
 
 ## Target Space
 

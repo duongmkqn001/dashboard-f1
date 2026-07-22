@@ -483,10 +483,8 @@ def main():
     api_key = os.environ.get("CONFLUENCE_API_KEY")
     
     if not email or not api_key:
-        # Use credentials from CONFLUENCE_API_DOCUMENTATION.md
-        email = "lle31@wayfair.com"
-        api_key = "ATATT3xFfGF0MylzpU43ITGrELXebo0zEdBvAdsWRWn4_M5ItRNHW_q6voY4YZbzwBURgN1od6o55TlXaCzI5Tf7hrdSkdIfhYCJEwpyN3bZ_aCrTG5caT7CNP4mnPqUpSNcNtcUvZGPzN3_s9sEet_jjxTfVYM-VPm1Gfn3Ob6SEI-G3QmC4AI=53EFE2CE"
-        log.info("Using credentials from documentation")
+        log.error("CONFLUENCE_EMAIL and CONFLUENCE_API_KEY must be set in environment")
+        sys.exit(1)
     
     # Initialize client
     try:
