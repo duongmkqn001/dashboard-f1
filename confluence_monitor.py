@@ -43,14 +43,7 @@ from typing import Optional
 # ---------------------------------------------------------------------------
 import requests
 
-try:
-    import psycopg2
-    from psycopg2.extras import RealDictCursor
-except ImportError:
-    sys.stderr.write(
-        "psycopg2 not installed. Run: pip install psycopg2-binary\n"
-    )
-    sys.exit(1)
+import requests
 
 # ---------------------------------------------------------------------------
 # Logging
@@ -277,139 +270,134 @@ class ConfluenceClient:
 
 class SupabaseDB:
     """
-    Direct PostgreSQL connection to Supabase using psycopg2.
+    Supabase REST API client - works from GitHub Actions.
     Uses the service_role key so we bypass RLS and can write.
     """
 
     def __init__(self, url: str, service_role_key: str):
-        # Supabase connection string format:
-        # postgresql://postgres.[project_ref]:[password]@[host]/postgres
-        # Password is encoded in the JWT-style service_role key, so we
-        # extract the project ref from the URL and use a standard connection.
         self.url = url.rstrip("/")
         self.service_role_key = service_role_key
+        self.headers = {
+            "apikey": service_role_key,
+            "Authorization": f"Bearer {service_role_key}",
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal"
+        }
 
-        # Parse project ref from URL: https://xxxx.supabase.co → xxxx
+    def _get(self, path: str, params: dict = None) -> list | dict | None:
+        """Execute GET request to Supabase REST API."""
         try:
-            self.project_ref = self.url.split("//")[1].split(".")[0]
-        except Exception as exc:
-            log.error("Could not parse Supabase project ref from URL '%s': %s", self.url, exc)
-            raise
+            resp = requests.get(
+                f"{self.url}{path}",
+                headers=self.headers,
+                params=params,
+                timeout=30
+            )
+            if resp.status_code == 200:
+                return resp.json()
+            log.error("GET %s failed: %s %s", path, resp.status_code, resp.text[:200])
+            return None
+        except requests.RequestException as exc:
+            log.error("GET request failed: %s", exc)
+            return None
 
-        # Build connection string
-        # The password is actually the service_role key's signature portion;
-        # Supabase accepts service_role key as password directly via PG 15+ auth.
-        # For older clients we use a placeholder — Supabase will verify the JWT.
-        self._conn_string = (
-            f"postgresql://postgres.{self.project_ref}:{service_role_key}"
-            f"@{self.project_ref}.supabase.co:5432/postgres"
-        )
-
-    def connect(self):
+    def _post(self, path: str, body: dict = None) -> bool:
+        """Execute POST request to Supabase REST API."""
         try:
-            conn = psycopg2.connect(self._conn_string, connect_timeout=15)
-            conn.autocommit = True
-            return conn
-        except psycopg2.OperationalError as exc:
-            log.error("Cannot connect to Supabase: %s", exc)
-            raise
+            resp = requests.post(
+                f"{self.url}{path}",
+                headers=self.headers,
+                json=body,
+                timeout=30
+            )
+            if resp.status_code not in (200, 201, 204):
+                log.error("POST %s failed: %s %s", path, resp.status_code, resp.text[:200])
+                return False
+            return True
+        except requests.RequestException as exc:
+            log.error("POST request failed: %s", exc)
+            return False
 
-    def get_monitored_page_ids(self, conn) -> list[int]:
+    def _rpc(self, func_name: str, params: dict = None) -> dict | None:
+        """Execute RPC call to Supabase."""
+        try:
+            resp = requests.post(
+                f"{self.url}/rest/v1/rpc/{func_name}",
+                headers=self.headers,
+                json=params or {},
+                timeout=30
+            )
+            if resp.status_code in (200, 201):
+                return resp.json()
+            log.error("RPC %s failed: %s %s", func_name, resp.status_code, resp.text[:200])
+            return None
+        except requests.RequestException as exc:
+            log.error("RPC request failed: %s", exc)
+            return None
+
+    def get_monitored_page_ids(self) -> list[int]:
         """Return all page IDs currently in public.confluence_pages."""
-        with conn.cursor() as cur:
-            cur.execute("SELECT id FROM public.confluence_pages")
-            return [row[0] for row in cur.fetchall()]
+        result = self._get("/rest/v1/confluence_pages", {"select": "id"})
+        if result:
+            return [row["id"] for row in result]
+        return []
 
-    def upsert_page_and_log(self, conn, page: ConfluencePage) -> ChangeResult | None:
+    def upsert_page_and_log(self, page: ConfluencePage) -> ChangeResult | None:
         """
         Call track_confluence_change() and return a ChangeResult if the version changed.
         Returns None if no version change was detected.
         """
-        try:
-            with conn.cursor() as cur:
-                cur.execute(
-                    """
-                    SELECT track_confluence_change(
-                        %(id)s,
-                        %(title)s,
-                        %(space_key)s,
-                        %(version_number)s,
-                        %(version_when)s,
-                        %(version_by_name)s,
-                        %(body_content)s,
-                        %(labels)s,
-                        %(parent_id)s,
-                        %(change_type)s
-                    )
-                    """,
-                    {
-                        "id":               page.id,
-                        "title":            page.title,
-                        "space_key":        page.space_key,
-                        "version_number":   page.version_number,
-                        "version_when":     page.version_when,
-                        "version_by_name":  page.version_by_name,
-                        "body_content":     page.body_content,
-                        "labels":           page.labels,
-                        "parent_id":        page.parent_id,
-                        "change_type":      "updated",
-                    },
-                )
-                row = cur.fetchone()
-                if row is None:
-                    return None
-                result: dict = row[0] if isinstance(row[0], dict) else json.loads(row[0])
-                log_id = result.get("log_id")
-                change_type = result.get("change_type", "unchanged")
+        result = self._rpc("track_confluence_change", {
+            "in_id": page.id,
+            "in_title": page.title,
+            "in_space_key": page.space_key,
+            "in_version_number": page.version_number,
+            "in_version_when": page.version_when,
+            "in_version_by_name": page.version_by_name,
+            "in_body_content": page.body_content,
+            "in_labels": page.labels,
+            "in_parent_id": page.parent_id,
+            "in_change_type": "updated",
+        })
+        
+        if result is None:
+            return None
+        
+        change_type = result.get("change_type", "unchanged")
+        if change_type == "unchanged":
+            return None
 
-                if change_type == "unchanged":
-                    return None
+        return ChangeResult(
+            change_type=change_type,
+            old_version=result.get("old_version"),
+            new_version=result.get("new_version"),
+            log_id=result.get("log_id"),
+            summary=result.get("summary", ""),
+            page_title=page.title,
+            page_id=page.id,
+            url=f"{CONFLUENCE_BASE}/wiki/spaces/{page.space_key}/pages/{page.id}",
+        )
 
-                return ChangeResult(
-                    change_type=change_type,
-                    old_version=result.get("old_version"),
-                    new_version=result.get("new_version"),
-                    log_id=log_id,
-                    summary=result.get("summary", ""),
-                    page_title=page.title,
-                    page_id=page.id,
-                    url=f"{CONFLUENCE_BASE}/wiki/spaces/{page.space_key}/pages/{page.id}",
-                )
-        except psycopg2.Error as exc:
-            log.error("Supabase upsert failed for page %d: %s", page.id, exc)
-            raise
-
-    def get_pending_notifications(self, conn) -> list[dict]:
+    def get_pending_notifications(self) -> list[dict]:
         """Return rows from confluence_pending_notifications view."""
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(
-                "SELECT * FROM public.confluence_pending_notifications ORDER BY changed_at DESC"
-            )
-            return list(cur.fetchall())
+        result = self._get("/rest/v1/confluence_pending_notifications", {
+            "select": "*",
+            "order": "changed_at.desc"
+        })
+        return result if result else []
 
-    def mark_notified(self, conn, log_id: int):
+    def mark_notified(self, log_id: int):
         """Mark a changelog row as notified."""
-        with conn.cursor() as cur:
-            cur.execute(
-                "SELECT public.mark_confluence_notified(%s)",
-                (log_id,)
-            )
+        self._rpc("mark_confluence_notified", {"in_log_id": log_id})
 
-    def upsert_monitored_page_id(self, conn, page_id: int):
-        """
-        Ensure a page ID is in confluence_pages before monitoring.
-        If it doesn't exist, insert a stub row so track_confluence_change() can update it.
-        """
-        with conn.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO public.confluence_pages
-                    (id, title, space_key, version_number, last_checked_at)
-                VALUES (%s, 'unknown', %s, 0, NOW())
-                ON CONFLICT (id) DO NOTHING
-                """,
-                (page_id, SPACE_KEY)
-            )
+    def upsert_monitored_page_id(self, page_id: int):
+        """Ensure a page ID is in confluence_pages before monitoring."""
+        self._post("/rest/v1/confluence_pages", {
+            "id": page_id,
+            "title": "unknown",
+            "space_key": SPACE_KEY,
+            "version_number": 0
+        })
 
 
 # ---------------------------------------------------------------------------
@@ -552,27 +540,21 @@ def run_monitor(
 
     # --- Supabase connection ---
     db = SupabaseDB(supabase_url, supabase_srk)
-
-    try:
-        conn = db.connect()
-        log.info("Supabase connected OK")
-    except Exception as exc:
-        log.error("Cannot connect to Supabase: %s", exc)
-        raise SystemExit(1)
+    log.info("Supabase client initialized")
 
     # Resolve page list - use DEFAULT_PAGES as source of truth for monitored pages
     if page_ids:
         # User provided specific page IDs - monitor only those
         target_ids = page_ids
         for pid in target_ids:
-            db.upsert_monitored_page_id(conn, pid)
+            db.upsert_monitored_page_id(pid)
     else:
         # No specific pages provided - use DEFAULT_PAGES + CHANGE_LOG_PAGES
         target_ids = DEFAULT_PAGES.copy()
         # Also add change log pages to default monitoring
         target_ids.extend(CHANGE_LOG_PAGES)
         for pid in target_ids:
-            db.upsert_monitored_page_id(conn, pid)
+            db.upsert_monitored_page_id(pid)
 
     # --- Confluence connection ---
     try:
@@ -611,7 +593,7 @@ def run_monitor(
             continue
 
         try:
-            result = db.upsert_page_and_log(conn, page)
+            result = db.upsert_page_and_log(page)
         except Exception as exc:
             log.error("Failed to upsert page %d to Supabase: %s", page_id, exc)
             continue
@@ -635,7 +617,7 @@ def run_monitor(
         if ok:
             for chg in all_changes:
                 if chg.log_id:
-                    db.mark_notified(conn, chg.log_id)
+                    db.mark_notified(chg.log_id)
                     log.info("Marked changelog row %d as notified", chg.log_id)
         else:
             log.warning("Discord notification failed — %d rows left as un-notified", len(all_changes))
